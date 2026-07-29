@@ -1,0 +1,5 @@
+target/
+.git/
+pkg/
+dist/
+node_modules/

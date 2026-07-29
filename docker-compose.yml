@@ -1,0 +1,49 @@
+# GW-01 sandbox: emulator + MQTT broker + Prometheus + Grafana.
+# `docker compose up` then open http://localhost:3000 for a live SoC chart.
+# Everything binds to localhost on the host side. The MQTT broker allows
+# anonymous access: this is a local sandbox default, not a deployment.
+
+services:
+  emulator:
+    build: .
+    command:
+      - "--modbus"
+      - "0.0.0.0:1502"
+      - "--http"
+      - "0.0.0.0:8080"
+      - "--mqtt-host"
+      - "mosquitto"
+      - "--speed"
+      - "60"
+    ports:
+      - "127.0.0.1:1502:1502" # Modbus TCP
+      - "127.0.0.1:8080:8080" # REST + WebSocket + metrics
+    depends_on:
+      - mosquitto
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports:
+      - "127.0.0.1:1883:1883"
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus

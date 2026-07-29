@@ -1,0 +1,29 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Lint (warnings are errors in CI)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests (physics invariants, determinism, calibration gate)
+        run: cargo test --workspace
+      - name: Signal map is in sync
+        run: |
+          cargo run -p bess-emulator -- --dump-signal-map /tmp/map.csv
+          diff -u refmodel/gw01-signal-map.csv /tmp/map.csv

@@ -1,0 +1,15 @@
+{
+  "name": "bess-emulator-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx read_and_dispatch.ts"
+  },
+  "dependencies": {
+    "mqtt": "^5"
+  },
+  "devDependencies": {
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "uid": "gw01",
+  "title": "GW-01 overview",
+  "tags": ["bess-emulator"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Site state of charge",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "bess_site_soc_ratio",
+          "legendFormat": "SoC"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "POI active power (positive = export)",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "bess_poi_active_power_watts",
+          "legendFormat": "POI"
+        },
+        {
+          "refId": "B",
+          "expr": "bess_site_setpoint_watts",
+          "legendFormat": "setpoint"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Grid frequency",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "hertz",
+          "min": 49.9,
+          "max": 50.1,
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "bess_grid_frequency_hertz",
+          "legendFormat": "f"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "POI energy meters",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watth",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "bess_import_watthours_total",
+          "legendFormat": "import"
+        },
+        {
+          "refId": "B",
+          "expr": "bess_export_watthours_total",
+          "legendFormat": "export"
+        }
+      ]
+    }
+  ]
+}
