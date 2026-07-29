@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/bess-core",
     "crates/bess-models",
+    "crates/bess-emulator",
 ]
 
 [workspace.package]
