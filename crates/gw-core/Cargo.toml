@@ -1,0 +1,9 @@
+[package]
+name = "gw-core"
+description = "Deterministic simulation kernel for a synthetic grid-scale battery plant"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
