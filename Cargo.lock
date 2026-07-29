@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "gw-core"
+name = "bess-core"
 version = "0.0.1"

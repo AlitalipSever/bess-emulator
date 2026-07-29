@@ -1,5 +1,5 @@
 [package]
-name = "gw-core"
+name = "bess-core"
 description = "Deterministic simulation kernel for a synthetic grid-scale battery plant"
 version.workspace = true
 edition.workspace = true

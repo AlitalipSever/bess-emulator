@@ -13,12 +13,12 @@ kinds of surfaces a real site has.
 
 ```
                         ┌─────────────────────────────────────────┐
- Real historical data   │                gw-core                  │
+ Real historical data   │                bess-core                │
  day-ahead prices  ──┐  │  ┌───────────────────────────────────┐  │
  weather           ──┼─►│  │ Kernel: step(state, inputs)       │  │
  grid frequency    ──┘  │  │ fixed tick, seeded PRNG, no IO    │  │
  (compiled offline      │  └───────────────┬───────────────────┘  │
-  by gw-data)           │                  │                      │
+  by bess-data)         │                  │                      │
                         │        State tree (single truth)        │
                         └──────────┬───────┴────────┬─────────────┘
                                    │  projections   │
@@ -28,7 +28,7 @@ kinds of surfaces a real site has.
      (SunSpec-based ref)    (tree paths)       (browser UI)       (research)
               │                    │                │                  │
    ┌──────────┴────────────────────┴───────┐  ┌─────┴──────────┐  ┌────┴──────┐
-   │  gw-simd (native binary / Docker)     │  │ gw-wasm        │  │ gw-bench  │
+   │  bess-emulator (native / Docker)      │  │ bess-wasm      │  │ bess-bench│
    │  Modbus TCP slave, MQTT publisher,    │  │ (browser)      │  │ (CLI,     │
    │  REST control, WebSocket              │  │ kernel + scene │  │ calibration│
    │  audience: EMS/pipeline engineers     │  │ in one WASM    │  │ + CI)     │
@@ -84,7 +84,7 @@ share, revenue) must land inside publicly documented fleet bands. Results live
 in CALIBRATION.md (added with the first calibrated release). We never emit a
 signal we cannot calibrate; an absent signal is honest, an invented one is not.
 
-## gw-core: the kernel
+## bess-core: the kernel
 
 The kernel is a pure function: `step(state, tick_inputs) -> (state', events)`.
 No wall clock, no IO, no threads; randomness only from a seeded PRNG.
@@ -96,7 +96,7 @@ No wall clock, no IO, no threads; randomness only from a seeded PRNG.
   difference.
 - **External world as data:** prices, weather, frequency, and balancing
   activations enter as pre-compiled, versioned time series. Fetching and
-  parsing happen offline in gw-data.
+  parsing happen offline in bess-data.
 - **Checkpointing:** kernel state is serializable. This enables "play five
   years, continue from year five", pre-aged plant presets, and shareable
   reproductions (snapshot + scenario + seed).
@@ -239,11 +239,11 @@ events:
 ```
 
 Scenario file + seed = reproduction. In CI:
-`gw-simd --scenario s.yaml --assert snapshot.json`.
+`bess-emulator --scenario s.yaml --assert snapshot.json`.
 
 ## Shells
 
-**gw-simd (native, Docker).** Modbus TCP slave, MQTT publisher, REST control
+**bess-emulator (native, Docker).** Modbus TCP slave, MQTT publisher, REST control
 API (load scenario, change speed, query status), WebSocket stream. The Docker
 compose bundle includes Grafana with a ready dashboard; the target is a live
 SoC chart within 60 seconds of `docker compose up`. The emulator is itself
@@ -251,12 +251,12 @@ observable: health endpoint, structured logs, Prometheus metrics. Safe
 defaults: ports bind to localhost; MQTT auth is available; Modbus has no auth
 by nature and the README says so plainly.
 
-**gw-wasm (browser).** gw-core and gw-scene compile into a single WASM module.
+**bess-wasm (browser).** bess-core and bess-scene compile into a single WASM module.
 No protocols, no JS bridge for data: the scene and panels read the state tree
 from Rust memory. Datasets for selected days ship as static files. A full
 simulation with zero installation.
 
-**gw-scene (the view layer, all Rust).** The entire product UI lives in one
+**bess-scene (the view layer, all Rust).** The entire product UI lives in one
 canvas: a 3D instanced-rendering scene of the site plus egui panels for BMS,
 EMS, PCS, and substation views (precedent: the Rerun viewer). The DOM is only a
 thin HTML shell. The GL plumbing targets `glow`, so the same view layer can run
@@ -264,37 +264,39 @@ in the browser (WebGL2) and natively (OpenGL). Clicking geometry selects a tree
 node and opens its panel; the scene is a view over the state tree and never
 touches the kernel directly.
 
-**gw-bench (CLI).** Runs long simulations as fast as possible, extracts KPIs
+**bess-bench (CLI).** Runs long simulations as fast as possible, extracts KPIs
 (annual RTE, auxiliary share, cycles, revenue), and compares them against
 public fleet bands. Its output is CALIBRATION.md.
 
 ## Repository layout
 
-Crates carry the `gw-` prefix, named after the GW-01 reference plant.
+Library crates share the `bess-` prefix. The native shell crate is
+`bess-emulator` itself: it builds the `bess-emulator` binary, so the cargo
+binary and the npm package carry the same product name.
 
 ```
 bess-emulator/
   crates/
-    gw-core/       kernel + state tree + layer traits
-    gw-models/     default model implementations
-    gw-scenario/   YAML scenarios + fault injection
-    gw-data/       dataset compilers (prices, weather, frequency, activations)
-    gw-proto/      Modbus map generator + MQTT projection
-    gw-scene/      view layer: 3D scene + egui panels
-    gw-simd/       native shell
-    gw-wasm/       browser entry: gw-core + gw-scene in one WASM module
-    gw-bench/      calibration CLI
+    bess-core/       kernel + state tree + layer traits
+    bess-models/     default model implementations
+    bess-scenario/   YAML scenarios + fault injection
+    bess-data/       dataset compilers (prices, weather, frequency, activations)
+    bess-proto/      Modbus map generator + MQTT projection
+    bess-scene/      view layer: 3D scene + egui panels
+    bess-emulator/ native shell (builds the bess-emulator binary)
+    bess-wasm/       browser entry: bess-core + bess-scene in one WASM module
+    bess-bench/      calibration CLI
   refmodel/        published signal map (JSON + CSV, semver)
   scenarios/       scenario library (EPRI taxonomy + calendar + maintenance)
   examples/        minimal Python + TypeScript clients (connect, read, write a setpoint)
   ARCHITECTURE.md  this file
   ROADMAP.md       order of work
-  CALIBRATION.md   gw-bench output (arrives with the first calibrated release)
+  CALIBRATION.md   bess-bench output (arrives with the first calibrated release)
   COMPATIBILITY.md register map stability contract (arrives with the first public map)
   DATA-LICENSES.md license and redistribution status of every bundled dataset
 ```
 
-Datasets with restricted redistribution are never bundled; gw-data ships a
+Datasets with restricted redistribution are never bundled; bess-data ships a
 fetch script instead, and DATA-LICENSES.md records the status of each source.
 
 ## Non-goals
