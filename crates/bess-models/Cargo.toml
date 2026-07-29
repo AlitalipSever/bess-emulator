@@ -1,15 +1,17 @@
 [package]
-name = "bess-core"
-description = "Deterministic simulation kernel for a synthetic grid-scale battery plant"
+name = "bess-models"
+description = "Default model implementations for the bess-emulator kernel"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [dependencies]
+bess-core = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
 serde_json = { workspace = true }
-thiserror = { workspace = true }
 
 [lints]
 workspace = true

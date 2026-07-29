@@ -1,23 +1,32 @@
 //! Deterministic simulation kernel for a synthetic grid-scale battery plant.
 //!
-//! The kernel is a pure function over its state: `step(state, inputs)` advances
-//! the plant by one fixed tick. No wall clock, no IO, no threads; all randomness
-//! comes from a seeded PRNG. Given the same seed, scenario, and dataset version,
-//! two runs produce byte-identical output.
+//! `bess-core` owns the state tree, the layer traits, and the tick loop.
+//! The kernel is a pure function of state and inputs: no wall clock, no IO,
+//! no threads, randomness only from a seeded PRNG stored inside the state.
+//! Given the same seed, configuration, and input series, two runs produce
+//! byte-identical state; a golden-snapshot test enforces this.
+//!
+//! Default model implementations live in `bess-models`. Protocol surfaces
+//! and time control (real time, accelerated, as-fast-as-possible) live in
+//! the shells; the kernel cannot tell the difference.
 
-/// Simulation tick length in seconds. All plant dynamics advance in steps of
-/// this size; publication layers decimate per-signal on top of it.
+pub mod checkpoint;
+pub mod config;
+pub mod kernel;
+pub mod rng;
+pub mod state;
+pub mod traits;
+
+pub use config::PlantConfig;
+pub use kernel::{Inputs, Simulation};
+pub use state::SiteState;
+pub use traits::Models;
+
+/// Simulation tick length in seconds. Power flow is quasi-static within a
+/// tick; publication layers decimate per-signal on top of it.
 pub const TICK_SECONDS: u64 = 1;
 
-/// Crate version, e.g. for shells to report in health endpoints.
+/// Kernel crate version, embedded in checkpoints and health endpoints.
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn version_is_nonempty() {
-        assert!(!super::version().is_empty());
-    }
 }
