@@ -1,11 +1,11 @@
 # Architecture
 
-This document describes how gw-emulator is built and why. For what is planned
+This document describes how bess-emulator is built and why. For what is planned
 and in which order, see [ROADMAP.md](ROADMAP.md).
 
 ## Overview
 
-gw-emulator is a synthetic grid-scale battery plant. One deterministic Rust
+bess-emulator is a synthetic grid-scale battery plant. One deterministic Rust
 simulation core drives a fictional but internally consistent 100 MW / 200 MWh
 plant. Everything observable from the outside, telemetry, alarms, control
 responses, is produced by a closed-loop simulation and exposed through the same
@@ -270,8 +270,10 @@ public fleet bands. Its output is CALIBRATION.md.
 
 ## Repository layout
 
+Crates carry the `gw-` prefix, named after the GW-01 reference plant.
+
 ```
-gw-emulator/
+bess-emulator/
   crates/
     gw-core/       kernel + state tree + layer traits
     gw-models/     default model implementations

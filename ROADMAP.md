@@ -5,7 +5,7 @@ dates are deliberately absent.
 
 ## Method
 
-gw-emulator grows as a walking skeleton: the whole plant runs end to end from
+bess-emulator grows as a walking skeleton: the whole plant runs end to end from
 the first milestone, with every layer at its simplest useful depth, and each
 iteration deepens exactly one module. An iteration is done when all three hold:
 

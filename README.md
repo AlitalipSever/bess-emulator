@@ -1,8 +1,8 @@
-# gw-emulator
+# bess-emulator
 
 A synthetic grid-scale battery plant (BESS) emulator.
 
-gw-emulator simulates a realistic 100 MW / 200 MWh battery plant, from cells and
+bess-emulator simulates a realistic 100 MW / 200 MWh battery plant, from cells and
 battery management up to power conversion, plant control, and the grid connection,
 and exposes it the way a real site does: as live telemetry behind industrial
 protocol surfaces. Point your EMS, SCADA integration, monitoring platform, or data
