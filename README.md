@@ -22,6 +22,14 @@ Think of it as a local, controllable stand-in for a battery plant:
   endpoints, and as a fully client-side browser build with an explorable 3D view
   of the plant.
 
+## Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md): how it is built and why, including the
+  reference plant, the deterministic kernel, the state tree contract, and the
+  explicit non-goals.
+- [ROADMAP.md](ROADMAP.md): order of work, milestone by milestone, with the
+  calibration target each one must hit.
+
 ## Status
 
 Pre-alpha. The workspace currently contains the kernel crate skeleton; interfaces
