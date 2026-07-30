@@ -63,6 +63,35 @@ void main() {
   outColor = vec4(mix(lit, uFog, f), 1.0);
 }";
 
+/// Present-pass vertex shader: a fullscreen triangle from `gl_VertexID`,
+/// no vertex buffers involved.
+const PRESENT_VS_BODY: &str = r"
+out vec2 vUv;
+void main() {
+  vec2 uv = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  vUv = uv;
+  gl_Position = vec4(uv * 2.0 - 1.0, 0.0, 1.0);
+}";
+
+/// Present-pass fragment shader: sample the offscreen scene texture.
+const PRESENT_FS_BODY: &str = r"
+in vec2 vUv;
+uniform sampler2D uScene;
+out vec4 outColor;
+void main() {
+  outColor = texture(uScene, vUv);
+}";
+
+/// Present vertex shader source for the target platform.
+pub fn present_vertex(es: bool) -> String {
+    compose(PRESENT_VS_BODY, es)
+}
+
+/// Present fragment shader source for the target platform.
+pub fn present_fragment(es: bool) -> String {
+    compose(PRESENT_FS_BODY, es)
+}
+
 /// Compose a stage source for the target platform.
 fn compose(body: &str, es: bool) -> String {
     if es {

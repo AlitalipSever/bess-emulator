@@ -41,7 +41,7 @@ pub struct FrameData {
 
 struct Target {
     fbo: glow::Framebuffer,
-    color: glow::Renderbuffer,
+    color: glow::Texture,
     depth: glow::Renderbuffer,
     size: (i32, i32),
 }
@@ -66,6 +66,13 @@ pub struct Renderer {
     mesh_vbo: glow::Buffer,
     ground_vbo: glow::Buffer,
     obj_vbo: glow::Buffer,
+    /// Present pass: draws the offscreen color texture into egui's target
+    /// as a fullscreen triangle. A blit would be simpler, but WebGL2
+    /// forbids blitting into the (usually multisampled) canvas
+    /// framebuffer, which turns the scene black in the browser.
+    present_program: glow::Program,
+    present_vao: glow::VertexArray,
+    present_tex_loc: glow::UniformLocation,
     uniforms: Uniforms,
     target: Option<Target>,
 }
@@ -120,6 +127,26 @@ impl Renderer {
             let obj_vbo = gl.create_buffer()?;
             gl.bind_vertex_array(None);
 
+            let present_program = gl.create_program()?;
+            let pvs = compile(gl, glow::VERTEX_SHADER, &shaders::present_vertex(es))?;
+            let pfs = compile(gl, glow::FRAGMENT_SHADER, &shaders::present_fragment(es))?;
+            gl.attach_shader(present_program, pvs);
+            gl.attach_shader(present_program, pfs);
+            gl.link_program(present_program);
+            if !gl.get_program_link_status(present_program) {
+                return Err(gl.get_program_info_log(present_program));
+            }
+            gl.detach_shader(present_program, pvs);
+            gl.detach_shader(present_program, pfs);
+            gl.delete_shader(pvs);
+            gl.delete_shader(pfs);
+            let present_tex_loc = gl
+                .get_uniform_location(present_program, "uScene")
+                .ok_or("uniform uScene not found")?;
+            // Core profiles refuse to draw without a bound VAO, even with no
+            // attributes; the present pass gets an empty one.
+            let present_vao = gl.create_vertex_array()?;
+
             let loc = |name: &str| {
                 gl.get_uniform_location(program, name)
                     .ok_or_else(|| format!("uniform {name} not found"))
@@ -143,6 +170,9 @@ impl Renderer {
                 mesh_vbo,
                 ground_vbo,
                 obj_vbo,
+                present_program,
+                present_vao,
+                present_tex_loc,
                 uniforms,
                 target: None,
             })
@@ -159,23 +189,55 @@ impl Renderer {
         unsafe {
             if let Some(t) = self.target.take() {
                 gl.delete_framebuffer(t.fbo);
-                gl.delete_renderbuffer(t.color);
+                gl.delete_texture(t.color);
                 gl.delete_renderbuffer(t.depth);
             }
             let fbo = gl.create_framebuffer()?;
-            let color = gl.create_renderbuffer()?;
+            let color = gl.create_texture()?;
             let depth = gl.create_renderbuffer()?;
-            gl.bind_renderbuffer(glow::RENDERBUFFER, Some(color));
-            gl.renderbuffer_storage(glow::RENDERBUFFER, glow::RGBA8, w, h);
+            gl.bind_texture(glow::TEXTURE_2D, Some(color));
+            gl.tex_image_2d(
+                glow::TEXTURE_2D,
+                0,
+                glow::RGBA8 as i32,
+                w,
+                h,
+                0,
+                glow::RGBA,
+                glow::UNSIGNED_BYTE,
+                glow::PixelUnpackData::Slice(None),
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MIN_FILTER,
+                glow::NEAREST as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MAG_FILTER,
+                glow::NEAREST as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_WRAP_S,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_WRAP_T,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+            gl.bind_texture(glow::TEXTURE_2D, None);
             gl.bind_renderbuffer(glow::RENDERBUFFER, Some(depth));
             gl.renderbuffer_storage(glow::RENDERBUFFER, glow::DEPTH_COMPONENT24, w, h);
             gl.bind_renderbuffer(glow::RENDERBUFFER, None);
             gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
-            gl.framebuffer_renderbuffer(
+            gl.framebuffer_texture_2d(
                 glow::FRAMEBUFFER,
                 glow::COLOR_ATTACHMENT0,
-                glow::RENDERBUFFER,
+                glow::TEXTURE_2D,
                 Some(color),
+                0,
             );
             gl.framebuffer_renderbuffer(
                 glow::FRAMEBUFFER,
@@ -306,28 +368,23 @@ impl Renderer {
             gl.uniform_1_f32(Some(&u.shadow), 0.0);
             gl.draw_arrays_instanced(glow::TRIANGLES, 0, 36, (frame.objects.len() / FPI) as i32);
 
-            // blit into egui's target and restore its state
-            gl.bind_vertex_array(None);
+            // present into egui's target: draw the scene texture as a
+            // fullscreen triangle over the callback viewport
             gl.disable(glow::DEPTH_TEST);
             gl.disable(glow::CULL_FACE);
-            gl.bind_framebuffer(glow::READ_FRAMEBUFFER, Some(target.fbo));
-            gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, target_fbo);
-            gl.blit_framebuffer(
-                0,
-                0,
-                w,
-                h,
-                vp.left_px,
-                vp.from_bottom_px,
-                vp.left_px + w,
-                vp.from_bottom_px + h,
-                glow::COLOR_BUFFER_BIT,
-                glow::NEAREST,
-            );
             gl.bind_framebuffer(glow::FRAMEBUFFER, target_fbo);
+            gl.viewport(vp.left_px, vp.from_bottom_px, w, h);
             if scissor_was_on {
                 gl.enable(glow::SCISSOR_TEST);
             }
+            gl.use_program(Some(self.present_program));
+            gl.bind_vertex_array(Some(self.present_vao));
+            gl.active_texture(glow::TEXTURE0);
+            gl.bind_texture(glow::TEXTURE_2D, Some(target.color));
+            gl.uniform_1_i32(Some(&self.present_tex_loc), 0);
+            gl.draw_arrays(glow::TRIANGLES, 0, 3);
+            gl.bind_texture(glow::TEXTURE_2D, None);
+            gl.bind_vertex_array(None);
 
             // Debug builds: surface GL errors instead of rendering garbage
             // silently. GL error checks stall the pipeline, so never in
@@ -346,13 +403,15 @@ impl Renderer {
     pub fn destroy(&mut self, gl: &glow::Context) {
         unsafe {
             gl.delete_program(self.program);
+            gl.delete_program(self.present_program);
             gl.delete_vertex_array(self.vao);
+            gl.delete_vertex_array(self.present_vao);
             gl.delete_buffer(self.mesh_vbo);
             gl.delete_buffer(self.ground_vbo);
             gl.delete_buffer(self.obj_vbo);
             if let Some(t) = self.target.take() {
                 gl.delete_framebuffer(t.fbo);
-                gl.delete_renderbuffer(t.color);
+                gl.delete_texture(t.color);
                 gl.delete_renderbuffer(t.depth);
             }
         }
