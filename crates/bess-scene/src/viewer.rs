@@ -10,9 +10,10 @@ use crate::panels::{self, PanelState};
 use crate::scene::SceneView;
 use crate::ViewerCommand;
 
-/// 2026-07-14 06:00:00 UTC: a summer morning, so the first minutes of a
-/// 60x session show sunrise, the charge window, and the midday plateau.
-const START_UNIX_S: i64 = 1_767_225_600 + 194 * 86_400 + 6 * 3600;
+/// 2026-07-14 11:00:00 UTC: a bright summer late morning, so the plant
+/// opens in full daylight and a 60x session reaches the evening discharge
+/// window within minutes.
+const START_UNIX_S: i64 = 1_767_225_600 + 194 * 86_400 + 11 * 3600;
 
 /// Ticks are capped per frame so a stall (window drag, breakpoint) does not
 /// freeze the UI catching up.
