@@ -4,6 +4,8 @@ members = [
     "crates/bess-core",
     "crates/bess-models",
     "crates/bess-emulator",
+    "crates/bess-scene",
+    "crates/bess-wasm",
 ]
 
 [workspace.package]
@@ -15,6 +17,7 @@ repository = "https://github.com/AlitalipSever/bess-emulator"
 [workspace.dependencies]
 bess-core = { path = "crates/bess-core", version = "0.0.1" }
 bess-models = { path = "crates/bess-models", version = "0.0.1" }
+bess-scene = { path = "crates/bess-scene", version = "0.0.1" }
 serde = { version = "1", features = ["derive"] }
 # float_roundtrip: checkpoint restore must reproduce every f64 bit-exactly,
 # and serde_json's default (faster) float parser can be off by 1 ULP.

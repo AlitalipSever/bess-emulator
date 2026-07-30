@@ -80,6 +80,21 @@ bind to localhost; if you expose these ports beyond your machine, that is a
 deployment decision with the same implications it has for real plant
 equipment.
 
+## The 3D view
+
+The product UI is written entirely in Rust (a 3D site scene plus egui
+panels over one `glow` context) and runs both natively and in the browser
+from the same code. Try it in a window:
+
+```sh
+cargo run --release -p bess-scene --features sim --example viewer
+```
+
+Orbit with the mouse (right-drag or shift-drag pans, scroll zooms), switch
+to fly mode to move freely over the site (WASD + QE, shift = fast), and
+click a container, a PCS skid, or the transformer to open its panel. The
+browser build is `wasm-pack build crates/bess-wasm --target web`.
+
 ## Status
 
 Pre-alpha, milestone M0 (walking skeleton). The whole plant runs end to end

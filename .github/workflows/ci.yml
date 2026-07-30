@@ -16,6 +16,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - name: Format
         run: cargo fmt --all --check
@@ -23,6 +24,8 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests (physics invariants, determinism, calibration gate)
         run: cargo test --workspace
+      - name: Browser build stays green
+        run: cargo check -p bess-wasm --target wasm32-unknown-unknown
       - name: Signal map is in sync
         run: |
           cargo run -p bess-emulator -- --dump-signal-map /tmp/map.csv

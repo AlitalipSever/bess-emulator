@@ -1,0 +1,65 @@
+[package]
+name = "bess-scene"
+description = "All-Rust view layer for bess-emulator: 3D site scene plus egui panels over one glow context"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+# The self-contained viewer application: owns a Simulation and steps it.
+# The scene and panels themselves never touch the kernel; they only read
+# &SiteState and emit commands.
+sim = ["dep:bess-models"]
+
+[dependencies]
+bess-core = { workspace = true }
+bess-models = { workspace = true, optional = true }
+bytemuck = "1"
+egui = "0.35"
+# glow backend explicitly: eframe 0.35 defaults to wgpu, and this crate's
+# whole point is one GL path for WebGL2 (browser) and OpenGL (native).
+eframe = { version = "0.35", default-features = false, features = [
+    "accesskit",
+    "default_fonts",
+    "glow",
+    "wayland",
+    "x11",
+] }
+log = "0.4.33"
+
+[[example]]
+name = "viewer"
+required-features = ["sim"]
+
+# This crate cannot inherit the workspace lint table: the glow API is unsafe
+# by design, so unsafe code is denied crate-wide and allowed only inside the
+# renderer module. Everything else mirrors the workspace configuration.
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+similar_names = "allow"
+suboptimal_flops = "allow"
+doc_markdown = "allow"
+cast_possible_wrap = "allow"
+# Instance builders are long lists of cuboids by nature; splitting them into
+# arbitrary halves would not make them clearer.
+too_many_lines = "allow"
+# Geometry code: x/y/z/o/s single letters and (a + b) / 2 midpoints on
+# metre-scale f32 coordinates are the natural idiom and cannot overflow.
+many_single_char_names = "allow"
+manual_midpoint = "allow"
+# FlyInput is literally a set of keys currently held.
+struct_excessive_bools = "allow"
