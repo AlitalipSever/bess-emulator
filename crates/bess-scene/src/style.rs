@@ -1,6 +1,8 @@
-//! Material palette. Neutral site colors derive from the page background so
-//! the scene reads correctly on light and dark surfaces; the signal colors
-//! (charge, discharge, alarm) are fixed so their meaning never shifts.
+//! Material palette. Site materials carry fixed, physically plausible
+//! albedos (light-gray container steel, concrete, asphalt) so that daylight
+//! actually reads as daylight; the sun model only scales the light, never
+//! the material. Signal colors (charge, discharge, alarm) are fixed so
+//! their meaning never shifts.
 
 /// Signal colors, constant across themes.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -26,16 +28,20 @@ impl Default for Palette {
     }
 }
 
-/// Neutral material colors derived from the page background.
+/// Site material albedos and sky colors.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Style {
+    /// Surrounding terrain (dry grassland), extends to the horizon.
+    pub terrain: [f32; 3],
     /// Site gravel apron.
     pub gravel: [f32; 3],
     /// Concrete pads.
     pub pad: [f32; 3],
-    /// Painted road / aisle strip.
+    /// Asphalt road strip.
     pub aisle: [f32; 3],
-    /// Container and cabinet steel.
+    /// Road lane markings.
+    pub marking: [f32; 3],
+    /// Container and cabinet steel (RAL-7035-like light gray).
     pub steel: [f32; 3],
     /// Darker steel (plinths, trays, poles).
     pub steel_dark: [f32; 3],
@@ -47,46 +53,34 @@ pub struct Style {
     pub gauge_bg: [f32; 3],
     /// Handles, light mast heads.
     pub handle: [f32; 3],
-    /// Hemisphere light, sky side.
+    /// Hemisphere light, sky side (scaled by ambient per frame).
     pub sky: [f32; 3],
     /// Hemisphere light, ground side.
     pub ground_light: [f32; 3],
-    /// Page background the style was derived from.
-    pub background: [f32; 3],
-}
-
-/// Default dark page background for the standalone viewer.
-pub const DARK_BACKGROUND: [f32; 3] = [0.055, 0.060, 0.075];
-
-impl Style {
-    /// Derive the neutral material set from a page background color (0..1).
-    pub fn from_background(bg: [f32; 3]) -> Style {
-        let tint = |k: f32, lift: f32| {
-            [
-                (bg[0] * k + lift).min(1.0),
-                (bg[1] * k + lift).min(1.0),
-                (bg[2] * k + lift * 0.97).min(1.0),
-            ]
-        };
-        Style {
-            gravel: tint(0.8, 0.02),
-            pad: tint(0.88, 0.04),
-            aisle: tint(0.7, 0.03),
-            steel: tint(0.62, 0.16),
-            steel_dark: tint(0.45, 0.10),
-            roof: tint(0.55, 0.2),
-            fin: tint(0.5, 0.13),
-            gauge_bg: tint(0.4, 0.05),
-            handle: tint(0.9, 0.25),
-            sky: tint(0.55, 0.34),
-            ground_light: tint(0.4, 0.12),
-            background: bg,
-        }
-    }
+    /// Clear/fog color at full day.
+    pub day_sky: [f32; 3],
+    /// Clear/fog color at night.
+    pub night_sky: [f32; 3],
 }
 
 impl Default for Style {
     fn default() -> Self {
-        Self::from_background(DARK_BACKGROUND)
+        Self {
+            terrain: [0.33, 0.36, 0.27],
+            gravel: [0.47, 0.45, 0.40],
+            pad: [0.58, 0.58, 0.56],
+            aisle: [0.29, 0.29, 0.31],
+            marking: [0.78, 0.78, 0.74],
+            steel: [0.75, 0.76, 0.77],
+            steel_dark: [0.24, 0.25, 0.27],
+            roof: [0.60, 0.61, 0.62],
+            fin: [0.40, 0.41, 0.43],
+            gauge_bg: [0.09, 0.10, 0.11],
+            handle: [0.86, 0.86, 0.87],
+            sky: [0.42, 0.48, 0.58],
+            ground_light: [0.34, 0.33, 0.29],
+            day_sky: [0.58, 0.69, 0.84],
+            night_sky: [0.015, 0.025, 0.055],
+        }
     }
 }

@@ -135,12 +135,14 @@ impl SceneView {
         // -- frame data -------------------------------------------------
         let light = sun::sun_at(state.unix_time_s());
         let nightness = (1.0 - light.daylight).powf(1.4);
-        let bg = self.style.background;
-        let mixv = |a: f32, b: f32| a * (1.0 - nightness * 0.88) + b * nightness * 0.88;
+        // Sky brightens faster than the sun climbs (dawn reads as morning).
+        let sky_t = light.daylight.powf(0.6);
+        let day = self.style.day_sky;
+        let night = self.style.night_sky;
         let scene_bg = [
-            mixv(bg[0], bg[0] * 0.12 + 0.015),
-            mixv(bg[1], bg[1] * 0.12 + 0.025),
-            mixv(bg[2], bg[2] * 0.12 + 0.06),
+            night[0] + (day[0] - night[0]) * sky_t,
+            night[1] + (day[1] - night[1]) * sky_t,
+            night[2] + (day[2] - night[2]) * sky_t,
         ];
         let amb = 0.28 + 0.72 * light.daylight;
         let anim_s = ui.input(|i| i.time) as f32;

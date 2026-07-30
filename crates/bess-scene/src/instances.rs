@@ -21,10 +21,19 @@ pub fn push(out: &mut Vec<f32>, offset: [f32; 3], scale: [f32; 3], color: [f32; 
     out.push(em);
 }
 
-/// Gravel apron, road, and concrete pads. Drawn without a shadow pass, so
-/// it lives in its own instance buffer.
+/// Terrain, gravel apron, road, and concrete pads. Drawn without a shadow
+/// pass, so it lives in its own instance buffer.
 pub fn build_ground(l: &SiteLayout, s: &Style) -> Vec<f32> {
     let mut g = Vec::new();
+    // Surrounding terrain out to the horizon; distance fog blends it into
+    // the sky so the site does not float in empty color.
+    push(
+        &mut g,
+        [0.0, -0.55, 0.0],
+        [2600.0, 1.0, 2600.0],
+        s.terrain,
+        0.0,
+    );
     let (gc, gs) = l.gravel;
     push(
         &mut g,
@@ -41,6 +50,12 @@ pub fn build_ground(l: &SiteLayout, s: &Style) -> Vec<f32> {
         s.aisle,
         0.0,
     );
+    // dashed center line on the road
+    let dashes = (rs[0] / 8.0) as i32;
+    for i in 0..dashes {
+        let x = rc[0] - rs[0] / 2.0 + 4.0 + i as f32 * 8.0;
+        push(&mut g, [x, 0.02, rc[2]], [2.4, 0.02, 0.16], s.marking, 0.0);
+    }
     for block in &l.blocks {
         push(
             &mut g,

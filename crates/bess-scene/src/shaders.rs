@@ -22,7 +22,10 @@ void main() {
   vec3 world = aPos * iScale + iOffset;
   if (uShadow > 0.5) {
     float h = max(world.y - uFloorY, 0.0);
-    world = vec3(world.x + h * 0.42, uFloorY + 0.02, world.z + h * 0.22);
+    // Flatten 5 cm above the floor: clearly above every ground surface
+    // (pads at 2 cm, lane markings at 3 cm), or the coplanar shadow quads
+    // z-fight with them and shimmer while the camera moves.
+    world = vec3(world.x + h * 0.42, uFloorY + 0.05, world.z + h * 0.22);
   }
   gl_Position = uViewProj * vec4(world, 1.0);
   vNormal = aNormal;
@@ -47,14 +50,14 @@ uniform float uShadow;
 uniform vec2 uFogRange;   // fog start / full distance, metres
 out vec4 outColor;
 void main() {
-  if (uShadow > 0.5) { outColor = vec4(0.05, 0.05, 0.06, 0.16); return; }
+  if (uShadow > 0.5) { outColor = vec4(0.05, 0.05, 0.06, 0.22); return; }
   vec3 n = normalize(vNormal);
   float diff = max(dot(n, -uLightDir), 0.0);
   vec3 hemi = mix(uGround, uSky, n.y * 0.5 + 0.5);
   vec3 view = normalize(uEye - vWorld);
   vec3 half_v = normalize(view - uLightDir);
-  float spec = pow(max(dot(n, half_v), 0.0), 40.0) * 0.3;
-  vec3 lit = vColor * (hemi + uLightColor * diff * 0.8) + uLightColor * spec;
+  float spec = pow(max(dot(n, half_v), 0.0), 40.0) * 0.22;
+  vec3 lit = vColor * (hemi + uLightColor * diff) + uLightColor * spec;
   lit += vColor * vEmissive * 1.7;
   float f = smoothstep(uFogRange.x, uFogRange.y, length(vWorld - uEye));
   outColor = vec4(mix(lit, uFog, f), 1.0);
