@@ -97,7 +97,8 @@ browser build is `wasm-pack build crates/bess-wasm --target web`.
 
 ## Status
 
-Pre-alpha, milestone M0 (walking skeleton). The whole plant runs end to end
+Pre-alpha. Milestone M0 (walking skeleton) shipped as v0.1.0; M1 (thermal +
+weather) is next. The whole plant runs end to end
 with the simplest useful model at every layer: 1-RC cell model, lumped
 container thermal with thermostat HVAC, flat-efficiency conversion, constant
 transformer parameters, a placeholder daily price curve, and synthetic

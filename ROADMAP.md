@@ -9,8 +9,8 @@ scheduled. Architecture and rationale live in
 
 | Milestone | Theme | Status |
 |---|---|---|
-| M0 | Walking skeleton, end to end | in progress |
-| M1 | Thermal + weather | planned |
+| M0 | Walking skeleton, end to end | done (v0.1.0) |
+| M1 | Thermal + weather | next |
 | M2 | BMS, alarms, scenario engine | planned |
 | M3 | PCS + electrical | planned |
 | M4 | EMS + market signals | planned |
@@ -44,7 +44,7 @@ minor, moving addresses is major).
 
 ---
 
-## M0: Walking skeleton (in progress)
+## M0: Walking skeleton (done, v0.1.0)
 
 **Goal:** everything stubbed, everything connected. A plant you can run,
 poll, and watch within a minute, honest about its simplicity.
