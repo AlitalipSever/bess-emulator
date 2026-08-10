@@ -97,14 +97,17 @@ browser build is `wasm-pack build crates/bess-wasm --target web`.
 
 ## Status
 
-Pre-alpha. Milestone M0 (walking skeleton) shipped as v0.1.0; M1 (thermal +
+Pre-alpha. Milestone M0 (walking skeleton) shipped as v0.1.0 and the M0.5
+mini-iteration (PCS partial-load efficiency curve) as v0.2.0; M1 (thermal +
 weather) is next. The whole plant runs end to end
 with the simplest useful model at every layer: 1-RC cell model, lumped
-container thermal with thermostat HVAC, flat-efficiency conversion, constant
+container thermal with thermostat HVAC, a partial-load conversion efficiency
+curve calibrated against the CEC inverter database, constant
 transformer parameters, a placeholder daily price curve, and synthetic
 weather. Physics invariants (energy conservation, SoC bounds, meter
-monotonicity), byte-identical determinism, and the M0 round-trip-efficiency
-gate are enforced in CI. Interfaces and the signal map may change without
+monotonicity), byte-identical determinism, and the round-trip-efficiency
+and curve-fit calibration gates ([CALIBRATION.md](CALIBRATION.md)) are
+enforced in CI. Interfaces and the signal map may change without
 notice until 1.0; see [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## Documentation

@@ -23,6 +23,7 @@ status. Sources whose terms do not permit redistribution are never bundled;
 | Synthetic daily price curve (24 values, hard-coded) | M0 placeholder dispatch plan | Original to this project | yes (code constant) |
 | Synthetic weather / frequency driver (sinusoids) | M0 placeholder inputs | Original to this project | yes (code) |
 | LFP OCV curve shape (13-point table) | Cell model | Original parameterization informed by public datasheets and published OCV studies | yes (code constant) |
+| PCS loss coefficients k0/k1/k2 (3 floats) + 7 reference efficiency points | `CurvePcs` model and its calibration gate test | Derived values. Fitted against the Sandia-model curve of the Sungrow SC2500UD-US entry in the CEC inverter database, as distributed with [NREL SAM](https://github.com/NREL/SAM) (BSD-3-Clause); underlying data published by the California Energy Commission. Attribution recorded here and in CALIBRATION.md | yes (code constants) |
 
 Real historical series (day-ahead prices, weather, grid frequency,
 balancing activations) arrive with `bess-data`; each will be added to this

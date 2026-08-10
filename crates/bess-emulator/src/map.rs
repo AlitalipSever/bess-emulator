@@ -467,6 +467,28 @@ pub fn build_points(cfg: &PlantConfig) -> Vec<Point> {
                 )
             }
         ));
+        points.push(point!(
+            format!("{prefix}.pcs.efficiency_pct"),
+            "%",
+            Fast,
+            U16,
+            100.0,
+            base + 7,
+            Input,
+            move |s: &SiteState| {
+                let pcs = &s.blocks[b].pcs;
+                // Output over input for the current flow direction; 0 when
+                // idle (a converter that converts nothing has no efficiency
+                // to report).
+                if pcs.p_dc_w > f64::EPSILON && pcs.p_ac_w > 0.0 {
+                    100.0 * pcs.p_ac_w / pcs.p_dc_w
+                } else if pcs.p_dc_w < -f64::EPSILON && pcs.p_ac_w < 0.0 {
+                    100.0 * pcs.p_dc_w / pcs.p_ac_w
+                } else {
+                    0.0
+                }
+            }
+        ));
     }
 
     points

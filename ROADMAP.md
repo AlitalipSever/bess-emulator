@@ -10,6 +10,7 @@ scheduled. Architecture and rationale live in
 | Milestone | Theme | Status |
 |---|---|---|
 | M0 | Walking skeleton, end to end | done (v0.1.0) |
+| M0.5 | PCS partial-load efficiency curve (pulled forward from M3) | done (v0.2.0) |
 | M1 | Thermal + weather | next |
 | M2 | BMS, alarms, scenario engine | planned |
 | M3 | PCS + electrical | planned |
@@ -83,6 +84,31 @@ and auxiliary effects not yet modeled).
 **Out of scope here:** realistic thermal behavior, alarms beyond a stub, fault
 injection, market signals beyond day-ahead dispatch.
 
+## M0.5: PCS partial-load efficiency curve (done, v0.2.0)
+
+A mini-iteration pulled forward from M3, decided 2026-08-10. It respects the
+iteration discipline: exactly one module (PCS) got deeper, the `PcsModel`
+trait did not change, and M1's thermal scope is untouched. Only the
+partial-load dimension moved here; the V_dc dimension, reactive capability,
+the operating state machine, and setpoint dynamics all stay in M3.
+
+Scope:
+
+- `CurvePcs` beside `FlatPcs`: one-way conversion loss
+  `L(p) = (k0 + k1 p + k2 p^2) P_rated` with `p = |P_ac| / P_rated`, so
+  `eta(p) = p / (p + k0 + k1 p + k2 p^2)`. The GW-01 model bundle switches
+  to `CurvePcs`.
+- New telemetry point `blockNN.pcs.efficiency_pct` (register base+7, minor
+  change per COMPATIBILITY.md; derived from existing state, so the
+  checkpoint format is unchanged).
+
+**Calibration gate:** the fitted k0/k1/k2 reproduce the efficiency curve of a
+real 1500 V utility-scale storage inverter (Sungrow SC2500UD-US, Sandia
+coefficients from the CEC inverter database as distributed with NREL SAM)
+within 0.3 percentage points at all six CEC load points, enforced as a CI
+test. The M0 round-trip gate is re-measured with the curve in place and
+recorded in CALIBRATION.md.
+
 ## M1: Thermal + weather
 
 **Goal:** the plant starts feeling weather, and the efficiency story becomes
@@ -134,7 +160,8 @@ character in the causal chain.
 
 Scope:
 
-- Two-dimensional PCS efficiency map f(P, V_dc) with partial-load behavior
+- The V_dc dimension of the PCS efficiency map (the partial-load dimension
+  shipped in M0.5)
 - SoC-dependent power limits (fixed current limit against SoC-dependent DC
   voltage)
 - Operating state machine: standby, precharge, contactor close, synchronize,

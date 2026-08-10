@@ -1,7 +1,12 @@
-//! M0 calibration gate: point-of-interconnection round-trip efficiency in
-//! the 87-90% band on a full-depth cycle at 0.5C. Losses are present
-//! (battery, conversion, transformer, house load) but thermal and auxiliary
-//! behavior is not yet calibrated; the field band (80-85%) is the M1 gate.
+//! Round-trip efficiency calibration gate on a full-depth cycle at 0.5C.
+//!
+//! History: the M0 gate was [0.87, 0.90] with the flat 97.5% PCS. M0.5
+//! replaced it with the fitted partial-load curve, which is MORE efficient
+//! than the flat placeholder at the 50% load this cycle runs at (~98.6%
+//! one-way), so the measured value moved up to 0.917. The band was re-drawn
+//! around that measurement per CALIBRATION.md; it still sits inside the
+//! 88-94% nameplate band for modern LFP systems. The field band (80-85%)
+//! arrives with thermal and auxiliary modeling in M1.
 
 use bess_core::{PlantConfig, Simulation};
 use bess_models::{gw01_models, SyntheticWeather};
@@ -10,7 +15,7 @@ use bess_models::{gw01_models, SyntheticWeather};
 const START_UNIX_S: i64 = 1_767_225_600;
 
 #[test]
-fn full_cycle_round_trip_efficiency_hits_the_m0_band() {
+fn full_cycle_round_trip_efficiency_hits_the_calibration_band() {
     let mut cfg = PlantConfig::gw01();
     cfg.initial_soc = 0.10;
     let power_w = 50.0e6; // 0.5C on the 100 MW / 200 MWh site
@@ -48,14 +53,14 @@ fn full_cycle_round_trip_efficiency_hits_the_m0_band() {
     let sub = &sim.state().substation;
     let rte = sub.export_wh / sub.import_wh;
     println!(
-        "M0 round-trip efficiency: {rte:.4} (import {:.1} MWh, export {:.1} MWh)",
+        "round-trip efficiency: {rte:.4} (import {:.1} MWh, export {:.1} MWh)",
         sub.import_wh / 1.0e6,
         sub.export_wh / 1.0e6
     );
     assert!(
-        (0.87..=0.90).contains(&rte),
-        "round-trip efficiency {rte:.4} outside the M0 gate band [0.87, 0.90] \
-         (import {:.1} MWh, export {:.1} MWh)",
+        (0.90..=0.93).contains(&rte),
+        "round-trip efficiency {rte:.4} outside the M0.5 gate band \
+         [0.90, 0.93] (import {:.1} MWh, export {:.1} MWh); see CALIBRATION.md",
         sub.import_wh / 1.0e6,
         sub.export_wh / 1.0e6
     );

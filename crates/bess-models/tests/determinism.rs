@@ -16,7 +16,7 @@ const TICKS: u64 = 4 * 3600;
 /// If a deliberate model or state-schema change moves this value, update it
 /// from the number printed by the failing assertion. Any other change that
 /// moves it is a broken determinism contract.
-const GOLDEN_DIGEST: u64 = 0xcb4b_b95e_4afa_67a3;
+const GOLDEN_DIGEST: u64 = 0x449f_9d2c_d5ef_3461;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();
