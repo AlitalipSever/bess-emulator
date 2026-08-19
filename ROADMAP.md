@@ -114,6 +114,8 @@ recorded in CALIBRATION.md.
 **Goal:** the plant starts feeling weather, and the efficiency story becomes
 honest.
 
+Detailed design: [docs/design/m1-thermal-weather.md](docs/design/m1-thermal-weather.md).
+
 Scope:
 
 - Real historical weather (temperature, irradiance) drives container thermal
