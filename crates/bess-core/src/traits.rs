@@ -54,6 +54,27 @@ pub trait BmsLogic: Send + Sync {
     fn rack_limits(&self, rack: &RackState, cfg: &RackConfig) -> PowerLimits;
 }
 
+/// The heat flows one container tick moved, W.
+///
+/// Every implementation reports its flows, so "the thermal energy balance
+/// closes" is a property of this interface rather than of one model: what
+/// the container's thermal masses gained must equal the heat that entered
+/// minus what the HVAC removed.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct ThermalFlows {
+    /// Heat carried from the rack thermal masses into the container air.
+    pub cells_to_air_w: f64,
+    /// Net heat entering through the envelope: ambient leakage plus solar
+    /// gain. Negative when the container is warmer than the outside air the
+    /// envelope sees.
+    pub envelope_gain_w: f64,
+    /// Heat removed by the HVAC unit.
+    pub hvac_thermal_w: f64,
+    /// Electrical power the HVAC unit drew. This is the one the kernel
+    /// meters as an auxiliary load.
+    pub hvac_electrical_w: f64,
+}
+
 /// Thermal model of one container.
 pub trait ThermalModel: Send + Sync {
     /// Advance one container by `dt_s`.
@@ -61,15 +82,15 @@ pub trait ThermalModel: Send + Sync {
     /// `rack_heat_w` carries the heat each rack released this tick, in rack
     /// order, so a model can put that heat into the rack's own thermal mass
     /// instead of straight into the air. `weather` is what the envelope
-    /// sees. Updates air temperature, rack cell temperatures and HVAC state;
-    /// returns the HVAC electrical power drawn during the tick, W.
+    /// sees. Updates air temperature, rack cell temperatures and HVAC state,
+    /// and reports the flows it moved.
     fn step_container(
         &self,
         container: &mut ContainerState,
         rack_heat_w: &[f64],
         weather: Weather,
         dt_s: f64,
-    ) -> f64;
+    ) -> ThermalFlows;
 }
 
 /// Power conversion system of one block.

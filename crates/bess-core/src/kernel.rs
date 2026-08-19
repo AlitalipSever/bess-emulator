@@ -149,8 +149,7 @@ impl Simulation {
         let wh = dt_s / 3600.0;
         self.events.clear();
 
-        self.state.weather.ambient_c = inputs.weather.ambient_c;
-        self.state.weather.irradiance_wm2 = inputs.weather.irradiance_wm2;
+        self.state.weather = inputs.weather;
 
         // 1. EMS: site active-power target.
         let connected = self.state.substation.hv_breaker == BreakerState::Closed;
@@ -306,7 +305,8 @@ fn step_block(
         }
         hvac_w += models
             .thermal
-            .step_container(container, &rack_heat[..racks_here], weather, dt_s);
+            .step_container(container, &rack_heat[..racks_here], weather, dt_s)
+            .hvac_electrical_w;
     }
 
     let op_state_before = block.pcs.op_state;

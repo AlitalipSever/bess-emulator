@@ -51,6 +51,35 @@ in ARCHITECTURE.md will regenerate it automatically once it exists.
   loss decomposition; k1 fitting slightly negative is expected and
   documented in `crates/bess-models/src/pcs.rs`.
 
+## M1 (in progress): thermal parameter provenance
+
+The M1 gate itself, annual round-trip efficiency and auxiliary share, is
+measured by `bess-bench` at the end of the milestone and replaces this
+section. Until then this is the inventory of what the thermal model actually
+runs on, written down now because the parameters landed before the
+measurements did. An estimate that says it is an estimate is honest; one that
+reads like a measurement is not.
+
+| Parameter | Value | Basis | Status |
+|---|---|---|---|
+| Container air capacitance | 2.8e6 J/K | ~6 t of enclosure steel and rack frames at the ~470 J/(kg K) of structural steel, plus a negligible 40 kJ/K of air | estimate |
+| Rack cell capacitance | 2.33e6 J/K | a 418 kWh rack at ~180 Wh/kg cell level is ~2330 kg of cells, at the ~1000 J/(kg K) reported for LFP | estimate; the rack energy is fixed by the site descriptor, the energy density and the specific heat are not |
+| Rack-to-air conductance | 900 W/K | sized for a ~9 K cell-to-air spread at the ~8 kW a rack dissipates at full site power | dependent estimate: that 8 kW follows from the M0 equivalent-circuit resistances, which `cell.rs` calls tuned rather than sourced. Refining them in M1 requires revisiting this number, or the 9 K spread silently becomes something else |
+| Envelope conductance (UA) | 500 W/K | M0 placeholder | estimate |
+| Sol-air coefficient | 0.026 m2 K/W | ASHRAE Handbook of Fundamentals, light-colored surface (0.052 for dark). The effective solar aperture is derived from it, `UA * alpha / h_o` = 13 m2, never stored separately | referenced |
+| HVAC cooling capacity | 40 kW thermal | M0 placeholder | measured to be undersized. Once the cells became their own thermal node, a replayed July peak-dispatch day leaves a container at about 36 C air and 42 C cells against a 27 C setpoint. Capacity, not only staging, is part of the HVAC step |
+
+Two observations that belong here rather than in a commit message:
+
+- **Cell temperature is no longer a derived value.** It integrates, so the
+  Modbus cell-temperature registers now lag and spread instead of tracking
+  container air plus a constant. Same registers, different dynamics.
+- **The thermostat cycles roughly ten times faster** than it did when the air
+  node still carried the cells' mass: a cycle went from hours to minutes.
+  That is the realistic direction, but there is still no minimum run time, so
+  compressor cycles per day is an unvalidated model output until the staged
+  HVAC step measures it.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

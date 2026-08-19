@@ -2,28 +2,7 @@
 
 use bess_core::kernel::Weather;
 use bess_core::state::ContainerState;
-use bess_core::traits::ThermalModel;
-
-/// The heat flows one container tick moved, W.
-///
-/// The trait surface returns only the HVAC electrical draw, which is what
-/// the kernel meters. These flows are the model's internal bookkeeping,
-/// returned by [`LumpedThermal::step_detailed`] so the energy balance can be
-/// closed against what the model actually did rather than against a
-/// re-derivation of its own formulas.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct ThermalFlows {
-    /// Heat carried from the rack thermal masses into the container air.
-    pub cells_to_air_w: f64,
-    /// Net heat entering through the envelope: ambient leakage plus solar
-    /// gain. Negative when the container is warmer than the sol-air
-    /// temperature outside.
-    pub envelope_gain_w: f64,
-    /// Heat removed by the HVAC unit.
-    pub hvac_thermal_w: f64,
-    /// Electrical power the HVAC unit drew.
-    pub hvac_electrical_w: f64,
-}
+use bess_core::traits::{ThermalFlows, ThermalModel};
 
 /// Two thermal nodes per container: the rack cell mass and the bulk air.
 ///
@@ -33,50 +12,80 @@ pub struct ThermalFlows {
 /// air by tens of minutes instead of tracking it instantly, which is the
 /// precondition for temperature derating in M2.
 ///
-/// Solar gain is modeled as ASHRAE sol-air: instead of a separate radiation
-/// path, irradiance raises the temperature the envelope sees, so the gain is
-/// irradiance times an effective aperture (see [`Self::solar_aperture_m2`]).
-/// PCS heat is deliberately absent: utility-scale PCS skids sit outside the
-/// battery container, so their losses never reach this air node.
+/// Solar gain is modeled as sol-air: instead of a separate radiation path,
+/// irradiance raises the temperature the envelope sees (see
+/// [`Self::sol_air_coefficient_m2_k_per_w`]). PCS heat is deliberately
+/// absent: utility-scale PCS skids sit outside the battery container, so
+/// their losses never reach this air node.
 ///
 /// Staged HVAC operation and datasheet-calibrated capacities arrive in M1's
 /// HVAC step; the single-stage thermostat here is still the M0 placeholder.
+///
+/// **Numerics.** The step is explicit Euler on two coupled nodes, stable
+/// only while `dt_s` stays well below `2C/k` for each of them. At GW-01's
+/// numbers that limit is about 500 s for the air node
+/// (2.8e6 / (12 x 900 + 500)) and about 5200 s for a rack, so the kernel's
+/// 1 s tick has three orders of margin. Past the limit temperatures
+/// oscillate and then diverge while the energy balance keeps closing, since
+/// a conservative scheme that is unstable still conserves.
+///
+/// **Provenance.** Every parameter here is an engineering estimate except
+/// the sol-air coefficient, which comes from a standard reference. Each
+/// field says which it is, and CALIBRATION.md's M1 section carries the same
+/// list with the reasoning; PR7 pins them against measured sources. None of
+/// these numbers is a measurement, and none of them pretends to be.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LumpedThermal {
-    /// Thermal capacitance of the container air node, J/K. Enclosure steel,
-    /// rack frames and the air itself: roughly 6 t of steel at 470 J/(kg K)
-    /// plus a negligible 40 kJ/K of air. The cells are no longer part of
-    /// this node; they are their own.
+    /// Thermal capacitance of the container air node, J/K. Estimate:
+    /// enclosure steel and rack frames dominate, roughly 6 t at the
+    /// ~470 J/(kg K) of structural steel, plus a negligible 40 kJ/K of air.
+    /// The cells are no longer part of this node; they are their own.
     pub air_heat_capacity_j_per_k: f64,
-    /// Thermal capacitance of one rack's cells, J/K. A GW-01 rack holds 416
-    /// cells of the 314 Ah class at roughly 5.6 kg each, and LFP cell
-    /// specific heat is about 1000 J/(kg K): 2330 kg x 1000 = 2.33e6 J/K.
+    /// Thermal capacitance of one rack's cells, J/K. Estimate, derived from
+    /// what the site descriptor already fixes: a GW-01 rack is 418 kWh
+    /// (416 cells x 314 Ah x 3.2 V), and the 314 Ah class sits near
+    /// 180 Wh/kg at cell level, so a rack carries roughly 2330 kg of cells.
+    /// At the ~1000 J/(kg K) reported for LFP cells that is 2.33e6 J/K. Both
+    /// the energy density and the specific heat are the estimates; the cell
+    /// count and rack energy are not.
     pub rack_heat_capacity_j_per_k: f64,
-    /// Conductance from one rack's cells to the container air, W/K. Sized so
-    /// a rack sits roughly 9 K above the air it breathes at the ~8 kW it
-    /// dissipates at full site power, which is the spread module datasheets
-    /// and field measurements report for forced-air racks.
+    /// Conductance from one rack's cells to the container air, W/K.
+    /// Estimate, and a dependent one: it is sized so a rack sits about 9 K
+    /// above the air it breathes at the ~8 kW it dissipates at full site
+    /// power, and that 8 kW comes from the M0 equivalent-circuit
+    /// resistances, which `cell.rs` describes as tuned rather than sourced
+    /// and which M1 refines. When those move, this moves with them or the
+    /// 9 K spread quietly becomes a different number. Tracked in
+    /// CALIBRATION.md.
     pub rack_to_air_w_per_k: f64,
-    /// Envelope conductance to ambient, W/K.
+    /// Envelope conductance to ambient, W/K. Estimate, inherited from M0.
     pub ua_w_per_k: f64,
-    /// Effective solar aperture of the envelope, m2. From the sol-air
-    /// relation the extra gain is `UA * alpha / h_o`: with a light-colored
-    /// container (solar absorptance ~0.35) and an outside film coefficient
-    /// of ~20 W/(m2 K), that is 500 * 0.35 / 20 = 8.75, rounded to 9 m2.
-    /// Re-derive it if `ua_w_per_k` changes. The long-wave sky correction
-    /// (which would lower it) is left out, so this is the optimistic end.
-    pub solar_aperture_m2: f64,
+    /// Sol-air coefficient of the envelope, m2 K/W: solar absorptance over
+    /// the outside surface film coefficient, `alpha / h_o`. Irradiance times
+    /// this is how much hotter than ambient the envelope behaves, so the
+    /// heat it lets in is `ua_w_per_k * sol_air_coefficient * irradiance`.
+    ///
+    /// 0.026 is the ASHRAE Handbook of Fundamentals value for a
+    /// light-colored surface (0.052 for dark), which is what a white battery
+    /// container is. Two documented simplifications: the long-wave sky
+    /// correction is left out, so this is the optimistic end, and global
+    /// horizontal irradiance is applied to the whole envelope rather than
+    /// per surface with its own incidence.
+    pub sol_air_coefficient_m2_k_per_w: f64,
     /// Air temperature at which cooling switches on, degrees Celsius.
+    /// Estimate, inherited from M0.
     pub cool_on_c: f64,
     /// Air temperature at which cooling switches off, degrees Celsius.
+    /// Estimate, inherited from M0.
     pub cool_off_c: f64,
-    /// Thermal cooling capacity when running, W.
+    /// Thermal cooling capacity when running, W. M0 placeholder, and known
+    /// to be undersized for this plant: see CALIBRATION.md.
     pub cooling_thermal_w: f64,
-    /// Coefficient of performance of the cooling unit.
+    /// Coefficient of performance of the cooling unit. M0 placeholder.
     pub cop: f64,
-    /// Fan and control power while cooling runs, W.
+    /// Fan and control power while cooling runs, W. M0 placeholder.
     pub fan_w: f64,
-    /// Controls standby power while cooling is off, W.
+    /// Controls standby power while cooling is off, W. M0 placeholder.
     pub standby_w: f64,
 }
 
@@ -87,7 +96,7 @@ impl Default for LumpedThermal {
             rack_heat_capacity_j_per_k: 2.33e6,
             rack_to_air_w_per_k: 900.0,
             ua_w_per_k: 500.0,
-            solar_aperture_m2: 9.0,
+            sol_air_coefficient_m2_k_per_w: 0.026,
             cool_on_c: 27.0,
             cool_off_c: 24.0,
             cooling_thermal_w: 40.0e3,
@@ -99,23 +108,36 @@ impl Default for LumpedThermal {
 }
 
 impl LumpedThermal {
-    /// Advance one container and report every heat flow it moved.
-    ///
+    /// Effective solar aperture of the envelope, m2: the area that, times
+    /// irradiance, gives the solar heat let in. Derived, never stored, so it
+    /// cannot drift out of step with the envelope conductance it depends on.
+    pub fn solar_aperture_m2(&self) -> f64 {
+        self.ua_w_per_k * self.sol_air_coefficient_m2_k_per_w
+    }
+}
+
+impl ThermalModel for LumpedThermal {
     /// All flows are evaluated at the temperatures the tick started with and
     /// the two nodes are updated afterwards, so the discrete step conserves
     /// energy exactly: the internal energy the nodes gained equals the net
     /// heat that entered, to the last bit.
-    pub fn step_detailed(
+    ///
+    /// # Panics
+    /// Panics unless `rack_heat_w` carries exactly one value per rack. The
+    /// alternative, iterating over the shorter of the two, would leave the
+    /// tail racks frozen and silently break the energy balance in release
+    /// builds.
+    fn step_container(
         &self,
         container: &mut ContainerState,
         rack_heat_w: &[f64],
         weather: Weather,
         dt_s: f64,
     ) -> ThermalFlows {
-        debug_assert_eq!(
+        assert_eq!(
             rack_heat_w.len(),
             container.racks.len(),
-            "one heat value per rack"
+            "thermal step needs one heat value per rack"
         );
         let air_c = container.air_temp_c;
 
@@ -141,7 +163,7 @@ impl LumpedThermal {
         }
 
         let envelope_gain_w = self.ua_w_per_k * (weather.ambient_c - air_c)
-            + self.solar_aperture_m2 * weather.irradiance_wm2;
+            + self.solar_aperture_m2() * weather.irradiance_wm2;
         container.air_temp_c = air_c
             + dt_s * (cells_to_air_w + envelope_gain_w - hvac_thermal_w)
                 / self.air_heat_capacity_j_per_k;
@@ -159,19 +181,6 @@ impl LumpedThermal {
             hvac_thermal_w,
             hvac_electrical_w: container.hvac.electrical_w,
         }
-    }
-}
-
-impl ThermalModel for LumpedThermal {
-    fn step_container(
-        &self,
-        container: &mut ContainerState,
-        rack_heat_w: &[f64],
-        weather: Weather,
-        dt_s: f64,
-    ) -> f64 {
-        self.step_detailed(container, rack_heat_w, weather, dt_s)
-            .hvac_electrical_w
     }
 }
 
@@ -228,10 +237,10 @@ mod tests {
     fn heating_without_cooling_raises_temperature() {
         let model = LumpedThermal::default();
         let mut c = container(22.0, 1);
-        let elec = model.step_container(&mut c, &[20.0e3], weather(22.0, 0.0), 60.0);
+        let flows = model.step_container(&mut c, &[20.0e3], weather(22.0, 0.0), 60.0);
         assert!(c.racks[0].cell_temp_c > 22.0, "the cells take the heat");
         assert!(c.air_temp_c > 22.0, "and pass it to the air");
-        assert!((elec - model.standby_w).abs() < f64::EPSILON);
+        assert!((flows.hvac_electrical_w - model.standby_w).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -243,6 +252,14 @@ mod tests {
         c.air_temp_c = 23.0;
         model.step_container(&mut c, &[0.0], weather(20.0, 0.0), 1.0);
         assert!(!c.hvac.cooling_on);
+    }
+
+    #[test]
+    #[should_panic(expected = "one heat value per rack")]
+    fn a_short_heat_slice_is_refused() {
+        let model = LumpedThermal::default();
+        let mut c = container(20.0, 4);
+        model.step_container(&mut c, &[1.0e3; 3], weather(20.0, 0.0), 1.0);
     }
 
     /// The whole point of the second node: a rack that starts dissipating
@@ -282,6 +299,16 @@ mod tests {
     }
 
     #[test]
+    fn the_solar_aperture_follows_the_envelope() {
+        let mut model = LumpedThermal::default();
+        assert!((model.solar_aperture_m2() - 13.0).abs() < 1.0e-9);
+        // A better insulated container lets less sun in, without anyone
+        // having to remember to re-derive a second constant.
+        model.ua_w_per_k = 250.0;
+        assert!((model.solar_aperture_m2() - 6.5).abs() < 1.0e-9);
+    }
+
+    #[test]
     fn sunshine_warms_the_container() {
         let model = LumpedThermal::default();
         let mut dark = container(20.0, 4);
@@ -298,9 +325,9 @@ mod tests {
             model.step_container(&mut sunlit, &heat, weather(20.0, 900.0), 1.0);
         }
         let gain_k = sunlit.air_temp_c - dark.air_temp_c;
-        // 9 m2 x 900 W/m2 = 8.1 kW against the envelope conductance, damped
-        // by an hour of the air node's time constant.
-        assert!((2.0..8.0).contains(&gain_k), "solar warming {gain_k} K");
+        // 13 m2 x 900 W/m2 = 11.7 kW against the envelope conductance,
+        // damped by an hour of the air node's time constant.
+        assert!((3.0..12.0).contains(&gain_k), "solar warming {gain_k} K");
         assert!((dark.air_temp_c - 20.0).abs() < 1.0e-9, "no sun, no drift");
     }
 
@@ -318,7 +345,7 @@ mod tests {
         let mut cooled_ticks = 0u32;
 
         for _ in 0..7_200 {
-            let flows = model.step_detailed(&mut c, &heat, outside, 1.0);
+            let flows = model.step_container(&mut c, &heat, outside, 1.0);
             let heat_in_w: f64 = heat.iter().sum();
             net_in_j += heat_in_w + flows.envelope_gain_w - flows.hvac_thermal_w;
             cooled_ticks += u32::from(flows.hvac_thermal_w > 0.0);

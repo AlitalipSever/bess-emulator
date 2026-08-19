@@ -7,6 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::config::PlantConfig;
+use crate::kernel::Weather;
 use crate::rng::Rng;
 
 /// Root of the state tree.
@@ -18,9 +19,12 @@ pub struct SiteState {
     pub tick: u64,
     /// Kernel PRNG; serialized so a resumed run continues the same stream.
     pub rng: Rng,
-    /// Ambient conditions currently applied (copied from the tick inputs
-    /// so the tree is self-describing).
-    pub weather: WeatherState,
+    /// Ambient conditions currently applied. The tick inputs are copied here
+    /// verbatim, so the tree is self-describing: a checkpoint says what
+    /// weather produced it. Same type as the input, because it is the same
+    /// quantity; a plant whose own sensors read something other than the
+    /// exogenous truth is an M2 fault, not a second struct.
+    pub weather: Weather,
     /// Plant controller state.
     pub ems: EmsState,
     /// 110 kV substation and point of interconnection.
@@ -40,15 +44,6 @@ pub struct SiteMeta {
     pub seed: u64,
     /// Unix timestamp (UTC seconds) of tick 0.
     pub start_unix_s: i64,
-}
-
-/// Ambient conditions applied during the last tick.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WeatherState {
-    /// Ambient air temperature, degrees Celsius.
-    pub ambient_c: f64,
-    /// Global horizontal irradiance, W/m2.
-    pub irradiance_wm2: f64,
 }
 
 /// Plant controller (EMS) operating mode.
@@ -259,7 +254,7 @@ impl SiteState {
             },
             tick: 0,
             rng,
-            weather: WeatherState {
+            weather: Weather {
                 ambient_c,
                 irradiance_wm2: 0.0,
             },
