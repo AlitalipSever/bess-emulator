@@ -501,6 +501,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "bess-data"
+version = "0.2.0"
+
+[[package]]
 name = "bess-emulator"
 version = "0.2.0"
 dependencies = [

@@ -1,0 +1,12 @@
+[package]
+name = "bess-data"
+description = "Replayed exogenous datasets for the bess-emulator reference site"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

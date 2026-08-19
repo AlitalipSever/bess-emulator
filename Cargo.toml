@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/bess-core",
+    "crates/bess-data",
     "crates/bess-models",
     "crates/bess-emulator",
     "crates/bess-scene",
@@ -16,6 +17,7 @@ repository = "https://github.com/AlitalipSever/bess-emulator"
 
 [workspace.dependencies]
 bess-core = { path = "crates/bess-core", version = "0.2.0" }
+bess-data = { path = "crates/bess-data", version = "0.2.0" }
 bess-models = { path = "crates/bess-models", version = "0.2.0" }
 bess-scene = { path = "crates/bess-scene", version = "0.2.0" }
 serde = { version = "1", features = ["derive"] }
