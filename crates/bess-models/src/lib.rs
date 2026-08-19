@@ -19,7 +19,7 @@ pub use ems::DayAheadEms;
 pub use grid::SimpleGrid;
 pub use pcs::{CurvePcs, FlatPcs};
 pub use thermal::LumpedThermal;
-pub use weather::SyntheticWeather;
+pub use weather::{synthetic_grid_frequency_hz, HistoricalWeather, SyntheticWeather};
 
 use bess_core::config::PlantConfig;
 use bess_core::traits::Models;
@@ -39,4 +39,15 @@ pub fn gw01_models(cfg: &PlantConfig) -> Models {
         ems: Box::new(DayAheadEms::default_profile(cfg.grid.site_rated_w)),
         grid: Box::new(SimpleGrid::new(cfg.grid.site_rated_w)),
     }
+}
+
+/// The exogenous input driver for the GW-01 reference site.
+///
+/// From M1 on the site replays DWD observations from Lindenberg (Mark),
+/// 2024, which is what pins GW-01's nominal location to eastern Germany
+/// (see ARCHITECTURE.md). Grid frequency inside the driver stays synthetic
+/// until M4. Shells and calibration runs call this instead of building a
+/// driver themselves, so every surface replays the same year.
+pub fn gw01_weather() -> HistoricalWeather {
+    HistoricalWeather::lindenberg_2024()
 }

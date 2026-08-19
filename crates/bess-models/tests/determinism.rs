@@ -1,9 +1,15 @@
-//! Determinism contract: (seed, config, inputs) fully determines the state,
+//! Determinism contract: (seed, config, dataset) fully determines the state,
 //! byte for byte, and a checkpoint resume continues the exact same run.
+//!
+//! Since M1 this runs on the replayed weather year rather than a synthetic
+//! function of the clock, so the golden digest below covers the dataset and
+//! its interpolation as well as the kernel: a dataset that is regenerated
+//! without the pin moving with it cannot reach this assertion, and one that
+//! is replayed differently fails it.
 
 use bess_core::checkpoint;
 use bess_core::{PlantConfig, Simulation};
-use bess_models::{gw01_models, SyntheticWeather};
+use bess_models::{gw01_models, gw01_weather};
 
 /// 2026-01-01 00:00:00 UTC.
 const START_UNIX_S: i64 = 1_767_225_600;
@@ -15,14 +21,16 @@ const TICKS: u64 = 4 * 3600;
 ///
 /// If a deliberate model or state-schema change moves this value, update it
 /// from the number printed by the failing assertion. Any other change that
-/// moves it is a broken determinism contract.
-const GOLDEN_DIGEST: u64 = 0x449f_9d2c_d5ef_3461;
+/// moves it is a broken determinism contract. Last regenerated in M1 PR2,
+/// when the driver switched from synthetic inputs to the replayed Lindenberg
+/// 2024 year (previous value 0x449f_9d2c_d5ef_3461).
+const GOLDEN_DIGEST: u64 = 0xdb39_2afb_95e7_3220;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();
     let models = gw01_models(&cfg);
     let mut sim = Simulation::new(cfg, models, seed, START_UNIX_S);
-    let weather = SyntheticWeather::default();
+    let weather = gw01_weather();
     for _ in 0..ticks {
         let inputs = weather.inputs_at(sim.unix_time_s());
         sim.step(&inputs);
@@ -73,7 +81,7 @@ fn checkpoint_resume_matches_continuous_run() {
     let cfg = PlantConfig::gw01();
     let models = gw01_models(&cfg);
     let mut resumed = Simulation::from_state(cfg, models, restored);
-    let weather = SyntheticWeather::default();
+    let weather = gw01_weather();
     for _ in 0..(TICKS - half) {
         let inputs = weather.inputs_at(resumed.unix_time_s());
         resumed.step(&inputs);

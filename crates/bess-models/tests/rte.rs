@@ -7,6 +7,12 @@
 //! around that measurement per CALIBRATION.md; it still sits inside the
 //! 88-94% nameplate band for modern LFP systems. The field band (80-85%)
 //! arrives with thermal and auxiliary modeling in M1.
+//!
+//! This gate keeps the synthetic driver on purpose. It measures one cycle
+//! under fixed reference conditions, and replaying real weather would make
+//! the number a function of which day the cycle happens to start on. The
+//! annual figure over the real year is a separate gate, measured by
+//! bess-bench.
 
 use bess_core::{PlantConfig, Simulation};
 use bess_models::{gw01_models, SyntheticWeather};

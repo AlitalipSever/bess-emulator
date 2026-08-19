@@ -48,8 +48,11 @@ GW-01 is a fictional site, fixed as the single supported configuration:
 - 20 power blocks, each: one 5 MW PCS + two 5 MWh containers
 - 110 kV grid connection with its own substation (main transformer, HV breaker,
   protection signals)
-- Located in northeastern Germany, so that three real public data sources align
-  on one site: day-ahead prices, weather, and grid frequency
+- Located in eastern Germany, so that three real public data sources align
+  on one site: day-ahead prices, weather, and grid frequency. The weather
+  dataset pins the nominal location: DWD station 3015, Lindenberg (Mark) in
+  Brandenburg, 52.21 N 14.12 E, 98 m above sea level. Solar position, ambient
+  conditions, and the market zone all follow from that point.
 
 The topology is generated from a site descriptor, but exactly one official site
 is shipped. A fixed reference plant keeps the signal map, the scenarios, the 3D

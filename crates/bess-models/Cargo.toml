@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 bess-core = { workspace = true }
+bess-data = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bess_core::{PlantConfig, Simulation, SiteState};
-use bess_models::{gw01_models, SyntheticWeather};
+use bess_models::{gw01_models, gw01_weather};
 use tokio::sync::{mpsc, watch};
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
@@ -62,7 +62,7 @@ pub fn spawn(args: &Args) -> (SimHandle, JoinHandle<()>) {
 
     let task_points = Arc::clone(&points);
     let task = tokio::spawn(async move {
-        let weather = SyntheticWeather::default();
+        let weather = gw01_weather();
         let mut next_tick = Instant::now();
         loop {
             while let Ok(cmd) = cmd_rx.try_recv() {

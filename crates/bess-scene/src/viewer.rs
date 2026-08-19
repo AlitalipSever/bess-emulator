@@ -4,7 +4,7 @@
 //! the kernel, keeping the scene/panels strictly read-only.
 
 use bess_core::{PlantConfig, Simulation};
-use bess_models::{gw01_models, SyntheticWeather};
+use bess_models::{gw01_models, gw01_weather, HistoricalWeather};
 
 use crate::panels::{self, PanelState};
 use crate::scene::SceneView;
@@ -12,7 +12,8 @@ use crate::ViewerCommand;
 
 /// 2026-07-14 11:00:00 UTC: a bright summer late morning, so the plant
 /// opens in full daylight and a 60x session reaches the evening discharge
-/// window within minutes.
+/// window within minutes. Under replay this is Lindenberg's actual
+/// 14 July 2024: 23 C climbing to 25 C, 650-720 W/m2 through the afternoon.
 const START_UNIX_S: i64 = 1_767_225_600 + 194 * 86_400 + 11 * 3600;
 
 /// Ticks are capped per frame so a stall (window drag, breakpoint) does not
@@ -22,7 +23,7 @@ const MAX_TICKS_PER_FRAME: u64 = 7_200;
 /// eframe application: kernel + scene + panels in one window or canvas.
 pub struct ViewerApp {
     sim: Simulation,
-    weather: SyntheticWeather,
+    weather: HistoricalWeather,
     scene: SceneView,
     panel: PanelState,
     speed: f64,
@@ -42,7 +43,7 @@ impl ViewerApp {
         let sim = Simulation::new(cfg, models, 42, START_UNIX_S);
         Ok(Self {
             sim,
-            weather: SyntheticWeather::default(),
+            weather: gw01_weather(),
             scene,
             panel: PanelState::default(),
             speed: 60.0,

@@ -1,10 +1,13 @@
-//! Physics invariants over a full simulated day. A violation here is a
-//! kernel or model bug by definition, and fails the build.
+//! Physics invariants over a full simulated day of replayed weather. A
+//! violation here is a kernel or model bug by definition, and fails the
+//! build. Running it on the real year rather than the synthetic driver means
+//! the replay path (calendar mapping, hourly interpolation) is inside the
+//! invariant, not beside it.
 
 use bess_core::{PlantConfig, Simulation};
-use bess_models::{gw01_models, SyntheticWeather};
+use bess_models::{gw01_models, gw01_weather};
 
-/// 2026-01-01 00:00:00 UTC.
+/// 2026-01-01 00:00:00 UTC, replaying the first day of the reference year.
 const START_UNIX_S: i64 = 1_767_225_600;
 
 #[test]
@@ -14,7 +17,7 @@ fn one_simulated_day_conserves_energy_and_respects_bounds() {
     let soc_hi = cfg.rack.soc_max + 0.01;
     let models = gw01_models(&cfg);
     let mut sim = Simulation::new(cfg, models, 7, START_UNIX_S);
-    let weather = SyntheticWeather::default();
+    let weather = gw01_weather();
 
     let stored_start_wh = sim.stored_energy_wh();
     let mut last_import_wh = 0.0;

@@ -103,8 +103,10 @@ weather) is next. The whole plant runs end to end
 with the simplest useful model at every layer: 1-RC cell model, lumped
 container thermal with thermostat HVAC, a partial-load conversion efficiency
 curve calibrated against the CEC inverter database, constant
-transformer parameters, a placeholder daily price curve, and synthetic
-weather. Physics invariants (energy conservation, SoC bounds, meter
+transformer parameters, and a placeholder daily price curve. Weather is no
+longer synthetic: the site replays a full year of hourly DWD observations
+from Lindenberg (Mark), 2024, which is the first piece of M1 to land on
+main; the thermal model deepens later in that milestone. Physics invariants (energy conservation, SoC bounds, meter
 monotonicity), byte-identical determinism, and the round-trip-efficiency
 and curve-fit calibration gates ([CALIBRATION.md](CALIBRATION.md)) are
 enforced in CI. Interfaces and the signal map may change without
