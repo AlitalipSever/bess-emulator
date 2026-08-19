@@ -12,14 +12,25 @@ use crate::state::{BlockState, BreakerState, EmsMode, PcsOpState, SiteState};
 use crate::traits::{Models, PowerLimits};
 use crate::TICK_SECONDS;
 
-/// Exogenous inputs for one tick. Compiled offline (bess-data) or generated
-/// by a driver in the shell; the kernel treats them as plain data.
+/// The weather one tick applies.
+///
+/// A separate struct so a model can be handed exactly the exogenous
+/// quantities it has business knowing: the thermal layer sees the sky, not
+/// the grid.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct Inputs {
+pub struct Weather {
     /// Ambient air temperature, degrees Celsius.
     pub ambient_c: f64,
     /// Global horizontal irradiance, W/m2.
     pub irradiance_wm2: f64,
+}
+
+/// Exogenous inputs for one tick. Compiled offline (bess-data) or generated
+/// by a driver in the shell; the kernel treats them as plain data.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Inputs {
+    /// Ambient conditions at the site.
+    pub weather: Weather,
     /// Grid frequency at the POI, Hz.
     pub grid_frequency_hz: f64,
 }
@@ -53,15 +64,23 @@ struct BlockOutcome {
     pcs_transition: Option<(PcsOpState, PcsOpState)>,
 }
 
+/// Per-tick working buffers, owned by the simulation and reused across
+/// blocks so the hot loop performs no allocation.
+struct Scratch {
+    /// DC limits of the racks in the block being stepped.
+    rack_limits: Vec<PowerLimits>,
+    /// Heat released by the racks of the container being stepped, in rack
+    /// order.
+    rack_heat: Vec<f64>,
+}
+
 /// A running simulation: configuration, model bundle, and the state tree.
 pub struct Simulation {
     cfg: PlantConfig,
     models: Models,
     state: SiteState,
     events: Vec<Event>,
-    /// Per-rack DC limits of the block currently being stepped; reused
-    /// across blocks so the hot loop performs no allocation.
-    rack_limits_scratch: Vec<PowerLimits>,
+    scratch: Scratch,
 }
 
 impl Simulation {
@@ -74,12 +93,16 @@ impl Simulation {
     /// Resume a simulation from an existing state tree (checkpoint restore).
     pub fn from_state(cfg: PlantConfig, models: Models, state: SiteState) -> Self {
         let racks_per_block = cfg.racks_per_block();
+        let racks_per_container = cfg.racks_per_container;
         Self {
             cfg,
             models,
             state,
             events: Vec::with_capacity(16),
-            rack_limits_scratch: vec![PowerLimits::default(); racks_per_block],
+            scratch: Scratch {
+                rack_limits: vec![PowerLimits::default(); racks_per_block],
+                rack_heat: vec![0.0; racks_per_container],
+            },
         }
     }
 
@@ -126,8 +149,8 @@ impl Simulation {
         let wh = dt_s / 3600.0;
         self.events.clear();
 
-        self.state.weather.ambient_c = inputs.ambient_c;
-        self.state.weather.irradiance_wm2 = inputs.irradiance_wm2;
+        self.state.weather.ambient_c = inputs.weather.ambient_c;
+        self.state.weather.irradiance_wm2 = inputs.weather.irradiance_wm2;
 
         // 1. EMS: site active-power target.
         let connected = self.state.substation.hv_breaker == BreakerState::Closed;
@@ -167,10 +190,10 @@ impl Simulation {
             let outcome = step_block(
                 &self.models,
                 &self.cfg,
-                &mut self.rack_limits_scratch,
+                &mut self.scratch,
                 block,
                 share_w,
-                inputs.ambient_c,
+                inputs.weather,
                 dt_s,
             );
             p_ac_site_w += outcome.p_ac_w;
@@ -212,12 +235,17 @@ impl Simulation {
 fn step_block(
     models: &Models,
     cfg: &PlantConfig,
-    rack_limits: &mut [PowerLimits],
+    scratch: &mut Scratch,
     block: &mut BlockState,
     share_w: f64,
-    ambient_c: f64,
+    weather: Weather,
     dt_s: f64,
 ) -> BlockOutcome {
+    let Scratch {
+        rack_limits,
+        rack_heat,
+    } = scratch;
+
     // DC capability of this block, rack by rack.
     let mut block_limits = PowerLimits::default();
     let mut in_service = 0usize;
@@ -255,8 +283,10 @@ fn step_block(
     let mut hvac_w = 0.0;
     let mut i = 0;
     for container in &mut block.containers {
-        let mut container_heat_w = 0.0;
-        for rack in &mut container.racks {
+        let racks_here = container.racks.len();
+        debug_assert!(rack_heat.len() >= racks_here, "rack heat scratch too small");
+        let heat_slots = &mut rack_heat[..racks_here];
+        for (slot, rack) in heat_slots.iter_mut().zip(&mut container.racks) {
             let lim = rack_limits[i];
             i += 1;
             let request_w = if rack.in_service {
@@ -271,12 +301,12 @@ fn step_block(
                 rack.soc
             );
             p_dc_block_w += res.p_dc_w;
-            container_heat_w += res.heat_w;
+            *slot = res.heat_w;
+            battery_heat_w += res.heat_w;
         }
-        battery_heat_w += container_heat_w;
         hvac_w += models
             .thermal
-            .step_container(container, container_heat_w, ambient_c, dt_s);
+            .step_container(container, &rack_heat[..racks_here], weather, dt_s);
     }
 
     let op_state_before = block.pcs.op_state;

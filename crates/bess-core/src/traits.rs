@@ -5,6 +5,7 @@
 //! belong to; the kernel only orchestrates the causal chain between layers.
 
 use crate::config::RackConfig;
+use crate::kernel::Weather;
 use crate::state::{ContainerState, PcsState, RackState, SiteState, SubstationState};
 
 /// Result of stepping one rack for one tick.
@@ -55,15 +56,18 @@ pub trait BmsLogic: Send + Sync {
 
 /// Thermal model of one container.
 pub trait ThermalModel: Send + Sync {
-    /// Advance one container by `dt_s` given the battery heat released
-    /// inside it and the ambient temperature. Updates air temperature, HVAC
-    /// state, and rack cell temperatures. Returns the HVAC electrical power
-    /// drawn during the tick, W.
+    /// Advance one container by `dt_s`.
+    ///
+    /// `rack_heat_w` carries the heat each rack released this tick, in rack
+    /// order, so a model can put that heat into the rack's own thermal mass
+    /// instead of straight into the air. `weather` is what the envelope
+    /// sees. Updates air temperature, rack cell temperatures and HVAC state;
+    /// returns the HVAC electrical power drawn during the tick, W.
     fn step_container(
         &self,
         container: &mut ContainerState,
-        heat_w: f64,
-        ambient_c: f64,
+        rack_heat_w: &[f64],
+        weather: Weather,
         dt_s: f64,
     ) -> f64;
 }

@@ -115,6 +115,11 @@ Each decision is proposed here and confirmed or revised in its PR.
   bands per stage, constant COP per mode, fan power per active stage.
   Parameters calibrated to a public utility-scale container HVAC datasheet
   in PR4; whether heating is resistive or a heat pump follows the datasheet.
+  Measured in PR3, once the cells became their own thermal node: the M0
+  placeholder capacity (40 kW thermal per container) cannot hold a container
+  at setpoint under summer peak dispatch. A replayed July day peaks at about
+  36 C air and 42 C cells against a 27 C cooling setpoint. Capacity is
+  therefore part of PR4's calibration, not just staging.
 - **D6, aux inventory:** the 150 kW station constant splits into an itemized
   inventory: controls/SCADA, per-rack BMS electronics, per-block PCS standby
   tare, lighting/misc. Item values come from public sources where available;
@@ -187,6 +192,12 @@ address range rather than renumbering; deferred until someone asks for it.
 - New state: per-rack cell thermal state, HVAC stage, per-category loss
   accumulators. Checkpoint format version bumps; pre-1.0, old checkpoints
   are not migrated, and the release notes say so.
+  - Revised in PR3: the cell thermal node needed no new field. `cell_temp_c`
+    was already in the tree; it went from a value derived every tick to one
+    integrated across ticks, which changes trajectories but not the schema,
+    and an older checkpoint still restores into a valid plant. The version
+    bump therefore waits for the fields that do change the schema: the HVAC
+    stage (PR4) and the per-category loss accumulators (PR5).
 - Signal map: additions only, minor version per COMPATIBILITY.md.
 
 ## 8. Calibration and test plan
