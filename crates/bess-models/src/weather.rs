@@ -13,7 +13,7 @@
 use std::f64::consts::{PI, TAU};
 use std::fmt;
 
-use bess_core::kernel::Inputs;
+use bess_core::kernel::{Inputs, Weather};
 use bess_data::WeatherYear;
 
 /// Grid frequency at a UTC timestamp: 50 Hz plus a +/- 10 mHz wander on a
@@ -59,8 +59,10 @@ impl SyntheticWeather {
             0.0
         };
         Inputs {
-            ambient_c,
-            irradiance_wm2,
+            weather: Weather {
+                ambient_c,
+                irradiance_wm2,
+            },
             grid_frequency_hz: synthetic_grid_frequency_hz(unix_time_s),
         }
     }
@@ -125,8 +127,10 @@ impl HistoricalWeather {
     pub fn inputs_at(&self, unix_time_s: i64) -> Inputs {
         let position_h = self.position_h(unix_time_s);
         Inputs {
-            ambient_c: interpolate(self.year.temp_c(), position_h),
-            irradiance_wm2: interpolate(self.year.ghi_wm2(), position_h - 0.5),
+            weather: Weather {
+                ambient_c: interpolate(self.year.temp_c(), position_h),
+                irradiance_wm2: interpolate(self.year.ghi_wm2(), position_h - 0.5),
+            },
             grid_frequency_hz: synthetic_grid_frequency_hz(unix_time_s),
         }
     }
@@ -196,8 +200,8 @@ mod tests {
     #[test]
     fn temperature_peaks_mid_afternoon() {
         let w = SyntheticWeather::default();
-        let at_15 = w.inputs_at(15 * 3600).ambient_c;
-        let at_03 = w.inputs_at(3 * 3600).ambient_c;
+        let at_15 = w.inputs_at(15 * 3600).weather.ambient_c;
+        let at_03 = w.inputs_at(3 * 3600).weather.ambient_c;
         assert!(at_15 > at_03);
         assert!((at_15 - (w.mean_c + w.amplitude_c)).abs() < 1.0e-9);
     }
@@ -205,8 +209,8 @@ mod tests {
     #[test]
     fn irradiance_is_zero_at_night() {
         let w = SyntheticWeather::default();
-        assert!(w.inputs_at(2 * 3600).irradiance_wm2.abs() < f64::EPSILON);
-        assert!(w.inputs_at(12 * 3600).irradiance_wm2 > 800.0);
+        assert!(w.inputs_at(2 * 3600).weather.irradiance_wm2.abs() < f64::EPSILON);
+        assert!(w.inputs_at(12 * 3600).weather.irradiance_wm2 > 800.0);
     }
 
     #[test]
@@ -221,7 +225,7 @@ mod tests {
     fn replay_reproduces_the_stamped_observation() {
         let driver = HistoricalWeather::lindenberg_2024();
         let observed = driver.year().hour(0).temp_c;
-        let replayed = driver.inputs_at(REFERENCE_START_S).ambient_c;
+        let replayed = driver.inputs_at(REFERENCE_START_S).weather.ambient_c;
         assert!((replayed - f64::from(observed)).abs() < 1.0e-12);
     }
 
@@ -230,7 +234,7 @@ mod tests {
         let driver = HistoricalWeather::lindenberg_2024();
         let temps = driver.year().temp_c();
         let expected = f64::midpoint(f64::from(temps[0]), f64::from(temps[1]));
-        let replayed = driver.inputs_at(REFERENCE_START_S + 1800).ambient_c;
+        let replayed = driver.inputs_at(REFERENCE_START_S + 1800).weather.ambient_c;
         assert!((replayed - expected).abs() < 1.0e-12);
     }
 
@@ -245,12 +249,15 @@ mod tests {
         let noon = (173 - 1) * 24 + 12;
         let at_bucket_start = REFERENCE_START_S + noon as i64 * 3600;
 
-        let midpoint = driver.inputs_at(at_bucket_start + 1800).irradiance_wm2;
+        let midpoint = driver
+            .inputs_at(at_bucket_start + 1800)
+            .weather
+            .irradiance_wm2;
         assert!((midpoint - f64::from(ghi[noon])).abs() < 1.0e-12);
         assert!(midpoint > 100.0, "midsummer noon must be bright");
 
         let expected_at_stamp = f64::midpoint(f64::from(ghi[noon - 1]), f64::from(ghi[noon]));
-        let at_stamp = driver.inputs_at(at_bucket_start).irradiance_wm2;
+        let at_stamp = driver.inputs_at(at_bucket_start).weather.irradiance_wm2;
         assert!((at_stamp - expected_at_stamp).abs() < 1.0e-12);
     }
 
@@ -262,12 +269,12 @@ mod tests {
         let reference = REFERENCE_START_S + 195 * 86_400 + 11 * 3600; // leap year
                                                                       // Bit-exact: the same date must resolve to the same dataset position.
         assert_eq!(
-            driver.inputs_at(sim).ambient_c.to_bits(),
-            driver.inputs_at(reference).ambient_c.to_bits()
+            driver.inputs_at(sim).weather.ambient_c.to_bits(),
+            driver.inputs_at(reference).weather.ambient_c.to_bits()
         );
         assert_eq!(
-            driver.inputs_at(sim).irradiance_wm2.to_bits(),
-            driver.inputs_at(reference).irradiance_wm2.to_bits()
+            driver.inputs_at(sim).weather.irradiance_wm2.to_bits(),
+            driver.inputs_at(reference).weather.irradiance_wm2.to_bits()
         );
     }
 
@@ -277,7 +284,7 @@ mod tests {
         // 2028-02-29 12:00 UTC; February 29th is day-of-year index 59.
         let sim = 1_830_297_600 + 59 * 86_400 + 12 * 3600;
         let expected = f64::from(driver.year().temp_c()[59 * 24 + 12]);
-        assert!((driver.inputs_at(sim).ambient_c - expected).abs() < 1.0e-12);
+        assert!((driver.inputs_at(sim).weather.ambient_c - expected).abs() < 1.0e-12);
     }
 
     #[test]
@@ -287,7 +294,7 @@ mod tests {
         let expected = f64::midpoint(f64::from(temps[temps.len() - 1]), f64::from(temps[0]));
         // 2024-12-31 23:30 UTC.
         let last_half_hour = REFERENCE_START_S + (365 * 24 + 23) * 3600 + 1800;
-        assert!((driver.inputs_at(last_half_hour).ambient_c - expected).abs() < 1.0e-12);
+        assert!((driver.inputs_at(last_half_hour).weather.ambient_c - expected).abs() < 1.0e-12);
     }
 
     #[test]
@@ -308,16 +315,16 @@ mod tests {
         let mut t = START_2026_S;
         let end = START_2026_S + 365 * 86_400;
         while t < end {
-            let inputs = driver.inputs_at(t);
+            let weather = driver.inputs_at(t).weather;
             assert!(
-                (-35.0..50.0).contains(&inputs.ambient_c),
+                (-35.0..50.0).contains(&weather.ambient_c),
                 "ambient {} at {t}",
-                inputs.ambient_c
+                weather.ambient_c
             );
             assert!(
-                (0.0..1200.0).contains(&inputs.irradiance_wm2),
+                (0.0..1200.0).contains(&weather.irradiance_wm2),
                 "irradiance {} at {t}",
-                inputs.irradiance_wm2
+                weather.irradiance_wm2
             );
             t += 97;
         }

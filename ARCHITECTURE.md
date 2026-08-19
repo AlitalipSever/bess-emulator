@@ -115,7 +115,7 @@ can be deepened independently:
 | Trait | Initial implementation | Upgrade path |
 |---|---|---|
 | `CellModel` | 1-RC equivalent circuit + OCV-SoC curve from public datasheets | 2-RC, temperature-dependent parameters |
-| `ThermalModel` | Lumped container heat model coupled with HVAC | Rack-level gradients, HVAC staging |
+| `ThermalModel` | Two-node container model (rack cell mass + bulk air) with envelope, solar gain and HVAC | Rack-level gradients, HVAC staging |
 | `BmsLogic` | Limits, derating, alarm tree, passive balancing | Behavior profiles from public vendor manuals |
 | `PcsModel` | Efficiency map f(P, V_dc), P/Q capability, state machine, setpoint response | Thermal derating, overload budget, STATCOM mode |
 | `EmsStrategy` | Day-ahead dispatch plan over real prices + setpoint tracking | Balancing-market activation replay, multi-market |
@@ -126,6 +126,20 @@ Signals originate in the layer they belong to. A BMS alarm comes from the rack
 layer, an efficiency loss from the PCS layer, a curtailment flag from the EMS
 layer. This is what keeps the data causally consistent, not just plausible in
 isolation.
+
+### Container thermal path
+
+Heat released by a rack enters that rack's own cell mass, conducts into the
+container air, and leaves the air through the envelope or the HVAC unit. Two
+consequences worth stating as modeling assumptions:
+
+- **Cell temperature has memory.** It lags the air by tens of minutes rather
+  than tracking it, which is what makes temperature derating meaningful.
+- **PCS heat stays outside.** Utility-scale PCS skids sit outside the battery
+  container, so conversion losses never enter the container air node.
+
+Solar gain follows the sol-air convention: irradiance raises the temperature
+the envelope sees rather than opening a separate radiation path into the box.
 
 ### Substation and grid side
 
