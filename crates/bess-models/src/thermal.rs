@@ -19,10 +19,14 @@ use bess_core::traits::{ThermalFlows, ThermalModel};
 /// their losses never reach this air node.
 ///
 /// The HVAC unit is staged: two cooling units, as the reference container
-/// carries, plus an electric heater for the cold end. It holds a minimum run
-/// and minimum off time so the compressors cannot chatter, and escalation to
-/// a higher stage overrides that hold, because a container running away is
-/// worse than a short cycle.
+/// carries, plus an electric heater for the cold end. A minimum run and
+/// minimum off time keep the compressors from chattering. That protection
+/// covers compressors and only compressors: a unit already running may bring
+/// its neighbour in at once, since that is a second machine and the
+/// container is climbing; a stopped compressor waits out its interval
+/// however hot it gets, because a real one cannot restart against
+/// unequalized pressure; and electric heating, being a coil and a contactor,
+/// is not gated at all.
 ///
 /// **Numerics.** The step is explicit Euler on two coupled nodes, stable
 /// only while `dt_s` stays well below `2C/k` for each of them. At GW-01's
@@ -161,48 +165,51 @@ impl LumpedThermal {
         2.0 * self.unit_cooling_thermal_w
     }
 
-    /// The mode the controller wants next, given where the air is and how
-    /// long the current mode has been held.
+    /// The mode the controller wants next.
     ///
-    /// Escalation, meaning more cooling than is running now, ignores the
-    /// hold: a container above its top band gets the second unit
-    /// immediately. Everything else, stepping down, switching off, and
-    /// starting from off, waits for the timer, which is what keeps the
-    /// compressors from chattering around a band edge.
-    fn next_mode(&self, mode: HvacMode, air_c: f64, hold_expired: bool) -> HvacMode {
-        if air_c >= self.cool2_on_c {
+    /// `compressor_free` says whether the protection interval has run out,
+    /// and it gates exactly one thing: compressors starting or stopping.
+    /// A running unit may bring its neighbour in at once, since that is a
+    /// second machine and the container is climbing. A stopped compressor
+    /// waits however hot it gets, because a real one physically cannot
+    /// restart against unequalized pressure. Electric heating is not gated
+    /// at all: it is a coil and a contactor, so it follows its band.
+    fn next_mode(&self, mode: HvacMode, air_c: f64, compressor_free: bool) -> HvacMode {
+        // Stepping up while a compressor already runs never waits.
+        if cooling_units(mode) > 0.0 && air_c >= self.cool2_on_c {
             return HvacMode::Cool2;
-        }
-        if air_c >= self.cool1_on_c && matches!(mode, HvacMode::Off | HvacMode::Heat) {
-            // Starting the first unit is not escalation from a running
-            // stage, so it still respects the off timer.
-            return if hold_expired { HvacMode::Cool1 } else { mode };
         }
         match mode {
             HvacMode::Cool2 => {
-                if air_c <= self.cool2_off_c && hold_expired {
+                if air_c <= self.cool2_off_c && compressor_free {
                     HvacMode::Cool1
                 } else {
                     HvacMode::Cool2
                 }
             }
             HvacMode::Cool1 => {
-                if air_c <= self.cool1_off_c && hold_expired {
+                if air_c <= self.cool1_off_c && compressor_free {
                     HvacMode::Off
                 } else {
                     HvacMode::Cool1
                 }
             }
             HvacMode::Heat => {
-                if air_c >= self.heat_off_c && hold_expired {
+                if air_c >= self.cool1_on_c {
+                    // Cooling demand ends heating immediately, whether or
+                    // not a compressor may start yet.
+                    self.cooling_start(air_c, compressor_free)
+                } else if air_c >= self.heat_off_c {
                     HvacMode::Off
                 } else {
                     HvacMode::Heat
                 }
             }
             HvacMode::Off => {
-                if air_c <= self.heat_on_c && hold_expired {
+                if air_c <= self.heat_on_c {
                     HvacMode::Heat
+                } else if air_c >= self.cool1_on_c {
+                    self.cooling_start(air_c, compressor_free)
                 } else {
                     HvacMode::Off
                 }
@@ -210,14 +217,40 @@ impl LumpedThermal {
         }
     }
 
+    /// Which cooling mode to start from a stopped compressor, or `Off` while
+    /// the protection interval still has time on it.
+    fn cooling_start(&self, air_c: f64, compressor_free: bool) -> HvacMode {
+        if !compressor_free {
+            HvacMode::Off
+        } else if air_c >= self.cool2_on_c {
+            HvacMode::Cool2
+        } else {
+            HvacMode::Cool1
+        }
+    }
+
+    /// Protection time left after this transition, s. The interval tracks
+    /// compressors only: starting or changing a cooling stage arms the
+    /// minimum run time, dropping cooling altogether arms the minimum off
+    /// time, and anything the heater does leaves the clock running.
+    fn next_hold_s(&self, from: HvacMode, to: HvacMode, hold_s: f64, dt_s: f64) -> f64 {
+        let was_cooling = cooling_units(from) > 0.0;
+        let is_cooling = cooling_units(to) > 0.0;
+        if is_cooling && to != from {
+            self.min_run_s
+        } else if was_cooling && !is_cooling {
+            self.min_off_s
+        } else {
+            (hold_s - dt_s).max(0.0)
+        }
+    }
+
     /// Heat the unit moves in a mode, W. Positive removes heat from the
     /// container, negative adds it.
     fn mode_thermal_w(&self, mode: HvacMode) -> f64 {
         match mode {
-            HvacMode::Off => 0.0,
-            HvacMode::Cool1 => self.unit_cooling_thermal_w,
-            HvacMode::Cool2 => self.full_cooling_thermal_w(),
             HvacMode::Heat => -self.heating_thermal_w,
+            _ => cooling_units(mode) * self.unit_cooling_thermal_w,
         }
     }
 
@@ -226,17 +259,23 @@ impl LumpedThermal {
     /// resistance, so it draws exactly what it delivers, plus one fan to
     /// move the warm air.
     fn mode_electrical_w(&self, mode: HvacMode) -> f64 {
-        let running = match mode {
-            HvacMode::Off | HvacMode::Heat => 0.0,
-            HvacMode::Cool1 => 1.0,
-            HvacMode::Cool2 => 2.0,
-        };
-        let cooling_w = running * (self.unit_cooling_thermal_w / self.cop + self.unit_fan_w);
+        let cooling_w =
+            cooling_units(mode) * (self.unit_cooling_thermal_w / self.cop + self.unit_fan_w);
         let heating_w = match mode {
             HvacMode::Heat => self.heating_thermal_w + self.unit_fan_w,
             _ => 0.0,
         };
         self.standby_w + cooling_w + heating_w
+    }
+}
+
+/// Cooling units running in a mode. The single place that knows a container
+/// carries two, so capacity and electrical draw cannot drift apart.
+fn cooling_units(mode: HvacMode) -> f64 {
+    match mode {
+        HvacMode::Cool1 => 1.0,
+        HvacMode::Cool2 => 2.0,
+        HvacMode::Off | HvacMode::Heat => 0.0,
     }
 }
 
@@ -265,18 +304,12 @@ impl ThermalModel for LumpedThermal {
         );
         let air_c = container.air_temp_c;
 
-        let hold_expired = container.hvac.mode_hold_s <= 0.0;
-        let mode = self.next_mode(container.hvac.mode, air_c, hold_expired);
-        if mode == container.hvac.mode {
-            container.hvac.mode_hold_s = (container.hvac.mode_hold_s - dt_s).max(0.0);
-        } else {
-            container.hvac.mode = mode;
-            container.hvac.mode_hold_s = if mode == HvacMode::Off {
-                self.min_off_s
-            } else {
-                self.min_run_s
-            };
-        }
+        let previous_mode = container.hvac.mode;
+        let compressor_free = container.hvac.compressor_hold_s <= 0.0;
+        let mode = self.next_mode(previous_mode, air_c, compressor_free);
+        container.hvac.mode = mode;
+        container.hvac.compressor_hold_s =
+            self.next_hold_s(previous_mode, mode, container.hvac.compressor_hold_s, dt_s);
         let hvac_thermal_w = self.mode_thermal_w(mode);
 
         // Cells: their own heat in, conduction to the air they breathe out.
@@ -324,7 +357,7 @@ mod tests {
             air_temp_c,
             hvac: HvacState {
                 mode: HvacMode::Off,
-                mode_hold_s: 0.0,
+                compressor_hold_s: 0.0,
                 electrical_w: 0.0,
                 thermal_w: 0.0,
             },
@@ -437,14 +470,74 @@ mod tests {
         assert_eq!(c.hvac.mode, HvacMode::Off, "past it, the unit may stop");
     }
 
-    /// Safety beats the timer: a container climbing into the top band gets
-    /// the second unit at once, hold or no hold.
+    /// The protection guards compressors, and a resistance heater is not
+    /// one. It stops the moment its band says so, whatever the interval has
+    /// left on it.
+    #[test]
+    fn the_heater_stops_on_its_band_not_on_the_compressor_timer() {
+        let model = LumpedThermal::default();
+        let mut c = container(20.0, 1);
+        hold_at(&model, &mut c, 5.0, 1);
+        assert_eq!(c.hvac.mode, HvacMode::Heat);
+
+        hold_at(&model, &mut c, 20.0, 1);
+        assert_eq!(
+            c.hvac.mode,
+            HvacMode::Off,
+            "13 kW into a container that passed its off band a second ago"
+        );
+    }
+
+    /// And the other way: a container that gets cold enough starts heating
+    /// straight away, since there is no compressor to protect.
+    #[test]
+    fn the_heater_starts_without_waiting_for_the_compressor_interval() {
+        let model = LumpedThermal::default();
+        let mut c = container(20.0, 1);
+        // Run a cooling stage and stop it, which arms the interval.
+        hold_at(&model, &mut c, 26.5, 1);
+        hold_at(&model, &mut c, 20.0, 200);
+        assert_eq!(c.hvac.mode, HvacMode::Off);
+        hold_at(&model, &mut c, 26.5, 1);
+        assert!(c.hvac.compressor_hold_s > 0.0, "interval must be running");
+
+        hold_at(&model, &mut c, 5.0, 1);
+        assert_eq!(c.hvac.mode, HvacMode::Heat);
+    }
+
+    /// A compressor that just stopped stays stopped, however hot the
+    /// container gets. This is the one case where the plant has to wait:
+    /// the machine physically cannot restart yet.
+    #[test]
+    fn a_stopped_compressor_waits_even_when_the_container_is_hot() {
+        let model = LumpedThermal::default();
+        let mut c = container(20.0, 1);
+        hold_at(&model, &mut c, 26.5, 1);
+        hold_at(&model, &mut c, 20.0, 200);
+        assert_eq!(c.hvac.mode, HvacMode::Off);
+
+        hold_at(&model, &mut c, 30.0, 60);
+        assert_eq!(
+            c.hvac.mode,
+            HvacMode::Off,
+            "a restart one minute after stopping is not physical"
+        );
+        hold_at(&model, &mut c, 30.0, 130);
+        assert_eq!(c.hvac.mode, HvacMode::Cool2, "past the interval, both run");
+    }
+
+    /// Escalation is the exception, and it is narrow: a unit that is already
+    /// running may start its neighbour at once, because that neighbour has
+    /// been sitting still.
     #[test]
     fn escalation_ignores_the_hold() {
         let model = LumpedThermal::default();
         let mut c = container(20.0, 1);
         hold_at(&model, &mut c, 26.5, 1);
-        assert!(c.hvac.mode_hold_s > 0.0, "the hold must actually be active");
+        assert!(
+            c.hvac.compressor_hold_s > 0.0,
+            "the protection must actually be active"
+        );
         hold_at(&model, &mut c, 30.0, 1);
         assert_eq!(c.hvac.mode, HvacMode::Cool2);
     }

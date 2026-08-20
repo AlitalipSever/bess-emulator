@@ -187,11 +187,12 @@ pub enum HvacMode {
 pub struct HvacState {
     /// Operating mode.
     pub mode: HvacMode,
-    /// Seconds the current mode must still be held before the controller may
-    /// step down or switch off. Escalation ignores it; see the anti
-    /// short-cycle rule in the thermal model. Part of the state because a
-    /// resumed run has to continue mid-cycle, not restart the timer.
-    pub mode_hold_s: f64,
+    /// Seconds of compressor protection left: how long before a compressor
+    /// may start or stop again. It guards the compressors and nothing else,
+    /// so electric heating starts and stops on its band regardless. Part of
+    /// the state because a resumed run has to continue mid-cycle rather than
+    /// restart the timer.
+    pub compressor_hold_s: f64,
     /// Electrical power drawn, W.
     pub electrical_w: f64,
     /// Heat currently being moved, W (thermal). Positive when cooling
@@ -247,7 +248,7 @@ impl SiteState {
                         air_temp_c: 20.0,
                         hvac: HvacState {
                             mode: HvacMode::Off,
-                            mode_hold_s: 0.0,
+                            compressor_hold_s: 0.0,
                             electrical_w: 0.0,
                             thermal_w: 0.0,
                         },
