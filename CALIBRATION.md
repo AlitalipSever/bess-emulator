@@ -67,18 +67,52 @@ reads like a measurement is not.
 | Rack-to-air conductance | 900 W/K | sized for a ~9 K cell-to-air spread at the ~8 kW a rack dissipates at full site power | dependent estimate: that 8 kW follows from the M0 equivalent-circuit resistances, which `cell.rs` calls tuned rather than sourced. Refining them in M1 requires revisiting this number, or the 9 K spread silently becomes something else |
 | Envelope conductance (UA) | 500 W/K | M0 placeholder | estimate |
 | Sol-air coefficient | 0.026 m2 K/W | ASHRAE Handbook of Fundamentals, light-colored surface (0.052 for dark). The effective solar aperture is derived from it, `UA * alpha / h_o` = 13 m2, never stored separately | referenced |
-| HVAC cooling capacity | 40 kW thermal | M0 placeholder | measured to be undersized. Once the cells became their own thermal node, a replayed July peak-dispatch day leaves a container at about 36 C air and 42 C cells against a 27 C setpoint. Capacity, not only staging, is part of the HVAC step |
+| HVAC cooling capacity | 2 x 56 kW thermal | STULZ WXUC5, a BESS-dedicated unit: a 35 kW monoblock on each short side of a 40 ft battery container, in the DECCI installation (22 MWh over seven containers, about 3.14 MWh each). GW-01's container holds 5.02 MWh, so the same two-unit topology scaled by container energy gives 56 kW per unit | referenced topology and unit size, scaled. Scaling by energy assumes a comparable C-rate |
+| HVAC cooling setpoint | stage 1 at 26 C, stage 2 at 29 C | the reference installation holds 25 C inside a battery container; the bands sit around it | referenced target, estimated bands |
+| Cooling coefficient of performance | 3.0, constant | container datasheets publish cooling capacity but not input power | estimate, mid-range for a packaged direct-expansion unit. **Known bias:** a real unit's coefficient falls with outdoor temperature, roughly 4 at 20 C ambient to 2.5 or below at 40 C. A constant value therefore understates auxiliary energy on the hot days when cooling runs hardest and overstates it in winter. The design fixes one coefficient per mode at this depth; the annual auxiliary share has to be read with that bias in view |
+| Electric heating | 13 kW, resistive | same installation: heating during the battery's standby phase, done with multi-stage electric heaters. Resistive, so its coefficient of performance is exactly 1 | referenced. Modeled as one stage rather than several |
+| Anti short-cycle interval | 180 s minimum run and minimum off | the usual interval for scroll compressors | estimate. Applies to compressors only: a running unit may start its neighbour at once, a stopped one waits however hot it gets, and electric heating is not gated by it at all |
 
-Two observations that belong here rather than in a commit message:
+**Sources:** [STULZ, cooling containers for the DECCI battery storage
+project](https://www.stulz.com/projects/sma-altenso/) (WXUC5 unit, 35 kW per
+monoblock, 25 C target, 13 kW multi-stage electric heaters), [STULZ WallAir
+series](https://www.stulz.com/en-de/products/detail/wallair/) (the platform
+the WXUC5 is built on: -20 C winter to +50 C summer envelope).
+
+Measured over replayed days once the unit was sized (seed 7, GW-01 on the
+internal dispatch plan). Every figure in this table is held inside a band by
+`the_published_calibration_readings_still_hold` in
+`crates/bess-models/tests/hvac_duty.rs`, so a model change that moves one of
+them fails CI instead of quietly leaving this record stale:
+
+| Reading | 1 January | 14 July |
+|---|---|---|
+| Container air | 14.7 to 26.0 C | 18.6 to 29.0 C |
+| Peak cell temperature | 33.7 C | 38.0 C |
+| Stage 1 / stage 2 duty | 5% / 0% | 17% / 1% |
+| Compressor starts per container per day | 5.0 | 35.1 |
+| Auxiliary energy, share of import | 4.4% | 6.9% |
+
+The July figures are the point of the exercise: before this step the same day
+left containers at about 36 C air and 42 C cells against a 27 C setpoint,
+because the plant out-produced its cooling. Compressor starts land at roughly
+one every 40 minutes on the hard day, which is what the 3 minute minimum run
+and minimum off times are there to guarantee.
+
+Three observations that belong here rather than in a commit message:
 
 - **Cell temperature is no longer a derived value.** It integrates, so the
-  Modbus cell-temperature registers now lag and spread instead of tracking
+  Modbus cell-temperature registers lag and spread instead of tracking
   container air plus a constant. Same registers, different dynamics.
-- **The thermostat cycles roughly ten times faster** than it did when the air
-  node still carried the cells' mass: a cycle went from hours to minutes.
-  That is the realistic direction, but there is still no minimum run time, so
-  compressor cycles per day is an unvalidated model output until the staged
-  HVAC step measures it.
+- **Heating never ran on a dispatching January day.** The batteries warm
+  themselves; the heater is a standby-phase load, exactly as the reference
+  installation describes it. It does appear on an idle winter day, which is
+  what the `an_idle_winter_day_brings_the_heater_on` test holds.
+- **The auxiliary share above is not yet the gate.** It is auxiliary energy
+  over import for a single day, still carrying the 150 kW station constant as
+  one lump. The M1 gate is auxiliary share of annual throughput against a
+  sourced band, and it is measured after the auxiliary inventory splits that
+  constant.
 
 ## Planned gates (from ROADMAP.md)
 

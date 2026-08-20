@@ -1,7 +1,7 @@
 //! Versioned checkpoint format.
 //!
-//! A checkpoint is the complete state tree in a tagged envelope. Format v1
-//! encodes as compact JSON: inspectable, diffable, and with deterministic
+//! A checkpoint is the complete state tree in a tagged envelope. The current
+//! format encodes as compact JSON: inspectable, diffable, and with deterministic
 //! output (struct field order is fixed, floats print shortest-roundtrip).
 //! The envelope leaves room for a binary encoding later: readers dispatch on
 //! the tag and version, and unsupported versions fail loudly instead of
@@ -17,7 +17,12 @@ use crate::state::SiteState;
 /// Envelope tag identifying a bess checkpoint.
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
-pub const FORMAT_VERSION: u32 = 1;
+///
+/// v2 (M1): container HVAC gained a staged mode and its anti short-cycle
+/// timer, so the state tree carries fields a v1 file does not. Pre-1.0
+/// checkpoints are not migrated; a v1 file is rejected with its version
+/// named rather than half-restored.
+pub const FORMAT_VERSION: u32 = 2;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {
@@ -95,7 +100,7 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{load, save, state_digest, CheckpointError};
+    use super::{load, save, state_digest, CheckpointError, FORMAT_TAG, FORMAT_VERSION};
     use crate::config::PlantConfig;
     use crate::state::SiteState;
 
@@ -114,5 +119,23 @@ mod tests {
         let err = load(br#"{"format":"other","version":1,"kernel_version":"0","state":null}"#)
             .unwrap_err();
         assert!(matches!(err, CheckpointError::WrongFormat(_)));
+    }
+
+    /// A checkpoint from an older format is refused by version, not parsed
+    /// on a best-effort basis. Without the version probe a v1 file would
+    /// deserialize into a v2 tree with defaults quietly filling the fields
+    /// that were added since, which is the half-restore the envelope exists
+    /// to prevent.
+    #[test]
+    fn rejects_an_older_format_version() {
+        let older = format!(
+            r#"{{"format":"{FORMAT_TAG}","version":{},"kernel_version":"0","state":null}}"#,
+            FORMAT_VERSION - 1
+        );
+        let err = load(older.as_bytes()).unwrap_err();
+        match err {
+            CheckpointError::UnsupportedVersion(v) => assert_eq!(v, FORMAT_VERSION - 1),
+            other => panic!("expected an unsupported-version error, got {other:?}"),
+        }
     }
 }
