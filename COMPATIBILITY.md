@@ -23,6 +23,22 @@ versioned with semver, independently of the crate versions:
   encoding, scale, or unit, renaming an MQTT topic, changing the meaning of
   an enum value.
 
+The file's first line is a comment carrying that version:
+
+```
+# signal-map-version: 0.2.0
+```
+
+Readers skip lines starting with `#`. A reference that cannot say which
+version of the contract it is would be asking every consumer to guess.
+
+### Version history
+
+| Map | Shipped with | Change |
+|---|---|---|
+| 0.1.0 | crate v0.2.0 | The first published map. It carried no version number; it is recorded here as 0.1.0 so the sequence has a beginning. |
+| 0.2.0 | crate v0.3.0 (M1) | Additions only: the five itemized house-load points at site 32 to 41, and per block `container.air_temp_c` and `hvac.state` in the two slots each block had free. Nothing moved, nothing was renamed. |
+
 ## Deprecation process (from map 1.0)
 
 A point scheduled for removal is first marked deprecated in the CSV and the
@@ -36,6 +52,29 @@ only in the next major release.
 - Input registers are read-only telemetry; holding registers are the
   control surface.
 - Timestamps are Unix seconds, UTC.
+
+### Enumerations
+
+Changing any of these values is a major change.
+
+| Point | Values |
+|---|---|
+| `site.ems.mode`, `control.ems_mode` | 0 follow the internal dispatch plan, 1 follow an external setpoint |
+| `blockNN.pcs.state` | 0 standby, 1 running, 2 tripped |
+| `blockNN.hvac.state` | 0 off, 1 one cooling unit, 2 both cooling units, 3 electric heating |
+
+### Aggregation of per-block points
+
+A block carries more than one container and gets one register per quantity,
+so each such point states which container it speaks for:
+
+- `blockNN.cell_temp_min_c`, `blockNN.cell_temp_max_c`: the extremes over the
+  whole block.
+- `blockNN.container.air_temp_c`: the hottest container in the block.
+- `blockNN.hvac.state`: the mode of the container drawing the most HVAC
+  power, ties going to the lower index. It reports what the block's heaviest
+  consumer is doing, so a block with one container heating while another runs
+  both compressors reads as cooling.
 
 ## Other surfaces
 

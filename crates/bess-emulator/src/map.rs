@@ -14,7 +14,16 @@ use std::io::Write as _;
 use std::path::Path;
 
 use bess_core::config::PlantConfig;
-use bess_core::state::{BreakerState, EmsMode, PcsOpState, SiteState};
+use bess_core::state::{BlockState, BreakerState, EmsMode, HvacMode, PcsOpState, SiteState};
+
+/// Version of the published signal map, semver, independent of the crate
+/// version per COMPATIBILITY.md.
+///
+/// The map published through crate v0.2.0 carried no version number at all;
+/// it is recorded as 0.1.0 so the sequence has a beginning. 0.2.0 is M1's
+/// addition of the thermal and auxiliary points: new addresses only, nothing
+/// moved, nothing renamed.
+pub const MAP_VERSION: &str = "0.2.0";
 
 /// Register space a point lives in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,6 +148,53 @@ macro_rules! point {
             extract: Box::new($extract),
         }
     };
+}
+
+/// Container air temperature reported for a block: the hottest container in
+/// it. A block carries more than one container and gets one register, so the
+/// register reports the one nearest a limit, which is the convention the cell
+/// temperature registers already follow.
+fn block_air_temp_max_c(block: &BlockState) -> f64 {
+    let max = block
+        .containers
+        .iter()
+        .map(|c| c.air_temp_c)
+        .fold(f64::NEG_INFINITY, f64::max);
+    if max.is_finite() {
+        max
+    } else {
+        0.0
+    }
+}
+
+/// HVAC mode reported for a block: the mode of the container drawing the most
+/// electrical power, ties going to the lower index.
+///
+/// One register per block has to answer "what is this block's HVAC doing",
+/// and the single honest answer is what its heaviest consumer is doing.
+/// Ranking the enum values instead would report a block as heating while one
+/// container heats and another runs both compressors.
+fn block_hvac_mode(block: &BlockState) -> HvacMode {
+    let mut mode = HvacMode::Off;
+    let mut heaviest_w = f64::NEG_INFINITY;
+    for container in &block.containers {
+        if container.hvac.electrical_w > heaviest_w {
+            heaviest_w = container.hvac.electrical_w;
+            mode = container.hvac.mode;
+        }
+    }
+    mode
+}
+
+/// Register encoding of an HVAC mode. Published values, so they are fixed:
+/// changing one is a major map change per COMPATIBILITY.md.
+fn hvac_mode_code(mode: HvacMode) -> f64 {
+    match mode {
+        HvacMode::Off => 0.0,
+        HvacMode::Cool1 => 1.0,
+        HvacMode::Cool2 => 2.0,
+        HvacMode::Heat => 3.0,
+    }
 }
 
 /// Build the full signal map for a plant configuration.
@@ -359,6 +415,61 @@ pub fn build_points(cfg: &PlantConfig) -> Vec<Point> {
                     .sum()
             }
         ),
+        // The house load, item by item. `site.aux_power_w` above is the
+        // total the substation meters; these five are what drew it, and they
+        // sum to it. They start at 32 rather than beside the total, because
+        // the total's address is published and moving it would be a breaking
+        // change; the map trades adjacency for stability.
+        point!(
+            "site.aux.hvac_w",
+            "W",
+            Medium,
+            U32,
+            1.0,
+            32,
+            Input,
+            |s: &SiteState| s.aux.hvac_w
+        ),
+        point!(
+            "site.aux.bms_w",
+            "W",
+            Medium,
+            U32,
+            1.0,
+            34,
+            Input,
+            |s: &SiteState| s.aux.bms_w
+        ),
+        point!(
+            "site.aux.pcs_standby_w",
+            "W",
+            Medium,
+            U32,
+            1.0,
+            36,
+            Input,
+            |s: &SiteState| s.aux.pcs_standby_w
+        ),
+        point!(
+            "site.aux.controls_w",
+            "W",
+            Medium,
+            U32,
+            1.0,
+            38,
+            Input,
+            |s: &SiteState| s.aux.controls_w
+        ),
+        point!(
+            "site.aux.lighting_and_safety_w",
+            "W",
+            Medium,
+            U32,
+            1.0,
+            40,
+            Input,
+            |s: &SiteState| s.aux.lighting_and_safety_w
+        ),
         // Control surface.
         point!(
             "control.site_setpoint_w",
@@ -489,6 +600,26 @@ pub fn build_points(cfg: &PlantConfig) -> Vec<Point> {
                 }
             }
         ));
+        points.push(point!(
+            format!("{prefix}.container.air_temp_c"),
+            "degC",
+            Medium,
+            I16,
+            10.0,
+            base + 8,
+            Input,
+            move |s: &SiteState| block_air_temp_max_c(&s.blocks[b])
+        ));
+        points.push(point!(
+            format!("{prefix}.hvac.state"),
+            "enum",
+            Medium,
+            U16,
+            1.0,
+            base + 9,
+            Input,
+            move |s: &SiteState| hvac_mode_code(block_hvac_mode(&s.blocks[b]))
+        ));
     }
 
     points
@@ -536,10 +667,15 @@ pub fn write_banks(points: &[Point], state: &SiteState, input: &mut [u16], holdi
 
 /// Write the signal map reference as CSV (the artifact published under
 /// `refmodel/`).
+///
+/// The first line is a `#` comment carrying [`MAP_VERSION`], so the published
+/// artifact can say which version of the contract it is. Readers skip lines
+/// starting with `#`.
 pub fn dump_signal_map_csv(path: &Path) -> std::io::Result<()> {
     let cfg = PlantConfig::gw01();
     let points = build_points(&cfg);
     let mut out = std::io::BufWriter::new(std::fs::File::create(path)?);
+    writeln!(out, "# signal-map-version: {MAP_VERSION}")?;
     writeln!(
         out,
         "space,address,words,encoding,scale,name,unit,class,access"
@@ -567,7 +703,21 @@ pub fn dump_signal_map_csv(path: &Path) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use bess_core::state::AuxPower;
+
     use super::*;
+
+    /// Read a two-register unsigned value, high word first.
+    fn read_u32(bank: &[u16], addr: usize) -> u32 {
+        (u32::from(bank[addr]) << 16) | u32::from(bank[addr + 1])
+    }
+
+    fn banks(points: &[Point], state: &SiteState) -> Vec<u16> {
+        let mut input = vec![0u16; INPUT_BANK_LEN];
+        let mut holding = vec![0u16; HOLDING_BANK_LEN];
+        write_banks(points, state, &mut input, &mut holding);
+        input
+    }
 
     #[test]
     fn addresses_do_not_overlap_and_fit_the_banks() {
@@ -613,5 +763,74 @@ mod tests {
         assert_eq!(input[4], 11_000);
         // Site SoC: 50% x100 within spread tolerance.
         assert!((4_900..=5_100).contains(&input[6]), "soc reg {}", input[6]);
+    }
+
+    /// The auxiliary identity the kernel guards internally has to survive the
+    /// projection: whoever reads the five item registers and adds them up
+    /// must land on the metered total register. Deliberately awkward values,
+    /// so the assertion exercises rounding rather than round numbers.
+    #[test]
+    fn the_house_load_items_add_up_to_the_metered_total() {
+        let cfg = PlantConfig::gw01();
+        let points = build_points(&cfg);
+        let mut state = SiteState::new(&cfg, 1, 0);
+        state.aux = AuxPower {
+            hvac_w: 41_234.6,
+            bms_w: 17_232.4,
+            pcs_standby_w: 6_795.5,
+            controls_w: 15_000.3,
+            lighting_and_safety_w: 9_999.7,
+        };
+        state.substation.aux_power_w = state.aux.total_w();
+        let input = banks(&points, &state);
+
+        let total = read_u32(&input, 22);
+        let items = read_u32(&input, 32)
+            + read_u32(&input, 34)
+            + read_u32(&input, 36)
+            + read_u32(&input, 38)
+            + read_u32(&input, 40);
+        // Five items and the total each round to the nearest watt, so the
+        // sums can differ by at most 3 W. Anything larger is a wiring error.
+        assert!(
+            total.abs_diff(items) <= 3,
+            "items sum to {items} W, total register reads {total} W"
+        );
+    }
+
+    /// The block HVAC register reports the busiest container, not the highest
+    /// enum value: a block with one container heating and another running
+    /// both compressors is a cooling block.
+    #[test]
+    fn the_block_hvac_register_reports_the_heaviest_container() {
+        let cfg = PlantConfig::gw01();
+        let points = build_points(&cfg);
+        let mut state = SiteState::new(&cfg, 1, 0);
+        {
+            let containers = &mut state.blocks[0].containers;
+            containers[0].hvac.mode = HvacMode::Heat;
+            containers[0].hvac.electrical_w = 20.0e3;
+            containers[1].hvac.mode = HvacMode::Cool2;
+            containers[1].hvac.electrical_w = 38.0e3;
+        }
+        assert_eq!(banks(&points, &state)[1009], 2, "cooling block");
+
+        // Same two modes, opposite draws: now the heater is the heaviest
+        // consumer and the register follows it.
+        state.blocks[0].containers[1].hvac.electrical_w = 4.0e3;
+        assert_eq!(banks(&points, &state)[1009], 3, "heating block");
+    }
+
+    /// Blocks carry two containers and one air temperature register, which
+    /// reports the hotter of them.
+    #[test]
+    fn the_block_air_register_reports_the_hottest_container() {
+        let cfg = PlantConfig::gw01();
+        let points = build_points(&cfg);
+        let mut state = SiteState::new(&cfg, 1, 0);
+        state.blocks[0].containers[0].air_temp_c = 24.4;
+        state.blocks[0].containers[1].air_temp_c = 31.2;
+        // i16 at scale 10.
+        assert_eq!(banks(&points, &state)[1008] as i16, 312);
     }
 }

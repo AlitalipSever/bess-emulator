@@ -31,8 +31,10 @@ docker compose up
 ```
 
 Then open <http://localhost:3000> (Grafana): the GW-01 dashboard shows a live
-state-of-charge chart within a minute. The plant runs at 60x by default, so a
-full market day plays out in 24 minutes.
+state-of-charge chart within a minute, plus the plant's temperatures against
+the replayed weather, what its cooling is doing, the house load item by item,
+and where the energy that never reached the meter went. The plant runs at 60x
+by default, so a full market day plays out in 24 minutes.
 
 Without Docker (Rust toolchain required):
 
@@ -48,7 +50,7 @@ cargo run --release -p bess-emulator
 | MQTT | broker at `127.0.0.1:1883` | Topics under `bess/gw01/`, JSON payloads, decimated per publication class. |
 | REST | `http://127.0.0.1:8080/api/v1/` | `state`, `summary`, `setpoint`, `speed`. |
 | WebSocket | `ws://127.0.0.1:8080/api/v1/stream` | Tick summaries, 4 per second. |
-| Prometheus | `http://127.0.0.1:8080/metrics` | Site KPIs for scraping. |
+| Prometheus | `http://127.0.0.1:8080/metrics` | Site KPIs, temperatures, HVAC staging, house load by item, cumulative losses by category. |
 | Health | `http://127.0.0.1:8080/health` | Liveness + kernel version. |
 
 The full register and topic reference is
