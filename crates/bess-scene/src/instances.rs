@@ -3,7 +3,7 @@
 //!
 //! Instance layout (see `FPI`): offset(3) scale(3) color(3) emissive(1).
 
-use bess_core::state::{PcsOpState, SiteState};
+use bess_core::state::{HvacMode, PcsOpState, SiteState};
 
 use crate::layout::{
     BlockLayout, Selection, SiteLayout, CONTAINER_SIZE, GANTRY_H, GANTRY_X, TRANSFORMER_X,
@@ -498,10 +498,17 @@ pub fn build_dynamic(out: &mut Vec<f32>, inp: &DynamicInput) {
                 led_em,
             );
 
-            // HVAC fan blades orbit on the end unit while cooling runs
-            if cont_s.hvac.cooling_on {
+            // HVAC fan blades orbit on the end unit whenever the unit runs,
+            // faster when the second cooling stage joins.
+            let fan_rate = match cont_s.hvac.mode {
+                HvacMode::Off => 0.0,
+                HvacMode::Heat => 6.0,
+                HvacMode::Cool1 => 9.0,
+                HvacMode::Cool2 => 14.0,
+            };
+            if fan_rate > 0.0 {
                 let fan_x = x - CONTAINER_SIZE[0] / 2.0 - 0.36;
-                let spin = anim * 9.0;
+                let spin = anim * fan_rate;
                 for k in 0..4 {
                     let th = spin + k as f32 * std::f32::consts::FRAC_PI_2;
                     push(

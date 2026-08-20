@@ -17,7 +17,12 @@ use crate::state::SiteState;
 /// Envelope tag identifying a bess checkpoint.
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
-pub const FORMAT_VERSION: u32 = 1;
+///
+/// v2 (M1): container HVAC gained a staged mode and its anti short-cycle
+/// timer, so the state tree carries fields a v1 file does not. Pre-1.0
+/// checkpoints are not migrated; a v1 file is rejected with its version
+/// named rather than half-restored.
+pub const FORMAT_VERSION: u32 = 2;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {

@@ -2,7 +2,7 @@
 //! whatever is selected in the scene. Panels read `&SiteState` and emit
 //! [`ViewerCommand`]s; they never touch the kernel.
 
-use bess_core::state::{EmsMode, PcsOpState, SiteState};
+use bess_core::state::{EmsMode, HvacMode, PcsOpState, SiteState};
 use egui::{Color32, ProgressBar, RichText, Slider};
 
 use crate::layout::Selection;
@@ -157,10 +157,15 @@ fn selection_detail(ui: &mut egui::Ui, state: &SiteState, sel: Selection) {
                 ui.label(format!("{:.1} \u{b0}C", cont.air_temp_c));
                 ui.end_row();
                 ui.label("HVAC");
-                ui.label(if cont.hvac.cooling_on {
-                    "cooling"
-                } else {
-                    "standby"
+                ui.label(match cont.hvac.mode {
+                    HvacMode::Off => "standby".to_owned(),
+                    HvacMode::Cool1 => {
+                        format!("cooling, 1 unit ({:.0} kW)", cont.hvac.thermal_w / 1000.0)
+                    }
+                    HvacMode::Cool2 => {
+                        format!("cooling, 2 units ({:.0} kW)", cont.hvac.thermal_w / 1000.0)
+                    }
+                    HvacMode::Heat => format!("heating ({:.0} kW)", -cont.hvac.thermal_w / 1000.0),
                 });
                 ui.end_row();
             });

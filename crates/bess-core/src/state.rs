@@ -165,14 +165,37 @@ pub struct ContainerState {
     pub racks: Vec<RackState>,
 }
 
+/// What the container HVAC unit is doing.
+///
+/// Cooling is staged because the reference container carries more than one
+/// unit; heating is a single electric mode, since that is what container
+/// datasheets fit (see CALIBRATION.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HvacMode {
+    /// Controls energized, no compressor and no heater.
+    Off,
+    /// One cooling unit running.
+    Cool1,
+    /// Both cooling units running.
+    Cool2,
+    /// Electric heating.
+    Heat,
+}
+
 /// Container HVAC state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HvacState {
-    /// Whether active cooling is running.
-    pub cooling_on: bool,
+    /// Operating mode.
+    pub mode: HvacMode,
+    /// Seconds the current mode must still be held before the controller may
+    /// step down or switch off. Escalation ignores it; see the anti
+    /// short-cycle rule in the thermal model. Part of the state because a
+    /// resumed run has to continue mid-cycle, not restart the timer.
+    pub mode_hold_s: f64,
     /// Electrical power drawn, W.
     pub electrical_w: f64,
-    /// Heat currently being removed, W (thermal).
+    /// Heat currently being moved, W (thermal). Positive when cooling
+    /// removes heat from the container, negative when heating adds it.
     pub thermal_w: f64,
 }
 
@@ -223,7 +246,8 @@ impl SiteState {
                     .map(|_| ContainerState {
                         air_temp_c: 20.0,
                         hvac: HvacState {
-                            cooling_on: false,
+                            mode: HvacMode::Off,
+                            mode_hold_s: 0.0,
                             electrical_w: 0.0,
                             thermal_w: 0.0,
                         },
