@@ -6,7 +6,7 @@
 
 use crate::config::RackConfig;
 use crate::kernel::Weather;
-use crate::state::{ContainerState, PcsState, RackState, SiteState, SubstationState};
+use crate::state::{AuxPower, ContainerState, PcsState, RackState, SiteState, SubstationState};
 
 /// Result of stepping one rack for one tick.
 #[derive(Debug, Clone, Copy)]
@@ -114,16 +114,43 @@ pub trait EmsStrategy: Send + Sync {
     fn site_target_w(&self, unix_time_s: i64, state: &SiteState) -> f64;
 }
 
+/// What the site is asking its auxiliary systems to supply this tick.
+///
+/// Counts rather than states: the auxiliary model owns what a rack's
+/// electronics or an idle converter draws, the kernel owns how many of each
+/// there are.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AuxDemand {
+    /// HVAC electrical draw already computed by the thermal layer, W.
+    pub hvac_w: f64,
+    /// Racks on site, energized whether or not they are in service.
+    pub racks: usize,
+    /// PCS units energized but not converting.
+    pub pcs_in_standby: usize,
+}
+
+/// The site's auxiliary loads: everything the plant consumes to run itself.
+///
+/// Behind a trait like every other layer, because the M1 gate makes this a
+/// measured category rather than a constant, and later milestones deepen it
+/// (loads that follow temperature, standby strategies, aux supply faults).
+pub trait AuxiliaryModel: Send + Sync {
+    /// Auxiliary draw for one tick, itemized.
+    fn step_site(&self, demand: AuxDemand) -> AuxPower;
+}
+
 /// Substation and grid coupling.
 pub trait GridInterface: Send + Sync {
-    /// Propagate the total PCS AC power and the HVAC auxiliary load through
-    /// the substation to the POI: transformer losses, station auxiliaries,
-    /// POI measurements, energy meters, and grid frequency pass-through.
+    /// Propagate the total PCS AC power and the site auxiliary load through
+    /// the substation to the POI: transformer losses, POI measurements,
+    /// energy meters, and grid frequency pass-through. The auxiliary total
+    /// arrives itemized from the auxiliary model; the substation meters it
+    /// rather than inventing it.
     fn step(
         &self,
         substation: &mut SubstationState,
         p_ac_total_w: f64,
-        hvac_aux_w: f64,
+        aux_w: f64,
         frequency_hz: f64,
         dt_s: f64,
     );
@@ -143,6 +170,8 @@ pub struct Models {
     pub pcs: Box<dyn PcsModel>,
     /// Dispatch strategy.
     pub ems: Box<dyn EmsStrategy>,
+    /// Auxiliary load inventory.
+    pub aux: Box<dyn AuxiliaryModel>,
     /// Substation / grid coupling.
     pub grid: Box<dyn GridInterface>,
 }

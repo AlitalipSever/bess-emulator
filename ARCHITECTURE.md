@@ -119,6 +119,7 @@ can be deepened independently:
 | `BmsLogic` | Limits, derating, alarm tree, passive balancing | Behavior profiles from public vendor manuals |
 | `PcsModel` | Efficiency map f(P, V_dc), P/Q capability, state machine, setpoint response | Thermal derating, overload budget, STATCOM mode |
 | `EmsStrategy` | Day-ahead dispatch plan over real prices + setpoint tracking | Balancing-market activation replay, multi-market |
+| `AuxiliaryModel` | Itemized house load: rack electronics, converter standby, controls, lighting | Loads that follow temperature and operating mode, auxiliary supply faults |
 | `GridInterface` | Transformer losses, breaker state machine, real frequency replay, revenue meter | OLTC, transformer thermal, Q(U)/cos-phi, curtailment commands, P(f) droop |
 | `Aging` | Empirical cycle + calendar curves from published data | Stress-factor models |
 
@@ -140,6 +141,27 @@ consequences worth stating as modeling assumptions:
 
 Solar gain follows the sol-air convention: irradiance raises the temperature
 the envelope sees rather than opening a separate radiation path into the box.
+
+### The house load has an inventory, not a number
+
+Everything the plant consumes to run itself is itemized: container HVAC, rack
+battery-management electronics, converters that are energized but not
+converting, plant control and protection, and lighting with small power. Each
+item is a named quantity in the state tree with its own meter, because the M1
+calibration gate asks for the nameplate-to-field gap to be explainable item by
+item. A lump would satisfy the arithmetic and defeat the point.
+
+Two rules keep the inventory honest:
+
+- **One consumer, one row.** Rack circulation fans belong to the HVAC item
+  because that is where their power is computed; they are not a sixth row.
+- **A converting unit does not pay standby.** A running PCS supplies itself
+  out of its own conversion loss, which the efficiency curve already carries,
+  so the standby tare applies only while a unit is idle. Two consumers named
+  the same watts would pass every energy balance and misprice the waterfall.
+
+The substation meters the total it is handed; it does not add a house load of
+its own.
 
 ### Substation and grid side
 
@@ -169,6 +191,7 @@ site/
   meta
   substation/   (110 kV: main transformer, HV breaker, protection, POI P/Q/V/f, meter)
   ems/          (mode, active plan, setpoints, availability)
+  aux/          (house load itemized: hvac, bms, pcs standby, controls, misc)
   weather/      (from real data: temperature, irradiance, wind)
   block[0..19]/
     pcs/        (state, P, Q, efficiency, temperatures, alarms)

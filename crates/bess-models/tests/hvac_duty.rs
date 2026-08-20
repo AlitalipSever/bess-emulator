@@ -158,16 +158,16 @@ fn the_published_calibration_readings_still_hold() {
         july.starts_per_container
     );
     assert!(
-        (5.0..9.0).contains(&july_aux),
-        "July auxiliary share {july_aux:.1}%, recorded as 6.9%"
+        (4.0..7.0).contains(&july_aux),
+        "July auxiliary share {july_aux:.1}%, recorded as 5.1%"
     );
     assert!(
         (2.0..10.0).contains(&winter_stage1),
         "January stage 1 duty {winter_stage1:.0}%, recorded as 5%"
     );
     assert!(
-        (3.0..6.0).contains(&winter_aux),
-        "January auxiliary share {winter_aux:.1}%, recorded as 4.4%"
+        (1.8..3.5).contains(&winter_aux),
+        "January auxiliary share {winter_aux:.1}%, recorded as 2.6%"
     );
 }
 

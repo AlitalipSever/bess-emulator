@@ -51,6 +51,70 @@ in ARCHITECTURE.md will regenerate it automatically once it exists.
   loss decomposition; k1 fitting slightly negative is expected and
   documented in `crates/bess-models/src/pcs.rs`.
 
+## M1 (in progress): auxiliary inventory
+
+Until this step the plant's house load was one 150 kW constant living inside
+the substation model, covering everything that was not HVAC. It could not be
+attributed, could not be checked against anything, and did not change when
+the plant did. PR5 replaced it with four itemized loads, which together with
+the HVAC draw from the thermal layer make up every watt the site consumes for
+itself.
+
+| Item | Value | Basis | Status |
+|---|---|---|---|
+| Rack battery-management electronics | 71.8 W per rack (34.5 kW site) | Schimpe et al. 2018 measured 287 W of battery-side control and monitoring on a container system of 8 racks x 13 modules x 16 cell blocks. Scaled by monitored cell count, since sensing channels are what set the electronics count: 0.172 W per cell block, times the 416 cells a GW-01 rack monitors | referenced, scaled. The scaling assumes per-cell monitoring at both ends, which is standard for utility LFP racks but not stated in the source |
+| PCS standby tare | 339.8 W per idle block (6.8 kW site) | the CEC inverter database publishes night tare, the draw of a unit that is energized and not delivering, as 169.9 W for the Sungrow SC2500UD-US at its 2.507 MW rating. That is the same database entry this plant's efficiency curve is fitted to; a 5 MW block is two such units | referenced |
+| Plant control, protection, SCADA | 15 kW, site constant | substation protection and control with its DC systems and telecom, site EMS and SCADA, per-block controllers and communications | estimate. Together with the line below, the part of this inventory that most wants a source |
+| Lighting, fire detection, security, small power | 10 kW, site constant | fire and gas detection per container, site and building lighting averaged over the day, security and access control | estimate. Lighting is modeled as a flat average rather than a night load |
+
+**Sources:** [Schimpe et al. 2018, Applied Energy 210, 211-229, Table
+3](https://www.osti.gov/pages/biblio/1409737) (control and monitoring
+consumption of a 192 kWh container system, 287 W battery / 422 W power
+electronics / 81 W system), and the CEC inverter database entry for the
+Sungrow SC2500UD-US as distributed with NREL SAM (see DATA-LICENSES.md), the
+`Pnt` night-tare field of the same record used for the efficiency curve.
+
+Two rules prevent the same watts from being billed twice, both held by tests
+in `crates/bess-models/src/aux.rs`:
+
+- A converting PCS does not pay the standby tare. Its self-supply is already
+  inside the load-independent term of the efficiency curve.
+- Rack circulation fans stay inside the HVAC item, where their power is
+  computed, rather than becoming a fifth station line.
+
+Measured on the same replayed days as the thermal record (seed 7, GW-01 on
+the internal dispatch plan). The item split is held by
+`the_published_item_split_still_holds` and the totals by
+`the_published_calibration_readings_still_hold`:
+
+| Reading | 1 January | 14 July |
+|---|---|---|
+| Auxiliary energy over the day | 2.7 MWh | 5.4 MWh |
+| Share of energy imported at the POI | 2.6% | 5.1% |
+| HVAC | 42% | 71% |
+| Rack electronics | 31% | 15% |
+| PCS standby | 5% | 2% |
+| Controls and protection | 13% | 7% |
+| Lighting and small power | 9% | 4% |
+
+What the itemization changed, stated plainly: the station load fell from the
+150 kW placeholder to 66.3 kW, so the auxiliary share of a January day moved
+from 4.4% to 2.6% and of a July day from 6.9% to 5.1%. The single-cycle M0.5
+round-trip gate moved with it, 0.9186 to 0.9207, still inside [0.90, 0.93].
+The placeholder was never sourced, and nothing here was tuned to keep it:
+four items were sized independently and the total is what they sum to.
+
+Known gaps in this inventory, recorded rather than hidden:
+
+- **Auxiliary transformer and LV distribution losses are not modeled.** The
+  main step-up transformer is; the small transformers feeding the house load
+  are not, which understates the station total by a few kW.
+- **Two of the four items are engineering estimates.** They are 25 kW of the
+  66.3 kW, so a sourced replacement can move the station load by a third.
+- **Nothing here varies with temperature or time of day** except the HVAC
+  item. Real control rooms are air conditioned and real lighting is a night
+  load.
+
 ## M1 (in progress): thermal parameter provenance
 
 The M1 gate itself, annual round-trip efficiency and auxiliary share, is
@@ -91,7 +155,7 @@ them fails CI instead of quietly leaving this record stale:
 | Peak cell temperature | 33.7 C | 38.0 C |
 | Stage 1 / stage 2 duty | 5% / 0% | 17% / 1% |
 | Compressor starts per container per day | 5.0 | 35.1 |
-| Auxiliary energy, share of import | 4.4% | 6.9% |
+| Auxiliary energy, share of import | 2.6% | 5.1% |
 
 The July figures are the point of the exercise: before this step the same day
 left containers at about 36 C air and 42 C cells against a 27 C setpoint,
@@ -109,10 +173,10 @@ Three observations that belong here rather than in a commit message:
   installation describes it. It does appear on an idle winter day, which is
   what the `an_idle_winter_day_brings_the_heater_on` test holds.
 - **The auxiliary share above is not yet the gate.** It is auxiliary energy
-  over import for a single day, still carrying the 150 kW station constant as
-  one lump. The M1 gate is auxiliary share of annual throughput against a
-  sourced band, and it is measured after the auxiliary inventory splits that
-  constant.
+  over import for a single day. The M1 gate is auxiliary share of annual
+  throughput against a band sourced in PR7, measured by `bess-bench` over the
+  full replayed year. The share fell when the station constant was itemized
+  in PR5; both readings above are post-inventory.
 
 ## Planned gates (from ROADMAP.md)
 

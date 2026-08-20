@@ -8,8 +8,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::config::PlantConfig;
-use crate::state::{BlockState, BreakerState, EmsMode, PcsOpState, SiteState};
-use crate::traits::{Models, PowerLimits};
+use crate::state::{AuxPower, BlockState, BreakerState, EmsMode, PcsOpState, SiteState};
+use crate::traits::{AuxDemand, Models, PowerLimits};
 use crate::TICK_SECONDS;
 
 /// The weather one tick applies.
@@ -212,11 +212,34 @@ impl Simulation {
         self.state.ems.available_discharge_w = avail.max_discharge_w;
         self.state.ems.available_charge_w = avail.max_charge_w;
 
-        // 4. Substation: losses, auxiliaries, POI measurements, meters.
+        // 4. Auxiliary inventory: what the site consumes to run itself. A
+        //    dark site draws nothing at the POI, which is what the substation
+        //    meters too, so the itemized and metered totals agree by
+        //    construction. What losing supply does to a container that still
+        //    has heat in it is an M3 question, arriving with the breaker
+        //    state machine; M0 never opens the breaker.
+        let aux = if connected {
+            self.models.aux.step_site(AuxDemand {
+                hvac_w: hvac_aux_w,
+                racks: self.cfg.total_racks(),
+                pcs_in_standby: self
+                    .state
+                    .blocks
+                    .iter()
+                    .filter(|b| b.pcs.op_state != PcsOpState::Run)
+                    .count(),
+            })
+        } else {
+            AuxPower::default()
+        };
+        self.state.aux = aux;
+        self.state.energy.aux_items.accumulate(&aux, wh);
+
+        // 5. Substation: losses, POI measurements, meters.
         self.models.grid.step(
             &mut self.state.substation,
             p_ac_site_w,
-            hvac_aux_w,
+            aux.total_w(),
             inputs.grid_frequency_hz,
             dt_s,
         );
