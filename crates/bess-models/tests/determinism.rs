@@ -21,13 +21,13 @@ const TICKS: u64 = 4 * 3600;
 ///
 /// If a deliberate model or state-schema change moves this value, update it
 /// from the number printed by the failing assertion. Any other change that
-/// moves it is a broken determinism contract. Last regenerated in M1 PR4,
-/// where the container HVAC gained staging, heating and an anti short-cycle
-/// timer, which adds fields to the state tree. Earlier values:
-/// 0x449f_9d2c_d5ef_3461 (M0.5), 0xdb39_2afb_95e7_3220 (M1 PR2, the switch
-/// to replayed weather), 0xe545_c288_049e_6096 (M1 PR3, the two-node
-/// thermal model).
-const GOLDEN_DIGEST: u64 = 0x0817_b721_5412_38c8;
+/// moves it is a broken determinism contract. Last regenerated in M1 PR5,
+/// where the auxiliary inventory added the itemized draw and its meters to
+/// the state tree, and the station load stopped being a 150 kW constant.
+/// Earlier values: 0x449f_9d2c_d5ef_3461 (M0.5), 0xdb39_2afb_95e7_3220
+/// (M1 PR2, the switch to replayed weather), 0xe545_c288_049e_6096 (M1 PR3,
+/// the two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC).
+const GOLDEN_DIGEST: u64 = 0x1446_6f26_c751_bc02;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();

@@ -5,6 +5,7 @@
 //! ARCHITECTURE.md). Each one is deepened in its own milestone behind the
 //! trait it implements, without touching the others.
 
+pub mod aux;
 pub mod bms;
 pub mod cell;
 pub mod ems;
@@ -13,6 +14,7 @@ pub mod pcs;
 pub mod thermal;
 pub mod weather;
 
+pub use aux::InventoryAux;
 pub use bms::BasicBms;
 pub use cell::Ecm1Rc;
 pub use ems::DayAheadEms;
@@ -37,6 +39,7 @@ pub fn gw01_models(cfg: &PlantConfig) -> Models {
         thermal: Box::new(LumpedThermal::default()),
         pcs: Box::new(CurvePcs::cec_utility_reference(cfg.pcs_rated_w)),
         ems: Box::new(DayAheadEms::default_profile(cfg.grid.site_rated_w)),
+        aux: Box::new(InventoryAux::gw01()),
         grid: Box::new(SimpleGrid::new(cfg.grid.site_rated_w)),
     }
 }

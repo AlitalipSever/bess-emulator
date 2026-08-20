@@ -16,7 +16,7 @@ scheduled. Architecture and rationale live in
 | M3 | PCS + electrical | planned |
 | M4 | EMS + market signals | planned |
 | M5 | Degradation | planned |
-| M6+ | OPC UA, cell granularity, native viewer | ideas, no promises |
+| M6+ | Grid protocols (IEC 60870-5-104, 61850), OPC UA, cell granularity, native viewer | ideas, no promises |
 
 ## How this roadmap works
 
@@ -214,6 +214,24 @@ study bands.
 
 ## M6+ (ideas, explicitly unpromised)
 
+- **Grid-facing protocol surfaces (IEC 60870-5-104, IEC 61850).** Modbus and
+  MQTT cover the plant-internal and monitoring cases. They are not what a
+  TSO-facing SCADA integration speaks, which is the one interface the emulator
+  cannot currently stand in for. Two very different amounts of work, so they
+  are listed separately rather than as one bucket:
+  - *IEC 60870-5-104 slave:* tractable natively. APCI and ASDU framing over
+    TCP, a small set of type IDs (short-float measured value, single point,
+    single command, setpoint), and the existing signal map already supplies
+    what becomes the information object addresses. No third-party dependency,
+    so this repo's permissive licensing is unaffected. This is the one to do
+    first.
+  - *IEC 61850:* an MMS server plus SCL description is a project of its own,
+    and the established C libraries are GPL with commercial dual-licensing,
+    which does not fit an MIT/Apache repo. The realistic first step is naming
+    rather than transport: the reference signal map already aligns with
+    IEC 61850-7-420 logical-node naming, and publishing that mapping
+    explicitly delivers most of the practical value to an integrator for a
+    fraction of the work.
 - OPC UA surface
 - Cell-group granularity (~5x signal count; Modbus map split across unit IDs
   per container, matching real BMS gateway topologies)
