@@ -62,10 +62,10 @@ itself.
 
 | Item | Value | Basis | Status |
 |---|---|---|---|
-| Rack battery-management electronics | 71.8 W per rack (34.5 kW site) | Schimpe et al. 2018 measured 287 W of battery-side control and monitoring on a container system of 8 racks x 13 modules x 16 cell blocks. Scaled by monitored cell count, since sensing channels are what set the electronics count: 0.172 W per cell block, times the 416 cells a GW-01 rack monitors | referenced, scaled. The scaling assumes per-cell monitoring at both ends, which is standard for utility LFP racks but not stated in the source |
+| Rack battery-management electronics | 71.8 W per rack (34.5 kW site) | Schimpe et al. 2018 measured 287 W of battery-side control and monitoring on a container system of 8 racks x 13 modules x 16 cell blocks. Scaled by monitored cell count, since sensing channels are what set the electronics count: 0.172 W per cell block, times the 416 cells a GW-01 rack monitors. The source figure is already corrected for the 91.5% efficiency of the 24 V supply it measured, so this one carries that correction too | referenced, scaled. Two assumptions ride on the scaling. It takes per-cell monitoring at both ends, standard for utility LFP racks but not stated in the source. And it scales the whole battery group per cell, including the rack-level master units, which do not multiply with cell count: a GW-01 rack monitors twice the cells of the reference rack, so its master contribution is counted twice over. Both push the figure up, by a few watts per rack |
 | PCS standby tare | 339.8 W per idle block (6.8 kW site) | the CEC inverter database publishes night tare, the draw of a unit that is energized and not delivering, as 169.9 W for the Sungrow SC2500UD-US at its 2.507 MW rating. That is the same database entry this plant's efficiency curve is fitted to; a 5 MW block is two such units | referenced |
 | Plant control, protection, SCADA | 15 kW, site constant | substation protection and control with its DC systems and telecom, site EMS and SCADA, per-block controllers and communications | estimate. Together with the line below, the part of this inventory that most wants a source |
-| Lighting, fire detection, security, small power | 10 kW, site constant | fire and gas detection per container, site and building lighting averaged over the day, security and access control | estimate. Lighting is modeled as a flat average rather than a night load |
+| Lighting and safety systems | 10 kW, site constant | fire and gas detection per container, security and access control, site and building lighting averaged over the day. An enumerated row, not a remainder: nothing lands here for failing to fit elsewhere | estimate. Lighting is modeled as a flat average rather than a night load |
 
 **Sources:** [Schimpe et al. 2018, Applied Energy 210, 211-229, Table
 3](https://www.osti.gov/pages/biblio/1409737) (control and monitoring
@@ -83,9 +83,12 @@ in `crates/bess-models/src/aux.rs`:
   computed, rather than becoming a fifth station line.
 
 Measured on the same replayed days as the thermal record (seed 7, GW-01 on
-the internal dispatch plan). The item split is held by
-`the_published_item_split_still_holds` and the totals by
-`the_published_calibration_readings_still_hold`:
+the internal dispatch plan). Every figure below is inside a band held by CI:
+the daily energy by `the_published_daily_totals_still_hold`, the item split
+by `the_published_item_split_still_holds` (both in
+`crates/bess-models/tests/aux_inventory.rs`), and the share of import by
+`the_published_calibration_readings_still_hold`. The 66.3 kW station total is
+held by `the_idle_station_load_is_what_the_record_says`.
 
 | Reading | 1 January | 14 July |
 |---|---|---|
@@ -95,7 +98,7 @@ the internal dispatch plan). The item split is held by
 | Rack electronics | 31% | 15% |
 | PCS standby | 5% | 2% |
 | Controls and protection | 13% | 7% |
-| Lighting and small power | 9% | 4% |
+| Lighting and safety systems | 9% | 4% |
 
 What the itemization changed, stated plainly: the station load fell from the
 150 kW placeholder to 66.3 kW, so the auxiliary share of a January day moved

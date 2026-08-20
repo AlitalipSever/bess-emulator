@@ -125,8 +125,10 @@ pub struct AuxDemand {
     pub hvac_w: f64,
     /// Racks on site, energized whether or not they are in service.
     pub racks: usize,
-    /// PCS units energized but not converting.
-    pub pcs_in_standby: usize,
+    /// PCS units energized but not converting. A tripped unit counts: a trip
+    /// opens the AC side and leaves the controls, cooling and communications
+    /// alive, which is what the tare pays for.
+    pub pcs_not_converting: usize,
 }
 
 /// The site's auxiliary loads: everything the plant consumes to run itself.

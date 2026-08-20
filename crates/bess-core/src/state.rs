@@ -125,14 +125,16 @@ pub struct AuxPower {
     pub pcs_standby_w: f64,
     /// Plant control, protection and SCADA.
     pub controls_w: f64,
-    /// Lighting, fire detection, security and small power.
-    pub misc_w: f64,
+    /// Fire and gas detection, security and access control, site and
+    /// building lighting, small power. An enumerated row, not a remainder:
+    /// nothing is assigned here because it did not fit elsewhere.
+    pub lighting_and_safety_w: f64,
 }
 
 impl AuxPower {
     /// Total auxiliary draw, W.
     pub fn total_w(&self) -> f64 {
-        self.hvac_w + self.bms_w + self.pcs_standby_w + self.controls_w + self.misc_w
+        self.hvac_w + self.bms_w + self.pcs_standby_w + self.controls_w + self.lighting_and_safety_w
     }
 }
 
@@ -151,8 +153,8 @@ pub struct AuxEnergy {
     pub pcs_standby_wh: f64,
     /// Plant control, protection and SCADA.
     pub controls_wh: f64,
-    /// Lighting, fire detection, security and small power.
-    pub misc_wh: f64,
+    /// Fire and gas detection, security, lighting and small power.
+    pub lighting_and_safety_wh: f64,
 }
 
 impl AuxEnergy {
@@ -162,12 +164,16 @@ impl AuxEnergy {
         self.bms_wh += power.bms_w * hours;
         self.pcs_standby_wh += power.pcs_standby_w * hours;
         self.controls_wh += power.controls_w * hours;
-        self.misc_wh += power.misc_w * hours;
+        self.lighting_and_safety_wh += power.lighting_and_safety_w * hours;
     }
 
     /// Total auxiliary energy, Wh.
     pub fn total_wh(&self) -> f64 {
-        self.hvac_wh + self.bms_wh + self.pcs_standby_wh + self.controls_wh + self.misc_wh
+        self.hvac_wh
+            + self.bms_wh
+            + self.pcs_standby_wh
+            + self.controls_wh
+            + self.lighting_and_safety_wh
     }
 }
 

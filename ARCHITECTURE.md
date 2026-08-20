@@ -191,7 +191,7 @@ site/
   meta
   substation/   (110 kV: main transformer, HV breaker, protection, POI P/Q/V/f, meter)
   ems/          (mode, active plan, setpoints, availability)
-  aux/          (house load itemized: hvac, bms, pcs standby, controls, misc)
+  aux/          (house load itemized: hvac, bms, pcs standby, controls, lighting)
   weather/      (from real data: temperature, irradiance, wind)
   block[0..19]/
     pcs/        (state, P, Q, efficiency, temperatures, alarms)

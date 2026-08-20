@@ -27,7 +27,7 @@ const TICKS: u64 = 4 * 3600;
 /// Earlier values: 0x449f_9d2c_d5ef_3461 (M0.5), 0xdb39_2afb_95e7_3220
 /// (M1 PR2, the switch to replayed weather), 0xe545_c288_049e_6096 (M1 PR3,
 /// the two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC).
-const GOLDEN_DIGEST: u64 = 0x4094_609b_af43_27c0;
+const GOLDEN_DIGEST: u64 = 0x1446_6f26_c751_bc02;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();

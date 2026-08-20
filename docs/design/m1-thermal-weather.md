@@ -88,7 +88,7 @@ path to the meters:
 | Transformer copper/iron | substation | exists |
 | HVAC electrical | `hvac.electrical_w` per container, summed into `aux.hvac_w` | exists, deepened |
 | Rack electronics | `aux.bms_w` | done in PR5 |
-| Station standby inventory | `aux.controls_w` and `aux.misc_w` | done in PR5: splits the 150 kW constant |
+| Station standby inventory | `aux.controls_w` and `aux.lighting_and_safety_w` | done in PR5: splits the 150 kW constant |
 | PCS standby tare | `aux.pcs_standby_w`, idle blocks only | done in PR5 |
 
 The energy meters gain per-category accumulators so `bess-bench` can emit

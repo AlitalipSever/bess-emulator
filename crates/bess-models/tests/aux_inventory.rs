@@ -6,7 +6,9 @@
 //! accounting can quietly go wrong: an item that is metered but not
 //! attributed, and an item that is attributed twice.
 
-use bess_core::state::PcsOpState;
+use std::sync::OnceLock;
+
+use bess_core::state::{AuxEnergy, EnergyAccounting, PcsOpState};
 use bess_core::{PlantConfig, Simulation};
 use bess_models::{gw01_models, gw01_weather};
 
@@ -35,25 +37,85 @@ fn run(sim: &mut Simulation, ticks: u64) {
     }
 }
 
+/// What a replayed day leaves behind. A day is the most expensive fixture
+/// here and several assertions want the same one, so each day is computed
+/// once and shared.
+struct DayEnergy {
+    energy: EnergyAccounting,
+    stored_delta_wh: f64,
+    import_wh: f64,
+    export_wh: f64,
+}
+
+impl DayEnergy {
+    fn measure(start_unix_s: i64) -> Self {
+        let mut sim = started_at(start_unix_s, None);
+        let stored_start_wh = sim.stored_energy_wh();
+        run(&mut sim, 86_400);
+        let stored_delta_wh = sim.stored_energy_wh() - stored_start_wh;
+        let state = sim.state();
+        Self {
+            energy: state.energy.clone(),
+            stored_delta_wh,
+            import_wh: state.substation.import_wh,
+            export_wh: state.substation.export_wh,
+        }
+    }
+
+    fn items(&self) -> &AuxEnergy {
+        &self.energy.aux_items
+    }
+}
+
+fn january_day() -> &'static DayEnergy {
+    static DAY: OnceLock<DayEnergy> = OnceLock::new();
+    DAY.get_or_init(|| DayEnergy::measure(NEW_YEAR_S))
+}
+
+fn july_day() -> &'static DayEnergy {
+    static DAY: OnceLock<DayEnergy> = OnceLock::new();
+    DAY.get_or_init(|| DayEnergy::measure(JULY_S))
+}
+
 /// The identity itself. The metered total comes off the substation, the
 /// items come off the consumers that reported them, and the two paths never
 /// meet inside the code. If a category is ever added to one and forgotten in
 /// the other, this is where it shows.
 #[test]
 fn the_itemized_aux_matches_the_metered_total() {
-    let mut sim = simulation(None);
-    run(&mut sim, 86_400);
+    for (label, day) in [("January", january_day()), ("July", july_day())] {
+        let energy = &day.energy;
+        let itemized_wh = day.items().total_wh();
+        let residual_wh = energy.aux_wh - itemized_wh;
+        let relative = residual_wh.abs() / energy.aux_wh.max(1.0);
+        assert!(
+            relative < 1.0e-12,
+            "{label}: metered aux {:.3} Wh, itemized {itemized_wh:.3} Wh, \
+             residual {residual_wh:.6} Wh",
+            energy.aux_wh
+        );
+        assert!(
+            energy.aux_wh > 0.0,
+            "{label}: the plant consumed nothing all day"
+        );
+    }
+}
 
-    let energy = &sim.state().energy;
-    let itemized_wh = energy.aux_items.total_wh();
-    let residual_wh = energy.aux_wh - itemized_wh;
-    let relative = residual_wh.abs() / energy.aux_wh.max(1.0);
+/// CALIBRATION.md publishes what a day of house load costs. Bands rather
+/// than points, but bands narrow enough that a figure leaving the record
+/// fails the build instead of quietly going stale.
+#[test]
+fn the_published_daily_totals_still_hold() {
+    let january_mwh = january_day().energy.aux_wh / 1.0e6;
+    let july_mwh = july_day().energy.aux_wh / 1.0e6;
     assert!(
-        relative < 1.0e-12,
-        "metered aux {:.3} Wh, itemized {itemized_wh:.3} Wh, residual {residual_wh:.6} Wh",
-        energy.aux_wh
+        (2.0..3.5).contains(&january_mwh),
+        "January auxiliary energy {january_mwh:.1} MWh, recorded as 2.7 MWh"
     );
-    assert!(energy.aux_wh > 0.0, "the plant consumed nothing all day");
+    assert!(
+        (4.0..7.0).contains(&july_mwh),
+        "July auxiliary energy {july_mwh:.1} MWh, recorded as 5.4 MWh"
+    );
 }
 
 /// The whole waterfall, not just its auxiliary column: what crossed the POI
@@ -61,24 +123,19 @@ fn the_itemized_aux_matches_the_metered_total() {
 /// site energy balance stated the way the study will publish it.
 #[test]
 fn every_watt_has_an_address() {
-    let mut sim = simulation(None);
-    let stored_start_wh = sim.stored_energy_wh();
-    run(&mut sim, 86_400);
-
-    let state = sim.state();
-    let items = &state.energy.aux_items;
-    let accounted_wh = state.energy.battery_loss_wh
-        + state.energy.pcs_loss_wh
-        + state.energy.transformer_loss_wh
+    let day = january_day();
+    let items = day.items();
+    let accounted_wh = day.energy.battery_loss_wh
+        + day.energy.pcs_loss_wh
+        + day.energy.transformer_loss_wh
         + items.hvac_wh
         + items.bms_wh
         + items.pcs_standby_wh
         + items.controls_wh
-        + items.misc_wh;
-    let delta_stored_wh = sim.stored_energy_wh() - stored_start_wh;
-    let net_poi_wh = state.substation.import_wh - state.substation.export_wh;
-    let residual_wh = net_poi_wh - delta_stored_wh - accounted_wh;
-    let throughput_wh = state.substation.import_wh + state.substation.export_wh;
+        + items.lighting_and_safety_wh;
+    let net_poi_wh = day.import_wh - day.export_wh;
+    let residual_wh = net_poi_wh - day.stored_delta_wh - accounted_wh;
+    let throughput_wh = day.import_wh + day.export_wh;
     assert!(
         residual_wh.abs() / throughput_wh.max(1.0) < 2.0e-3,
         "unaddressed energy {residual_wh:.1} Wh over {throughput_wh:.0} Wh of throughput"
@@ -96,7 +153,10 @@ fn an_idle_plant_still_pays_for_itself() {
     let items = &state.energy.aux_items;
     assert!(items.bms_wh > 0.0, "rack electronics drew nothing");
     assert!(items.controls_wh > 0.0, "controls drew nothing");
-    assert!(items.misc_wh > 0.0, "lighting and small power drew nothing");
+    assert!(
+        items.lighting_and_safety_wh > 0.0,
+        "lighting and small power drew nothing"
+    );
     assert!(
         items.pcs_standby_wh > 0.0,
         "every converter was idle, yet none paid its standby tare"
@@ -150,10 +210,7 @@ fn a_converting_block_stops_paying_the_standby_tare() {
 /// falsify is a claim, not a measurement.
 #[test]
 fn the_published_item_split_still_holds() {
-    let mut sim = started_at(JULY_S, None);
-    run(&mut sim, 86_400);
-
-    let items = &sim.state().energy.aux_items;
+    let items = july_day().items();
     let total = items.total_wh();
     let share = |wh: f64| wh / total * 100.0;
     let checks = [
@@ -161,7 +218,13 @@ fn the_published_item_split_still_holds() {
         ("rack electronics", share(items.bms_wh), 10.0, 22.0, "15%"),
         ("PCS standby", share(items.pcs_standby_wh), 1.0, 5.0, "2%"),
         ("controls", share(items.controls_wh), 4.0, 10.0, "7%"),
-        ("lighting and misc", share(items.misc_wh), 3.0, 7.0, "4%"),
+        (
+            "lighting and safety",
+            share(items.lighting_and_safety_wh),
+            3.0,
+            7.0,
+            "4%",
+        ),
     ];
     for (name, measured, lo, hi, recorded) in checks {
         assert!(
@@ -187,7 +250,7 @@ fn the_item_meters_never_run_backwards() {
             items.bms_wh,
             items.pcs_standby_wh,
             items.controls_wh,
-            items.misc_wh,
+            items.lighting_and_safety_wh,
         ];
         for (idx, (now, last)) in now.iter().zip(last.iter()).enumerate() {
             assert!(now >= last, "aux item {idx} went backwards at tick {tick}");

@@ -222,7 +222,9 @@ impl Simulation {
             self.models.aux.step_site(AuxDemand {
                 hvac_w: hvac_aux_w,
                 racks: self.cfg.total_racks(),
-                pcs_in_standby: self
+                // Standby and Fault both mean energized and not converting;
+                // see AuxDemand for why a tripped unit still pays.
+                pcs_not_converting: self
                     .state
                     .blocks
                     .iter()
@@ -245,6 +247,23 @@ impl Simulation {
         );
         self.state.energy.transformer_loss_wh += self.state.substation.transformer_loss_w * wh;
         self.state.energy.aux_wh += self.state.substation.aux_power_w * wh;
+
+        // The waterfall identity, checked by every debug run rather than by
+        // one test file: what the substation metered as house load equals
+        // what the items say they drew. The two totals are accumulated on
+        // different paths, so a category added to one and forgotten in the
+        // other shows up here on the tick it happens, not in a report months
+        // later. Relative because the two sum in a different order.
+        debug_assert!(
+            {
+                let metered = self.state.energy.aux_wh;
+                let itemized = self.state.energy.aux_items.total_wh();
+                (metered - itemized).abs() <= 1.0e-9 * metered.abs().max(1.0)
+            },
+            "auxiliary accounting drifted: metered {} Wh, itemized {} Wh",
+            self.state.energy.aux_wh,
+            self.state.energy.aux_items.total_wh()
+        );
 
         self.state.tick += 1;
         &self.events

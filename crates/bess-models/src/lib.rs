@@ -39,7 +39,7 @@ pub fn gw01_models(cfg: &PlantConfig) -> Models {
         thermal: Box::new(LumpedThermal::default()),
         pcs: Box::new(CurvePcs::cec_utility_reference(cfg.pcs_rated_w)),
         ems: Box::new(DayAheadEms::default_profile(cfg.grid.site_rated_w)),
-        aux: Box::new(InventoryAux::default()),
+        aux: Box::new(InventoryAux::gw01()),
         grid: Box::new(SimpleGrid::new(cfg.grid.site_rated_w)),
     }
 }
