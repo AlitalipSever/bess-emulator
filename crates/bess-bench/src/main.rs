@@ -40,7 +40,7 @@ const CALIBRATION_PATH: &str = "CALIBRATION.md";
 #[allow(clippy::struct_excessive_bools)]
 struct Cli {
     /// Days to simulate.
-    #[arg(long, default_value_t = DEFAULT_DAYS)]
+    #[arg(long, default_value_t = DEFAULT_DAYS, value_parser = clap::value_parser!(u64).range(1..))]
     days: u64,
 
     /// PRNG seed.

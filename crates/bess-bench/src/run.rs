@@ -314,7 +314,7 @@ pub fn run(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Kpis {
             days: spec.days,
             ticks,
         },
-        energy: energy_of(state, stored_delta_wh, nominal_energy_wh, &losses),
+        energy: energy_of(state, stored_delta_wh, nominal_energy_wh),
         losses,
         thermal: ThermalKpis {
             ambient_min_c: round(tallies.ambient_min_c, 1),
@@ -351,11 +351,16 @@ fn losses_of(state: &bess_core::SiteState) -> LossKpis {
 }
 
 /// Close the books at the POI.
+///
+/// The auxiliary shares come off the substation's own meter rather than off
+/// the item accumulators, because that is what the ratio means: what the
+/// house load cost, as the plant metered it. The two agree, and CI holds them
+/// to agree, but the published waterfall is rounded to the digits it prints
+/// and a ratio should not inherit a rounding it does not need.
 fn energy_of(
     state: &bess_core::SiteState,
     stored_delta_wh: f64,
     nominal_energy_wh: f64,
-    losses: &LossKpis,
 ) -> EnergyKpis {
     let import_wh = state.substation.import_wh;
     let export_wh = state.substation.export_wh;
@@ -373,8 +378,8 @@ fn energy_of(
         round_trip_efficiency: round(export_wh / import_wh.max(1.0), 4),
         equivalent_full_cycles: round(export_wh / nominal_energy_wh, 1),
         stored_delta_mwh: mwh(stored_delta_wh),
-        aux_share_of_import: round(losses.aux_total_mwh() * 1.0e6 / import_wh.max(1.0), 5),
-        aux_share_of_export: round(losses.aux_total_mwh() * 1.0e6 / export_wh.max(1.0), 5),
+        aux_share_of_import: round(aux_wh / import_wh.max(1.0), 5),
+        aux_share_of_export: round(aux_wh / export_wh.max(1.0), 5),
         balance_residual_share: round(residual_wh.abs() / throughput_wh, 7),
     }
 }
