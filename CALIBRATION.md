@@ -5,8 +5,11 @@ states a target against public data, and this file records what was measured,
 with what sources, at which release. The gates listed here run in CI; a
 regression fails the build.
 
-This file is currently maintained by hand. The `bess-bench` harness described
-in ARCHITECTURE.md will regenerate it automatically once it exists.
+Two kinds of content live here and they are kept current in two different
+ways. Blocks marked as generated are written by `bess-bench` from a committed
+record of what it measured, and CI fails when they go stale. Everything else,
+parameter provenance and sources and known gaps, is written by hand: a source
+is knowledge rather than a measurement, and no harness can produce it.
 
 ## M0 (v0.1.0): energy balance and initial round-trip band
 
@@ -51,7 +54,128 @@ in ARCHITECTURE.md will regenerate it automatically once it exists.
   loss decomposition; k1 fitting slightly negative is expected and
   documented in `crates/bess-models/src/pcs.rs`.
 
-## M1 (in progress): auxiliary inventory
+## M1: the annual measurement
+
+This is the M1 gate. Everything else in this file is a parameter, a fit, or a
+single day. This section is the plant run against the whole replayed weather
+year, 31.5 million ticks in one process, measured at the point of
+interconnection, with every loss read off a meter the kernel kept while it
+ran rather than re-derived afterwards from a summary.
+
+<!-- bess-bench:begin m1-annual -->
+
+Measured by `bess-bench` on kernel 0.2.0: GW-01 on the internal dispatch
+plan, seed 7, 365 simulated days (31 536 000 ticks) of the replayed weather
+year. Regenerate with `cargo run --release -p bess-bench -- --write`; CI
+fails if this block is stale.
+
+| Gate | Band | Measured | Verdict | Band drawn from |
+|---|---|---|---|---|
+| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 84.22% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
+| Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.59% | inside | no public dataset publishes this at plant scale; see the note below |
+
+Energy at the point of interconnection over the run:
+
+| Quantity | Value |
+|---|---|
+| Imported | 74 400.9 MWh |
+| Exported | 62 657.9 MWh |
+| Round-trip efficiency | 0.8422 |
+| Equivalent full cycles | 312.3 |
+| Stored energy, end minus start | -91.6 MWh |
+| Auxiliary share of import / of export | 2.59% / 3.07% |
+| Unexplained residual | 0.00069% of throughput |
+
+Where the energy went, each category on its own meter:
+
+| Category | MWh | Share of import |
+|---|---|---|
+| Battery | 5 103.4 | 6.86% |
+| PCS conversion | 3 128.2 | 4.20% |
+| Transformer | 1 680.1 | 2.26% |
+| Auxiliary: HVAC | 1 355.8 | 1.82% |
+| Auxiliary: rack electronics | 301.9 | 0.41% |
+| Auxiliary: PCS standby | 47.1 | 0.06% |
+| Auxiliary: controls and protection | 131.4 | 0.18% |
+| Auxiliary: lighting and safety | 87.6 | 0.12% |
+| **Total** | **11 835.5** | **15.91%** |
+
+Temperatures and HVAC over the run:
+
+| Reading | Value |
+|---|---|
+| Ambient, coldest to warmest | -12.1 to 33.3 C |
+| Container air, coldest to warmest | 10.0 to 29.0 C |
+| Cells, coldest to warmest | 9.1 to 38.0 C |
+| Duty, one unit / both units / heating | 17.79% / 0.33% / 0.03% |
+| Cooling starts per container | 6 729.6 |
+
+<!-- bess-bench:end m1-annual -->
+
+**Where the round-trip band comes from.** Its floor is the measured fleet:
+[the EIA computes an average monthly round-trip efficiency of 82% for the
+U.S. utility-scale battery fleet in
+2019](https://www.eia.gov/todayinenergy/detail.php?id=46756), from plant-level
+consumption and generation reported on Form EIA-923, so whatever those plants
+spend on themselves is inside that number by construction. Its ceiling is the
+reference design: [NREL's Annual Technology Baseline assumes 85% for
+utility-scale battery
+storage](https://atb.nrel.gov/electricity/2024/utility-scale_battery_storage)
+in its 2024 edition, revised down from 86% in 2022. Falling below the floor
+would claim this plant is worse than a fleet of mixed vintages, chemistries
+and duty cycles; beating the ceiling would claim it is better than the
+reference design. The model has earned neither claim, which is what makes the
+interval a gate rather than a decoration.
+
+**Where the measurement sits, and why there.** It lands between the two,
+close to the design assumption. That is the expected place for what this plant
+currently is: brand new, so no capacity fade and no resistance growth; never
+out of service, so all 8760 hours are productive hours; modern LFP with a PCS
+efficiency curve fitted to a real database entry; and heavily used, at 312
+equivalent full cycles in the year. Utilization is the one that matters most.
+Every fixed load the plant carries, the controls, the lighting, the standby
+tare, the transformer's no-load loss, is divided by throughput when it reaches
+this ratio, and this plant has a great deal of throughput to divide by.
+
+**Reading the auxiliary share.** Auxiliary consumption costs 2.2 percentage
+points of round-trip efficiency here: without it the same year reads 86.5%.
+The only peer-reviewed decomposition of the same kind, [Schimpe et al.
+2018](https://www.osti.gov/pages/biblio/1409737), reports overall system
+efficiency 8 to 13 points below conversion efficiency for primary control
+reserve and PV-battery duty on a 192 kWh prototype, and names the reason
+directly: auxiliary consumption dominates at low utilization. A 200 MWh plant
+at 312 cycles a year is the opposite case, so landing well under that range is
+the expected direction and not a contradiction. It is also why the share is
+gated only by a wide sanity bound. The same hardware would read several times
+this share on a plant that mostly sits still, so a narrow band on it would be
+measuring the dispatch plan, not the plant.
+
+**The transformer is the clearest thing this run shows.** Its no-load loss is
+100 kW whether or not the plant is doing anything, which is 876 MWh over 8760
+hours: more than half of the transformer's annual total. On the single 0.5C
+cycle that M0.5 was gated on, the same 100 kW spread over nine hours and
+disappeared into the third decimal. Nothing about the component changed
+between those two measurements. The window did.
+
+**What this number does not include.** Read it with these in view, all of them
+scheduled rather than forgotten:
+
+- **No degradation and no outages.** Capacity fade arrives in M5 and faults
+  and partial availability in M2, so this is a first-year plant that never
+  loses a block.
+- **Auxiliary transformer and LV distribution losses are not modeled.** The
+  main step-up transformer is; the small transformers feeding the house load
+  are not.
+- **The cooling coefficient of performance is constant.** It does not fall
+  with outdoor temperature, which understates auxiliary energy on exactly the
+  days cooling runs hardest. Documented in the thermal table below.
+- **One dispatch pattern, one weather year, one site.** A fixed daily price
+  shape over DWD Lindenberg 2024. The annual figure is a property of the pair,
+  plant and duty, not of the plant alone.
+- **The PCS curve has no voltage dimension** and charging reuses the
+  discharge curve; both arrive in M3.
+
+## M1: auxiliary inventory
 
 Until this step the plant's house load was one 150 kW constant living inside
 the substation model, covering everything that was not HVAC. It could not be
@@ -118,14 +242,13 @@ Known gaps in this inventory, recorded rather than hidden:
   item. Real control rooms are air conditioned and real lighting is a night
   load.
 
-## M1 (in progress): thermal parameter provenance
+## M1: thermal parameter provenance
 
-The M1 gate itself, annual round-trip efficiency and auxiliary share, is
-measured by `bess-bench` at the end of the milestone and replaces this
-section. Until then this is the inventory of what the thermal model actually
-runs on, written down now because the parameters landed before the
-measurements did. An estimate that says it is an estimate is honest; one that
-reads like a measurement is not.
+The gate above says what the plant did over a year. This section says what it
+did it with. The two belong together and neither replaces the other: a
+measurement is only worth its parameters, and half of these are estimates. An
+estimate that says it is an estimate is honest; one that reads like a
+measurement is not.
 
 | Parameter | Value | Basis | Status |
 |---|---|---|---|

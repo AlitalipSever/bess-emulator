@@ -1,0 +1,21 @@
+[package]
+name = "bess-bench"
+description = "Calibration harness: runs the reference plant over a replayed year and measures the milestone gates"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "bess-bench"
+path = "src/main.rs"
+
+[dependencies]
+bess-core = { workspace = true }
+bess-models = { workspace = true }
+clap = { version = "4.6.4", features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true
