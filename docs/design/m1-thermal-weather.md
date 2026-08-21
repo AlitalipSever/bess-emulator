@@ -212,6 +212,35 @@ free slots. Proposal:
 Per-container HVAC electrical detail, if wanted later, goes into a new
 address range rather than renumbering; deferred until someone asks for it.
 
+Done in PR6, with one revision. The block points landed as proposed at base+8
+and base+9, and both had to state which container they speak for, since a
+GW-01 block carries two: air temperature reports the hotter, HVAC state
+reports the mode of the container drawing the most power. `site.hvac_power_w`
+did not land as a lone point. PR5 had turned the house load into a five-item
+inventory, and publishing one item while the other four stayed internal would
+have made the inventory a private detail of the test suite. All five items are
+published instead, as `site.aux.*` at 32 to 41, and they sum to the
+`site.aux_power_w` total that was already at 22. The total keeps its address:
+moving it next to its items would have been a breaking change to buy
+adjacency.
+
+Two consequences worth recording. The auxiliary identity is now checkable by a
+consumer rather than only inside the kernel, and CI holds it on the register
+bank and in the Prometheus exposition as well. And the map gained a version
+number: COMPATIBILITY.md said the map was semver-versioned, but no artifact
+carried a version, so "minor version bump" had nothing to bump. The published
+map is 0.2.0, the pre-M1 map is recorded as 0.1.0, and the CSV's first line
+now says which one it is. A version nobody is forced to move would have been
+decoration, since regenerating the CSV regenerates its version line too, so
+the point table carries a pinned digest: a changed contract fails CI, and
+whoever updates the digest has to decide what the change was worth. The same
+test holds COMPATIBILITY.md to the version the binary serves.
+
+Cumulative loss energy stays off the register map. Registers are what a SCADA
+integrator polls; the waterfall is a calibration artifact, and its homes are
+the Prometheus exposition (`bess_loss_watthours_total`) and `bess-bench`'s
+JSON in PR7.
+
 ## 7. Checkpoint and compatibility impact
 
 - New state: per-rack cell thermal state, HVAC stage, per-category loss
@@ -300,6 +329,23 @@ integrating against v0.2.0 can trip over.
   150 kW placeholder, which moves auxiliary energy and lifts the single-cycle
   round-trip figure from 0.9186 to 0.9207. Values, sources and the known gaps
   are in CALIBRATION.md.
+- **Signal map 0.1.0 to 0.2.0** (PR6): seven new points per the section 6
+  delta, additions only. Every address, encoding, scale and name that existed
+  before is unchanged, so an integrator built against v0.2.0 keeps working
+  without touching anything.
+- **The signal map CSV carries a version line** (PR6): the first line of
+  `refmodel/gw01-signal-map.csv` is now `# signal-map-version: 0.2.0`. A
+  reader that does not skip `#` lines will see it as a malformed row.
+- **New Prometheus metrics** (PR6): irradiance, container air maximum and
+  mean, cell minimum and maximum, `bess_hvac_containers` by mode,
+  `bess_aux_power_watts` by item with `bess_aux_metered_power_watts` beside
+  it, and `bess_loss_watthours_total` by category. No existing metric was
+  renamed or retyped.
+- **The shipped Grafana dashboard gained five panels** (PR6) and its `version`
+  field went from 1 to 2. The provider does not set `allowUiUpdates`, so the
+  file wins on every restart either way; the bump is there for anyone who
+  turns UI updates on, where Grafana only replaces an edited dashboard when
+  the provisioned version outranks it.
 
 ## 10. Open questions
 

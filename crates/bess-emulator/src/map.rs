@@ -14,7 +14,16 @@ use std::io::Write as _;
 use std::path::Path;
 
 use bess_core::config::PlantConfig;
-use bess_core::state::{BreakerState, EmsMode, PcsOpState, SiteState};
+use bess_core::state::{BlockState, BreakerState, EmsMode, HvacMode, PcsOpState, SiteState};
+
+/// Version of the published signal map, semver, independent of the crate
+/// version per COMPATIBILITY.md.
+///
+/// The map published through crate v0.2.0 carried no version number at all;
+/// it is recorded as 0.1.0 so the sequence has a beginning. 0.2.0 is M1's
+/// addition of the thermal and auxiliary points: new addresses only, nothing
+/// moved, nothing renamed.
+pub const MAP_VERSION: &str = "0.2.0";
 
 /// Register space a point lives in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,6 +148,53 @@ macro_rules! point {
             extract: Box::new($extract),
         }
     };
+}
+
+/// Container air temperature reported for a block: the hottest container in
+/// it. A block carries more than one container and gets one register, so the
+/// register reports the one nearest a limit, which is the convention the cell
+/// temperature registers already follow.
+fn block_air_temp_max_c(block: &BlockState) -> f64 {
+    let max = block
+        .containers
+        .iter()
+        .map(|c| c.air_temp_c)
+        .fold(f64::NEG_INFINITY, f64::max);
+    if max.is_finite() {
+        max
+    } else {
+        0.0
+    }
+}
+
+/// HVAC mode reported for a block: the mode of the container drawing the most
+/// electrical power, ties going to the lower index.
+///
+/// One register per block has to answer "what is this block's HVAC doing",
+/// and the single honest answer is what its heaviest consumer is doing.
+/// Ranking the enum values instead would report a block as heating while one
+/// container heats and another runs both compressors.
+fn block_hvac_mode(block: &BlockState) -> HvacMode {
+    let mut mode = HvacMode::Off;
+    let mut heaviest_w = f64::NEG_INFINITY;
+    for container in &block.containers {
+        if container.hvac.electrical_w > heaviest_w {
+            heaviest_w = container.hvac.electrical_w;
+            mode = container.hvac.mode;
+        }
+    }
+    mode
+}
+
+/// Register encoding of an HVAC mode. Published values, so they are fixed:
+/// changing one is a major map change per COMPATIBILITY.md.
+fn hvac_mode_code(mode: HvacMode) -> f64 {
+    match mode {
+        HvacMode::Off => 0.0,
+        HvacMode::Cool1 => 1.0,
+        HvacMode::Cool2 => 2.0,
+        HvacMode::Heat => 3.0,
+    }
 }
 
 /// Build the full signal map for a plant configuration.
@@ -359,6 +415,61 @@ pub fn build_points(cfg: &PlantConfig) -> Vec<Point> {
                     .sum()
             }
         ),
+        // The house load, item by item. `site.aux_power_w` above is the
+        // total the substation meters; these five are what drew it, and they
+        // sum to it. They start at 32 rather than beside the total, because
+        // the total's address is published and moving it would be a breaking
+        // change; the map trades adjacency for stability.
+        point!(
+            "site.aux.hvac_w",
+            "W",
+            Medium,
+            U32,
+            1.0,
+            32,
+            Input,
+            |s: &SiteState| s.aux.hvac_w
+        ),
+        point!(
+            "site.aux.bms_w",
+            "W",
+            Medium,
+            U32,
+            1.0,
+            34,
+            Input,
+            |s: &SiteState| s.aux.bms_w
+        ),
+        point!(
+            "site.aux.pcs_standby_w",
+            "W",
+            Medium,
+            U32,
+            1.0,
+            36,
+            Input,
+            |s: &SiteState| s.aux.pcs_standby_w
+        ),
+        point!(
+            "site.aux.controls_w",
+            "W",
+            Medium,
+            U32,
+            1.0,
+            38,
+            Input,
+            |s: &SiteState| s.aux.controls_w
+        ),
+        point!(
+            "site.aux.lighting_and_safety_w",
+            "W",
+            Medium,
+            U32,
+            1.0,
+            40,
+            Input,
+            |s: &SiteState| s.aux.lighting_and_safety_w
+        ),
         // Control surface.
         point!(
             "control.site_setpoint_w",
@@ -489,6 +600,26 @@ pub fn build_points(cfg: &PlantConfig) -> Vec<Point> {
                 }
             }
         ));
+        points.push(point!(
+            format!("{prefix}.container.air_temp_c"),
+            "degC",
+            Medium,
+            I16,
+            10.0,
+            base + 8,
+            Input,
+            move |s: &SiteState| block_air_temp_max_c(&s.blocks[b])
+        ));
+        points.push(point!(
+            format!("{prefix}.hvac.state"),
+            "enum",
+            Medium,
+            U16,
+            1.0,
+            base + 9,
+            Input,
+            move |s: &SiteState| hvac_mode_code(block_hvac_mode(&s.blocks[b]))
+        ));
     }
 
     points
@@ -536,10 +667,15 @@ pub fn write_banks(points: &[Point], state: &SiteState, input: &mut [u16], holdi
 
 /// Write the signal map reference as CSV (the artifact published under
 /// `refmodel/`).
+///
+/// The first line is a `#` comment carrying [`MAP_VERSION`], so the published
+/// artifact can say which version of the contract it is. Readers skip lines
+/// starting with `#`.
 pub fn dump_signal_map_csv(path: &Path) -> std::io::Result<()> {
     let cfg = PlantConfig::gw01();
     let points = build_points(&cfg);
     let mut out = std::io::BufWriter::new(std::fs::File::create(path)?);
+    writeln!(out, "# signal-map-version: {MAP_VERSION}")?;
     writeln!(
         out,
         "space,address,words,encoding,scale,name,unit,class,access"
@@ -567,7 +703,21 @@ pub fn dump_signal_map_csv(path: &Path) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use bess_core::state::AuxPower;
+
     use super::*;
+
+    /// Read a two-register unsigned value, high word first.
+    fn read_u32(bank: &[u16], addr: usize) -> u32 {
+        (u32::from(bank[addr]) << 16) | u32::from(bank[addr + 1])
+    }
+
+    fn banks(points: &[Point], state: &SiteState) -> Vec<u16> {
+        let mut input = vec![0u16; INPUT_BANK_LEN];
+        let mut holding = vec![0u16; HOLDING_BANK_LEN];
+        write_banks(points, state, &mut input, &mut holding);
+        input
+    }
 
     #[test]
     fn addresses_do_not_overlap_and_fit_the_banks() {
@@ -613,5 +763,184 @@ mod tests {
         assert_eq!(input[4], 11_000);
         // Site SoC: 50% x100 within spread tolerance.
         assert!((4_900..=5_100).contains(&input[6]), "soc reg {}", input[6]);
+    }
+
+    /// A house load with five deliberately different values, so a register
+    /// carrying the wrong item cannot hide behind a correct total.
+    fn itemized_state(cfg: &PlantConfig) -> SiteState {
+        let mut state = SiteState::new(cfg, 1, 0);
+        state.aux = AuxPower {
+            hvac_w: 41_234.6,
+            bms_w: 17_232.4,
+            pcs_standby_w: 6_795.5,
+            controls_w: 15_000.3,
+            lighting_and_safety_w: 9_999.7,
+        };
+        state.substation.aux_power_w = state.aux.total_w();
+        state
+    }
+
+    /// Each item register carries its own item.
+    ///
+    /// The sum test below cannot see this: swapping two items leaves the
+    /// total untouched, and the inventory would publish wrong values under
+    /// right names. Addressability is the whole point of itemizing, so every
+    /// address is pinned to its own quantity here.
+    #[test]
+    fn every_house_load_item_register_carries_its_own_item() {
+        let cfg = PlantConfig::gw01();
+        let points = build_points(&cfg);
+        let state = itemized_state(&cfg);
+        let input = banks(&points, &state);
+
+        for (addr, name, watts) in [
+            (32, "hvac", state.aux.hvac_w),
+            (34, "bms", state.aux.bms_w),
+            (36, "pcs_standby", state.aux.pcs_standby_w),
+            (38, "controls", state.aux.controls_w),
+            (40, "lighting_and_safety", state.aux.lighting_and_safety_w),
+        ] {
+            let expected = watts.round() as u32;
+            let read = read_u32(&input, addr);
+            assert_eq!(read, expected, "site.aux.{name} at {addr} reads {read} W");
+        }
+    }
+
+    /// The auxiliary identity the kernel guards internally has to survive the
+    /// projection: whoever reads the five item registers and adds them up
+    /// must land on the metered total register. Deliberately awkward values,
+    /// so the assertion exercises rounding rather than round numbers.
+    #[test]
+    fn the_house_load_items_add_up_to_the_metered_total() {
+        let cfg = PlantConfig::gw01();
+        let points = build_points(&cfg);
+        let state = itemized_state(&cfg);
+        let input = banks(&points, &state);
+
+        let total = read_u32(&input, 22);
+        let items = read_u32(&input, 32)
+            + read_u32(&input, 34)
+            + read_u32(&input, 36)
+            + read_u32(&input, 38)
+            + read_u32(&input, 40);
+        // Five items and the total each round to the nearest watt, so the
+        // sums can differ by at most 3 W. Anything larger is a wiring error.
+        assert!(
+            total.abs_diff(items) <= 3,
+            "items sum to {items} W, total register reads {total} W"
+        );
+    }
+
+    /// The block HVAC register reports the busiest container, not the highest
+    /// enum value: a block with one container heating and another running
+    /// both compressors is a cooling block.
+    #[test]
+    fn the_block_hvac_register_reports_the_heaviest_container() {
+        let cfg = PlantConfig::gw01();
+        let points = build_points(&cfg);
+        let mut state = SiteState::new(&cfg, 1, 0);
+        {
+            let containers = &mut state.blocks[0].containers;
+            containers[0].hvac.mode = HvacMode::Heat;
+            containers[0].hvac.electrical_w = 20.0e3;
+            containers[1].hvac.mode = HvacMode::Cool2;
+            containers[1].hvac.electrical_w = 38.0e3;
+        }
+        let input = banks(&points, &state);
+        assert_eq!(input[1009], 2, "cooling block");
+        // Block 1 was not touched and has to say so, or every block is
+        // reading the same block's state.
+        assert_eq!(input[1019], 0, "an untouched block reports its own HVAC");
+
+        // Same two modes, opposite draws: now the heater is the heaviest
+        // consumer and the register follows it.
+        state.blocks[0].containers[1].hvac.electrical_w = 4.0e3;
+        assert_eq!(banks(&points, &state)[1009], 3, "heating block");
+    }
+
+    /// FNV-1a over one byte run, the construction the state digest uses.
+    /// Written out here rather than borrowed from a hasher, because a pinned
+    /// constant has to mean the same thing on every toolchain forever.
+    fn fnv1a(hash: u64, bytes: &[u8]) -> u64 {
+        let mut h = hash;
+        for byte in bytes {
+            h ^= u64::from(*byte);
+            h = h.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+        h
+    }
+
+    /// Fingerprint of the published contract: every field of every point that
+    /// a consumer can depend on, in table order.
+    fn map_digest(points: &[Point]) -> u64 {
+        let mut h = 0xcbf2_9ce4_8422_2325;
+        for p in points {
+            h = fnv1a(h, p.name.as_bytes());
+            h = fnv1a(h, p.unit.as_bytes());
+            h = fnv1a(h, p.class.as_str().as_bytes());
+            h = fnv1a(h, p.encoding.as_str().as_bytes());
+            h = fnv1a(h, &p.scale.to_bits().to_le_bytes());
+            h = fnv1a(h, &p.addr.to_le_bytes());
+            h = fnv1a(
+                h,
+                &[u8::from(p.space == Space::Holding), u8::from(p.writable)],
+            );
+        }
+        h
+    }
+
+    /// Digest of the map as published at [`MAP_VERSION`] 0.2.0.
+    const MAP_DIGEST: u64 = 0x0844_fa69_cf1e_7b83;
+
+    /// A version number nobody is forced to move is decoration.
+    ///
+    /// CI compares the committed CSV against a fresh dump, and the dump
+    /// regenerates the version line along with the rows, so adding a point
+    /// and forgetting the version would pass green. This digest is what makes
+    /// the version deliberate: a changed contract fails here, and whoever
+    /// updates the constant has to decide what the change was worth. Minor
+    /// for points added at unused addresses, major for anything that moves,
+    /// renames, or reinterprets a point that was already published.
+    #[test]
+    fn the_published_contract_is_the_one_that_was_versioned() {
+        let points = build_points(&PlantConfig::gw01());
+        let digest = map_digest(&points);
+        assert_eq!(
+            digest, MAP_DIGEST,
+            "the signal map changed: {digest:#018x}. Update MAP_DIGEST, and \
+             move MAP_VERSION with it: minor for additions at unused \
+             addresses, major for anything else."
+        );
+
+        // And the document that publishes the contract has to name the same
+        // version this binary serves.
+        let doc = std::fs::read_to_string(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../COMPATIBILITY.md"),
+        )
+        .expect("COMPATIBILITY.md");
+        assert!(
+            doc.contains(&format!("signal-map-version: {MAP_VERSION}")),
+            "COMPATIBILITY.md does not document signal map version {MAP_VERSION}"
+        );
+    }
+
+    /// Blocks carry two containers and one air temperature register, which
+    /// reports the hotter of them.
+    #[test]
+    fn the_block_air_register_reports_the_hottest_container() {
+        let cfg = PlantConfig::gw01();
+        let points = build_points(&cfg);
+        let mut state = SiteState::new(&cfg, 1, 0);
+        state.blocks[0].containers[0].air_temp_c = 24.4;
+        state.blocks[0].containers[1].air_temp_c = 31.2;
+        let input = banks(&points, &state);
+        // i16 at scale 10.
+        assert_eq!(input[1008] as i16, 312);
+        // And block 1, untouched at its 20.0 C initial value, reports itself
+        // rather than block 0.
+        assert_eq!(
+            input[1018] as i16, 200,
+            "an untouched block reports its own air"
+        );
     }
 }

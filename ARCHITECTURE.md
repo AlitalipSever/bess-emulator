@@ -212,6 +212,12 @@ class, access (RO/RW). Every external surface is a projection of this tree:
 - **MQTT topics:** tree paths.
 - **Browser UI:** reads the tree directly from Rust memory (see shells).
 - **Parquet/Arrow export:** the flattened tree as time series.
+- **Prometheus exposition:** the one projection that is not generated from the
+  table. Metric naming, label dimensions and counter semantics are their own
+  convention, and forcing register names through it would produce a surface no
+  Prometheus user would recognize. The price is that it can drift from the
+  signal map, so it is written by hand and CI checks the shipped Grafana
+  dashboard against it: every metric a panel queries has to exist.
 
 Writable nodes (EMS setpoints, HVAC mode, breakers) define the control surface:
 a dispatch application writes a setpoint over Modbus and the plant responds.

@@ -4,7 +4,7 @@
   "tags": ["bess-emulator"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
   "time": { "from": "now-15m", "to": "now" },
   "panels": [
@@ -103,6 +103,175 @@
           "refId": "B",
           "expr": "bess_export_watthours_total",
           "legendFormat": "export"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Temperatures: weather, container air, cells",
+      "description": "The thermal chain M1 models, on one axis: what the weather does, what the container air does about it, and where the cells end up.",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "custom": { "lineWidth": 2, "fillOpacity": 0 },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "bess_ambient_celsius",
+          "legendFormat": "ambient"
+        },
+        {
+          "refId": "B",
+          "expr": "bess_container_air_max_celsius",
+          "legendFormat": "container air, hottest"
+        },
+        {
+          "refId": "C",
+          "expr": "bess_container_air_mean_celsius",
+          "legendFormat": "container air, mean"
+        },
+        {
+          "refId": "D",
+          "expr": "bess_cell_max_celsius",
+          "legendFormat": "cells, hottest"
+        },
+        {
+          "refId": "E",
+          "expr": "bess_cell_min_celsius",
+          "legendFormat": "cells, coldest"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "HVAC staging (containers running, out of 40)",
+      "description": "How many containers are running one cooling unit, running both, or heating. Idle containers are left out on purpose: they are most of the fleet most of the time, and stacking them would bury the activity this panel exists to show. The axis is fixed at the fleet size instead.",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 40,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "stacking": { "mode": "normal", "group": "A" }
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "bess_hvac_containers{mode!=\"off\"}",
+          "legendFormat": "{{mode}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "House load by item",
+      "description": "The station load as an inventory rather than a number. The stack is what each consumer drew; the line on top is what the substation metered. They accumulate on separate paths, so the line sitting anywhere other than on top of the stack is a defect you can see.",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "stacking": { "mode": "normal", "group": "A" }
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "metered total" },
+            "properties": [
+              {
+                "id": "custom.stacking",
+                "value": { "mode": "none", "group": "A" }
+              },
+              { "id": "custom.fillOpacity", "value": 0 },
+              { "id": "custom.lineWidth", "value": 2 }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "bess_aux_power_watts",
+          "legendFormat": "{{item}}"
+        },
+        {
+          "refId": "B",
+          "expr": "bess_aux_metered_power_watts",
+          "legendFormat": "metered total"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Global horizontal irradiance",
+      "description": "The replayed irradiance series driving envelope solar gain.",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Wm2",
+          "min": 0,
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "bess_irradiance_watts_per_square_meter",
+          "legendFormat": "irradiance"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Where the energy went (cumulative)",
+      "description": "Every category of energy that did not reach the point of interconnection, each metered on its own path. This is the loss waterfall the M1 gate asks for.",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 32 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watth",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "stacking": { "mode": "normal", "group": "A" }
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "bess_loss_watthours_total",
+          "legendFormat": "{{category}}"
         }
       ]
     }
