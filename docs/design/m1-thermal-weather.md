@@ -230,7 +230,11 @@ bank and in the Prometheus exposition as well. And the map gained a version
 number: COMPATIBILITY.md said the map was semver-versioned, but no artifact
 carried a version, so "minor version bump" had nothing to bump. The published
 map is 0.2.0, the pre-M1 map is recorded as 0.1.0, and the CSV's first line
-now says which one it is.
+now says which one it is. A version nobody is forced to move would have been
+decoration, since regenerating the CSV regenerates its version line too, so
+the point table carries a pinned digest: a changed contract fails CI, and
+whoever updates the digest has to decide what the change was worth. The same
+test holds COMPATIBILITY.md to the version the binary serves.
 
 Cumulative loss energy stays off the register map. Registers are what a SCADA
 integrator polls; the waterfall is a calibration artifact, and its homes are

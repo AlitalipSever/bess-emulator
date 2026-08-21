@@ -181,14 +181,18 @@ fn site_metrics(out: &mut String, s: &SiteState, speed: f64) {
 /// all of it.
 fn thermal_metrics(out: &mut String, s: &SiteState) {
     let containers: Vec<_> = s.blocks.iter().flat_map(|b| b.containers.iter()).collect();
-    let air_max_c = containers
-        .iter()
-        .map(|c| c.air_temp_c)
-        .fold(f64::NEG_INFINITY, f64::max);
-    let air_mean_c = if containers.is_empty() {
-        0.0
+    // A site with no containers is not a configuration that ships, but the
+    // three temperatures here have to agree about what it would mean, and
+    // `cell_temp_min_max_c` already answers zero.
+    let (air_max_c, air_mean_c) = if containers.is_empty() {
+        (0.0, 0.0)
     } else {
-        containers.iter().map(|c| c.air_temp_c).sum::<f64>() / containers.len() as f64
+        let max = containers
+            .iter()
+            .map(|c| c.air_temp_c)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let mean = containers.iter().map(|c| c.air_temp_c).sum::<f64>() / containers.len() as f64;
+        (max, mean)
     };
     let mode_count =
         |mode: HvacMode| containers.iter().filter(|c| c.hvac.mode == mode).count() as f64;
@@ -210,28 +214,28 @@ fn thermal_metrics(out: &mut String, s: &SiteState) {
     );
     metric(
         out,
-        "bess_container_air_celsius_max",
+        "bess_container_air_max_celsius",
         "gauge",
         "Hottest container air temperature on site.",
         air_max_c,
     );
     metric(
         out,
-        "bess_container_air_celsius_mean",
+        "bess_container_air_mean_celsius",
         "gauge",
         "Mean container air temperature over the site.",
         air_mean_c,
     );
     metric(
         out,
-        "bess_cell_celsius_min",
+        "bess_cell_min_celsius",
         "gauge",
         "Coldest representative cell temperature on site.",
         cell_min_c,
     );
     metric(
         out,
-        "bess_cell_celsius_max",
+        "bess_cell_max_celsius",
         "gauge",
         "Hottest representative cell temperature on site.",
         cell_max_c,
@@ -432,6 +436,28 @@ mod tests {
             .unwrap_or_else(|_| panic!("unparsable sample line: {line}"))
     }
 
+    /// Each gauge carries its own item. A sum cannot see a swap, and a swap
+    /// would publish wrong values under right names.
+    #[test]
+    fn every_house_load_gauge_carries_its_own_item() {
+        let snap = snapshot();
+        let body = metrics_body(&snap);
+        let aux = &snap.state.aux;
+        for (item, watts) in [
+            ("hvac", aux.hvac_w),
+            ("bms", aux.bms_w),
+            ("pcs_standby", aux.pcs_standby_w),
+            ("controls", aux.controls_w),
+            ("lighting_and_safety", aux.lighting_and_safety_w),
+        ] {
+            let read = value_of(&body, &format!("bess_aux_power_watts{{item=\"{item}\"}}"));
+            assert!(
+                (read - watts).abs() < 1.0e-9,
+                "item {item} reads {read} W, drew {watts} W"
+            );
+        }
+    }
+
     /// The auxiliary identity, on the scraping surface this time: the five
     /// itemized gauges are accumulated per consumer, the metered gauge comes
     /// off the substation, and they have to agree.
@@ -484,8 +510,17 @@ mod tests {
         let dashboard: serde_json::Value = serde_json::from_str(&text).expect("dashboard json");
         let body = metrics_body(&snapshot());
 
+        // Grafana rows carry their panels as a nested array, so a guard that
+        // only walks the top level stops covering everything the day someone
+        // groups the dashboard into rows.
+        let mut queue: Vec<&serde_json::Value> = dashboard["panels"]
+            .as_array()
+            .expect("panels")
+            .iter()
+            .collect();
         let mut checked = 0;
-        for panel in dashboard["panels"].as_array().expect("panels") {
+        while let Some(panel) = queue.pop() {
+            queue.extend(panel["panels"].as_array().into_iter().flatten());
             for target in panel["targets"].as_array().into_iter().flatten() {
                 let expr = target["expr"].as_str().unwrap_or_default();
                 for name in expr

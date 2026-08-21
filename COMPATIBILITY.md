@@ -23,21 +23,29 @@ versioned with semver, independently of the crate versions:
   encoding, scale, or unit, renaming an MQTT topic, changing the meaning of
   an enum value.
 
-The file's first line is a comment carrying that version:
+These two rules are about points. The reference file's own layout is a
+separate contract, and it changed once: since map 0.2.0 the first line is a
+comment carrying the version.
 
 ```
 # signal-map-version: 0.2.0
 ```
 
-Readers skip lines starting with `#`. A reference that cannot say which
-version of the contract it is would be asking every consumer to guess.
+Readers skip lines starting with `#`; a parser that does not will read that
+line as a malformed row. A reference that cannot say which version of the
+contract it is would be asking every consumer to guess, which is why the line
+is worth the one-time break. Any further change to the file's layout will be
+called out the same way, in the release notes and here.
+
+The running process reports the same version at `/health`, so a client can
+check which contract it is talking to without fetching this file.
 
 ### Version history
 
-| Map | Shipped with | Change |
+| Map | Introduced | Change |
 |---|---|---|
 | 0.1.0 | crate v0.2.0 | The first published map. It carried no version number; it is recorded here as 0.1.0 so the sequence has a beginning. |
-| 0.2.0 | crate v0.3.0 (M1) | Additions only: the five itemized house-load points at site 32 to 41, and per block `container.air_temp_c` and `hvac.state` in the two slots each block had free. Nothing moved, nothing was renamed. |
+| 0.2.0 | M1, first crate release to carry it is v0.3.0 | Additions only: the five itemized house-load points at site 32 to 41, and per block `container.air_temp_c` and `hvac.state` in the two slots each block had free. Nothing moved, nothing was renamed. The file gained its version comment line. |
 
 ## Deprecation process (from map 1.0)
 
