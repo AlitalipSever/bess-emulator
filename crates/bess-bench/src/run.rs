@@ -6,7 +6,7 @@
 //! the plant would be measuring itself.
 
 use bess_core::state::HvacMode;
-use bess_core::{PlantConfig, Simulation, TICK_SECONDS};
+use bess_core::{PlantConfig, Simulation, SiteState, TICK_SECONDS};
 use bess_models::{gw01_models, gw01_weather};
 use serde::{Deserialize, Serialize};
 
@@ -80,7 +80,20 @@ pub struct EnergyKpis {
     pub export_mwh: f64,
     /// Export over import. Everything the plant spent on itself is inside
     /// this ratio, because it was metered at the POI on the way in.
+    ///
+    /// Uncorrected for the stored-energy endpoints, which is deliberate: the
+    /// fleet figure this is gated against is computed the same uncorrected
+    /// way from reported consumption and generation, and correcting one side
+    /// of a comparison is worse than correcting neither. `stored_delta_mwh`
+    /// says how much the endpoints are worth.
     pub round_trip_efficiency: f64,
+    /// The same ratio with the house load taken back out of import.
+    ///
+    /// Arithmetic on the meters, not a second measurement: a plant that truly
+    /// had no auxiliary load would also load its transformer slightly less.
+    /// It is published so the cost of the house load can be read off the
+    /// record instead of recomputed by hand in prose that then goes stale.
+    pub round_trip_efficiency_excluding_aux: f64,
     /// Energy exported over the site's nameplate energy.
     pub equivalent_full_cycles: f64,
     /// Stored energy at the end minus at the start, MWh. A round-trip figure
@@ -357,11 +370,7 @@ fn losses_of(state: &bess_core::SiteState) -> LossKpis {
 /// house load cost, as the plant metered it. The two agree, and CI holds them
 /// to agree, but the published waterfall is rounded to the digits it prints
 /// and a ratio should not inherit a rounding it does not need.
-fn energy_of(
-    state: &bess_core::SiteState,
-    stored_delta_wh: f64,
-    nominal_energy_wh: f64,
-) -> EnergyKpis {
+fn energy_of(state: &SiteState, stored_delta_wh: f64, nominal_energy_wh: f64) -> EnergyKpis {
     let import_wh = state.substation.import_wh;
     let export_wh = state.substation.export_wh;
     let aux_wh = state.energy.aux_wh;
@@ -376,6 +385,7 @@ fn energy_of(
         import_mwh: mwh(import_wh),
         export_mwh: mwh(export_wh),
         round_trip_efficiency: round(export_wh / import_wh.max(1.0), 4),
+        round_trip_efficiency_excluding_aux: round(export_wh / (import_wh - aux_wh).max(1.0), 4),
         equivalent_full_cycles: round(export_wh / nominal_energy_wh, 1),
         stored_delta_mwh: mwh(stored_delta_wh),
         aux_share_of_import: round(aux_wh / import_wh.max(1.0), 5),

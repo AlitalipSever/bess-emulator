@@ -11,6 +11,7 @@
     "import_mwh": 74400.9,
     "export_mwh": 62657.9,
     "round_trip_efficiency": 0.8422,
+    "round_trip_efficiency_excluding_aux": 0.8645,
     "equivalent_full_cycles": 312.3,
     "stored_delta_mwh": -91.6,
     "aux_share_of_import": 0.02586,

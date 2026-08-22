@@ -79,8 +79,8 @@ pub const ANNUAL_RTE: Band = Band { lo: 0.80, hi: 0.85 };
 /// public dataset publishes auxiliary share separately for a plant of this
 /// size, and the quantity is dominated by utilization: the same hardware
 /// reads a few percent at 300 cycles a year and a large multiple of that on a
-/// plant that mostly sits still, which is the central finding of Schimpe et
-/// al. 2018. The realism claim therefore rests on the round-trip gate above
+/// plant that mostly sits still, which is what Schimpe et al. 2018 report.
+/// The realism claim therefore rests on the round-trip gate above
 /// and on the item-by-item waterfall, not on this number; regression
 /// detection rests on the committed record, which holds every figure to a
 /// tenth of a percent. This bound exists to catch a break gross enough to

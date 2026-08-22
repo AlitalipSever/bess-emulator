@@ -173,7 +173,12 @@ fn write_energy(out: &mut String, kpis: &Kpis) {
     );
     let _ = writeln!(
         out,
-        "| Equivalent full cycles | {:.1} |",
+        "| Round-trip efficiency, house load removed from import | {:.4} |",
+        e.round_trip_efficiency_excluding_aux
+    );
+    let _ = writeln!(
+        out,
+        "| Equivalent full cycles, exported energy over nameplate energy | {:.1} |",
         e.equivalent_full_cycles
     );
     let _ = writeln!(
@@ -189,9 +194,24 @@ fn write_energy(out: &mut String, kpis: &Kpis) {
     );
     let _ = writeln!(
         out,
-        "| Unexplained residual | {:.5}% of throughput |\n",
-        e.balance_residual_share * 100.0
+        "| Unexplained residual | {:.5}% of throughput, gate below {}% |",
+        e.balance_residual_share * 100.0,
+        bands::BALANCE_RESIDUAL_MAX * 100.0
     );
+    out.push('\n');
+    out.push_str(&wrap(
+        "Three definitions the figures above depend on. The round-trip ratio \
+         is uncorrected for the stored-energy endpoints, matching how the \
+         fleet figure it is gated against is computed; the row below it takes \
+         the house load back out of import arithmetically rather than by \
+         re-running the plant without it. Cycles count exported energy \
+         against nameplate energy, not against the smaller window the BMS \
+         keeps the plant inside. Container air is read every tick; the \
+         rack-level temperatures below are sampled once a minute, which is \
+         far inside their thermal time constant.",
+        76,
+    ));
+    out.push_str("\n\n");
 }
 
 fn write_waterfall(out: &mut String, kpis: &Kpis) {
@@ -335,6 +355,7 @@ mod tests {
                 import_mwh: 38_000.0,
                 export_mwh: 33_000.0,
                 round_trip_efficiency: 0.8684,
+                round_trip_efficiency_excluding_aux: 0.8901,
                 equivalent_full_cycles: 164.0,
                 stored_delta_mwh: -3.4,
                 aux_share_of_import: 0.038,
@@ -395,10 +416,10 @@ mod tests {
                 checked += 1;
             }
         }
-        // Every field of every section: 6 run, 8 energy, 8 loss, 6 thermal,
+        // Every field of every section: 6 run, 9 energy, 8 loss, 6 thermal,
         // 4 HVAC. Pinned so a field added without a thought about whether it
         // belongs in the published record fails here.
-        assert_eq!(checked, 32, "the record changed shape");
+        assert_eq!(checked, 33, "the record changed shape");
     }
 
     /// Move a value far enough to be drift, without changing its JSON type:

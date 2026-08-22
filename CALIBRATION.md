@@ -81,10 +81,20 @@ Energy at the point of interconnection over the run:
 | Imported | 74 400.9 MWh |
 | Exported | 62 657.9 MWh |
 | Round-trip efficiency | 0.8422 |
-| Equivalent full cycles | 312.3 |
+| Round-trip efficiency, house load removed from import | 0.8645 |
+| Equivalent full cycles, exported energy over nameplate energy | 312.3 |
 | Stored energy, end minus start | -91.6 MWh |
 | Auxiliary share of import / of export | 2.59% / 3.07% |
-| Unexplained residual | 0.00069% of throughput |
+| Unexplained residual | 0.00069% of throughput, gate below 0.2% |
+
+Three definitions the figures above depend on. The round-trip ratio is
+uncorrected for the stored-energy endpoints, matching how the fleet figure
+it is gated against is computed; the row below it takes the house load back
+out of import arithmetically rather than by re-running the plant without it.
+Cycles count exported energy against nameplate energy, not against the
+smaller window the BMS keeps the plant inside. Container air is read every
+tick; the rack-level temperatures below are sampled once a minute, which is
+far inside their thermal time constant.
 
 Where the energy went, each category on its own meter:
 
@@ -131,31 +141,35 @@ interval a gate rather than a decoration.
 close to the design assumption. That is the expected place for what this plant
 currently is: brand new, so no capacity fade and no resistance growth; never
 out of service, so all 8760 hours are productive hours; modern LFP with a PCS
-efficiency curve fitted to a real database entry; and heavily used, at 312
-equivalent full cycles in the year. Utilization is the one that matters most.
+efficiency curve fitted to a real database entry; and heavily used, at the
+cycle count in the table. Utilization is the one that matters most.
 Every fixed load the plant carries, the controls, the lighting, the standby
 tare, the transformer's no-load loss, is divided by throughput when it reaches
 this ratio, and this plant has a great deal of throughput to divide by.
 
-**Reading the auxiliary share.** Auxiliary consumption costs 2.2 percentage
-points of round-trip efficiency here: without it the same year reads 86.5%.
-The only peer-reviewed decomposition of the same kind, [Schimpe et al.
-2018](https://www.osti.gov/pages/biblio/1409737), reports overall system
-efficiency 8 to 13 points below conversion efficiency for primary control
-reserve and PV-battery duty on a 192 kWh prototype, and names the reason
-directly: auxiliary consumption dominates at low utilization. A 200 MWh plant
-at 312 cycles a year is the opposite case, so landing well under that range is
-the expected direction and not a contradiction. It is also why the share is
-gated only by a wide sanity bound. The same hardware would read several times
-this share on a plant that mostly sits still, so a narrow band on it would be
-measuring the dispatch plan, not the plant.
+**Reading the auxiliary share.** What the house load costs in efficiency is
+the gap between the two round-trip rows in the table above, and it is a small
+number here. The closest peer-reviewed decomposition of the same kind,
+[Schimpe et al. 2018](https://www.osti.gov/pages/biblio/1409737), reports
+conversion round-trip efficiency of 70 to 80% and overall system efficiency 8
+to 13 points below it for primary control reserve and PV-battery duty on a
+192 kWh prototype, and names the reason directly: auxiliary consumption
+dominates at low utilization. A 200 MWh plant running the cycle count in the
+table is the opposite case, so landing well under that range is the expected
+direction and not a contradiction. It is also why the share is gated only by a
+wide sanity bound. The same hardware would read several times this share on a
+plant that mostly sits still, so a narrow band on it would be measuring the
+dispatch plan, not the plant.
 
 **The transformer is the clearest thing this run shows.** Its no-load loss is
-100 kW whether or not the plant is doing anything, which is 876 MWh over 8760
-hours: more than half of the transformer's annual total. On the single 0.5C
-cycle that M0.5 was gated on, the same 100 kW spread over nine hours and
-disappeared into the third decimal. Nothing about the component changed
-between those two measurements. The window did.
+100 kW whether or not the plant is doing anything, so over 8760 hours it is
+876 MWh: more than half of the transformer's annual total in the table above.
+That value is pinned by `the_transformer_no_load_loss_is_what_the_record_says`
+in `crates/bess-models/src/grid.rs`, so this paragraph cannot quietly outlive
+it. On the single 0.5C cycle that M0.5 was gated on, the same 100 kW spread
+over under seven hours and moved the result by about four parts in a thousand.
+Nothing about the component changed between those two measurements. The window
+did.
 
 **What this number does not include.** Read it with these in view, all of them
 scheduled rather than forgotten:
