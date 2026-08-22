@@ -126,6 +126,20 @@ mod tests {
         assert!((sub.aux_power_w - 123.4e3).abs() < 1.0e-9);
     }
 
+    /// CALIBRATION.md's M1 entry reads the annual measurement partly through
+    /// this number: the no-load loss runs whether or not the plant works, so
+    /// over 8760 hours it is more than half the transformer's annual total,
+    /// while on a single cycle it disappears. That paragraph is arithmetic on
+    /// the value below, so the value is pinned here rather than left free to
+    /// move and quietly make the paragraph wrong.
+    #[test]
+    fn the_transformer_no_load_loss_is_what_the_record_says() {
+        let grid = SimpleGrid::new(100.0e6);
+        assert!((grid.no_load_loss_w - 100.0e3).abs() < 1.0);
+        let over_a_year_mwh = grid.no_load_loss_w * 8_760.0 / 1.0e6;
+        assert!((over_a_year_mwh - 876.0).abs() < 1.0);
+    }
+
     #[test]
     fn meters_never_decrease() {
         let grid = SimpleGrid::new(100.0e6);

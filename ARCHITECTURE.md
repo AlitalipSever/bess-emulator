@@ -311,8 +311,25 @@ node and opens its panel; the scene is a view over the state tree and never
 touches the kernel directly.
 
 **bess-bench (CLI).** Runs long simulations as fast as possible, extracts KPIs
-(annual RTE, auxiliary share, cycles, revenue), and compares them against
-public fleet bands. Its output is CALIBRATION.md.
+(annual RTE, auxiliary share, the loss waterfall, cycles, later revenue), and
+compares them against bands drawn from public data. It runs the same kernel
+and the same default models the emulator ships and only reads: a harness that
+could steer the plant would be measuring itself.
+
+Two artifacts leave a run, and the order between them is the point.
+`calibration/` holds the committed machine-readable record of what was
+measured; the generated block of CALIBRATION.md is rendered from that record,
+never from a second measurement. That keeps the check for a stale document a
+string comparison instead of a float comparison, which is what stops a
+generated document from going flaky across architectures. CI runs the gate on
+every pull request: bands hold, the record matches a fresh run, the document
+matches the record.
+
+A band is drawn from published data before the measurement is taken and is
+never widened to admit it. A reading outside its band is a finding, answered
+by explaining it or by re-sourcing the band in the open. Where no public
+dataset publishes a quantity at this scale, the bound says so and claims only
+what a sanity bound can claim.
 
 ## Repository layout
 
@@ -333,11 +350,12 @@ bess-emulator/
     bess-wasm/       browser entry: bess-core + bess-scene in one WASM module
     bess-bench/      calibration CLI
   refmodel/        published signal map (JSON + CSV, semver)
+  calibration/     committed record of what bess-bench measured
   scenarios/       scenario library (EPRI taxonomy + calendar + maintenance)
   examples/        minimal Python + TypeScript clients (connect, read, write a setpoint)
   ARCHITECTURE.md  this file
   ROADMAP.md       order of work
-  CALIBRATION.md   bess-bench output (arrives with the first calibrated release)
+  CALIBRATION.md   measurements (bess-bench) and provenance (by hand)
   COMPATIBILITY.md register map stability contract (arrives with the first public map)
   DATA-LICENSES.md license and redistribution status of every bundled dataset
 ```

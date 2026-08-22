@@ -5,6 +5,7 @@ members = [
     "crates/bess-data",
     "crates/bess-models",
     "crates/bess-emulator",
+    "crates/bess-bench",
     "crates/bess-scene",
     "crates/bess-wasm",
 ]

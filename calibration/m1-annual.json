@@ -1,0 +1,45 @@
+{
+  "run": {
+    "site_id": "GW-01",
+    "engine_version": "0.2.0",
+    "seed": 7,
+    "start_unix_s": 1767225600,
+    "days": 365,
+    "ticks": 31536000
+  },
+  "energy": {
+    "import_mwh": 74400.9,
+    "export_mwh": 62657.9,
+    "round_trip_efficiency": 0.8422,
+    "round_trip_efficiency_excluding_aux": 0.8645,
+    "equivalent_full_cycles": 312.3,
+    "stored_delta_mwh": -91.6,
+    "aux_share_of_import": 0.02586,
+    "aux_share_of_export": 0.0307,
+    "balance_residual_share": 6.9e-6
+  },
+  "losses": {
+    "battery_mwh": 5103.4,
+    "pcs_mwh": 3128.2,
+    "transformer_mwh": 1680.1,
+    "aux_hvac_mwh": 1355.8,
+    "aux_bms_mwh": 301.9,
+    "aux_pcs_standby_mwh": 47.1,
+    "aux_controls_mwh": 131.4,
+    "aux_lighting_and_safety_mwh": 87.6
+  },
+  "thermal": {
+    "ambient_min_c": -12.1,
+    "ambient_max_c": 33.3,
+    "container_air_min_c": 10.0,
+    "container_air_max_c": 29.0,
+    "cell_min_c": 9.1,
+    "cell_max_c": 38.0
+  },
+  "hvac": {
+    "stage1_duty": 0.17793,
+    "stage2_duty": 0.00329,
+    "heat_duty": 0.00025,
+    "compressor_starts_per_container": 6729.6
+  }
+}

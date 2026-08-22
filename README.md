@@ -111,7 +111,10 @@ from Lindenberg (Mark), 2024, which is the first piece of M1 to land on
 main; the thermal model deepens later in that milestone. Physics invariants (energy conservation, SoC bounds, meter
 monotonicity), byte-identical determinism, and the round-trip-efficiency
 and curve-fit calibration gates ([CALIBRATION.md](CALIBRATION.md)) are
-enforced in CI. Interfaces and the signal map may change without
+enforced in CI, alongside the annual gate: `bess-bench` runs the plant over
+the whole replayed year on every pull request and fails the build if the
+round-trip figure leaves its sourced band or the published record goes
+stale. Interfaces and the signal map may change without
 notice until 1.0; see [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## Documentation

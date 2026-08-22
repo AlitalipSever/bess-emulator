@@ -30,3 +30,19 @@ jobs:
         run: |
           cargo run -p bess-emulator -- --dump-signal-map /tmp/map.csv
           diff -u refmodel/gw01-signal-map.csv /tmp/map.csv
+      - name: Calibration record and document agree
+        run: cargo run -p bess-bench -- --check-docs
+
+  # The milestone gate: a full replayed year in one process. It runs on its
+  # own because it costs minutes rather than seconds, and it runs on every
+  # pull request because a physics change that moves the annual figures is
+  # exactly the change that should not reach the integration branch unnoticed.
+  calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Annual calibration gate
+        run: cargo run --release -p bess-bench -- --check
