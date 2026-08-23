@@ -12,7 +12,7 @@ scheduled. Architecture and rationale live in
 | M0 | Walking skeleton, end to end | done (v0.1.0) |
 | M0.5 | PCS partial-load efficiency curve (pulled forward from M3) | done (v0.2.0) |
 | M1 | Thermal + weather | done (v0.3.0) |
-| M1.5 | View mini-iteration: real solar position, weather-driven scenery, time controls | next (v0.3.x) |
+| M1.5 | View mini-iteration: real solar position, weather-driven scenery, time controls | done (v0.4.0) |
 | M2 | BMS, alarms, scenario engine | planned |
 | M3 | PCS + electrical | planned |
 | M4 | EMS + market signals | planned |
@@ -154,7 +154,7 @@ Baseline. The component-by-component requirement is met by the loss
 waterfall: eight categories, each on its own meter, summing to what the POI
 meters say crossed it.
 
-## M1.5: View mini-iteration (next, v0.3.x)
+## M1.5: View mini-iteration (done, v0.4.0)
 
 A mini-iteration in the M0.5 pattern, decided 2026-08-19. It deepens the view
 layer only; no kernel model changes, so M2's scope is untouched.
@@ -192,6 +192,19 @@ Scope:
 by the existing determinism and invariant tests plus the golden instants
 above. A view iteration that needed a calibration gate would mean the scene
 had started deciding something.
+
+Shipped as v0.4.0 rather than a v0.3.x patch: the iteration is source-breaking
+in four places, and the M0.5 precedent gives a mini-iteration a minor bump.
+The kernel-side gates all came back unmoved, which was the point of running
+them here: the signal map is byte-identical and the annual figures return to
+the digit, so nothing leaked out of the view layer.
+
+What it did not do, and one of them was found by looking rather than by
+testing: the scene had projected its shadows along a hardcoded direction
+since M0, so making the sun real did not move them until someone opened the
+plant and said so. Every test in that crate asks whether a number is right;
+none can ask whether anything is visible. A view layer's last gate is a
+person looking at it.
 
 ## M2: BMS, alarms, and the scenario engine
 

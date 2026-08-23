@@ -64,7 +64,7 @@ ran rather than re-derived afterwards from a summary.
 
 <!-- bess-bench:begin m1-annual -->
 
-Measured by `bess-bench` on kernel 0.3.0: GW-01 on the internal dispatch
+Measured by `bess-bench` on kernel 0.4.0: GW-01 on the internal dispatch
 plan, seed 7, 365 simulated days (31 536 000 ticks) of the replayed weather
 year. Regenerate with `cargo run --release -p bess-bench -- --write`; CI
 fails if this block is stale.

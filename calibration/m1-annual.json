@@ -1,7 +1,7 @@
 {
   "run": {
     "site_id": "GW-01",
-    "engine_version": "0.3.0",
+    "engine_version": "0.4.0",
     "seed": 7,
     "start_unix_s": 1767225600,
     "days": 365,
