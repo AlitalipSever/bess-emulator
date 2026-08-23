@@ -61,9 +61,10 @@ pub fn hot_week(weather: HistoricalWeather, spec: RunSpec) -> ((i64, i64), Strin
         (centre + DAY_S as i64 + half).min(spec.start_unix_s + spec.days as i64 * DAY_S as i64);
     (
         (start, end),
-        format!(
-            "The warmest week of the replayed year, centred on {target_day:02}-{target_month:02}"
-        ),
+        // Named for what it is. The warmest *day* is what was searched for;
+        // calling the surrounding week the warmest would be a claim about a
+        // quantity nobody measured.
+        format!("The week around the warmest day of the replayed year, {target_day:02}-{target_month:02}"),
     )
 }
 
