@@ -328,6 +328,14 @@ generated document from going flaky across architectures. CI runs the gate on
 every pull request: bands hold, the record matches a fresh run, the document
 matches the record.
 
+Two artifacts is not three. The annual record is gated: CI compares a fresh
+run against it field by field. The study series beside it, the year month by
+month and one hard week at quarter-hour resolution, is chart material, and
+holding seven hundred samples to the same tolerance would put a wall of diff
+in front of every physics change for no extra safety. What CI checks there is
+that the two came from the same run, which is what catches a regeneration
+that refreshed one and forgot the other.
+
 A band is drawn from published data before the measurement is taken and is
 never widened to admit it. A reading outside its band is a finding, answered
 by explaining it or by re-sourcing the band in the open. Where no public
@@ -353,7 +361,9 @@ bess-emulator/
     bess-wasm/       browser entry: bess-core + bess-scene in one WASM module
     bess-bench/      calibration CLI
   refmodel/        published signal map (JSON + CSV, semver)
-  calibration/     committed record of what bess-bench measured
+  calibration/     committed record of what bess-bench measured, and the
+                   month-by-month and one-week series a study draws from, and the
+                   month-by-month and one-week series a study draws from
   scenarios/       scenario library (EPRI taxonomy + calendar + maintenance)
   examples/        minimal Python + TypeScript clients (connect, read, write a setpoint)
   ARCHITECTURE.md  this file

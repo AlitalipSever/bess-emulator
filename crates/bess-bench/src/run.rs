@@ -291,7 +291,18 @@ impl Tallies {
 
 /// Run the plant and measure it. `progress` is called once per simulated day
 /// with the day just completed and the total.
-pub fn run(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Kpis {
+///
+/// Returns the gated annual figures and the chart material together, because
+/// they come from the same pass: producing a figure from a second run would
+/// be producing it from a second plant.
+pub fn run(spec: RunSpec, progress: impl FnMut(u64, u64)) -> (Kpis, crate::series::StudySeries) {
+    measure(spec, progress)
+}
+
+fn measure(
+    spec: RunSpec,
+    mut progress: impl FnMut(u64, u64),
+) -> (Kpis, crate::series::StudySeries) {
     let cfg = PlantConfig::gw01();
     let site_id = cfg.site_id.clone();
     let containers = cfg.blocks * cfg.containers_per_block;
@@ -303,11 +314,19 @@ pub fn run(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Kpis {
     let stored_start_wh = sim.stored_energy_wh();
     let ticks = spec.days * DAY_S / TICK_SECONDS;
     let mut tallies = Tallies::new(containers);
+    let (window, label) = crate::series::window::hot_week(weather, spec);
+    let mut series = crate::series::Collector::new(
+        containers,
+        window,
+        crate::series::window::TRACE_INTERVAL_S,
+        label,
+    );
 
     for tick in 0..ticks {
         let inputs = weather.inputs_at(sim.unix_time_s());
         sim.step(&inputs);
         tallies.observe(&sim, tick);
+        series.observe(&sim, sim.unix_time_s());
         if (tick + 1) % (DAY_S / TICK_SECONDS) == 0 {
             progress((tick + 1) / (DAY_S / TICK_SECONDS), spec.days);
         }
@@ -318,7 +337,7 @@ pub fn run(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Kpis {
     let state = sim.state();
     let losses = losses_of(state);
 
-    Kpis {
+    let kpis = Kpis {
         run: RunRecord {
             site_id,
             engine_version: bess_core::version().to_string(),
@@ -343,7 +362,9 @@ pub fn run(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Kpis {
             heat_duty: round(tallies.heat_ticks as f64 / container_ticks, 5),
             compressor_starts_per_container: round(tallies.starts as f64 / containers as f64, 1),
         },
-    }
+    };
+    let series = series.finish(&sim, kpis.run.clone());
+    (kpis, series)
 }
 
 /// Read the loss meters. Every figure comes off an accumulator the kernel

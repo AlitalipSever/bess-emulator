@@ -170,7 +170,13 @@ fn is_leap_year(year: u16) -> bool {
 /// Civil month (1-12) and day of month from days since the Unix epoch.
 /// Howard Hinnant's `civil_from_days`, with the year dropped: the reference
 /// year supplies the year, the timestamp supplies the position within it.
-fn month_day_from_unix_days(days: i64) -> (usize, u32) {
+/// Calendar month and day of a count of days since the Unix epoch, UTC.
+///
+/// Public because the calendar is not the weather driver's private business:
+/// `bess-bench` needs the same answer to break a year into months, and a
+/// second copy of Howard Hinnant's algorithm in this workspace would be one
+/// copy too many.
+pub fn month_day_from_unix_days(days: i64) -> (usize, u32) {
     // Shift the epoch to 0000-03-01 so leap days land at the end of the era.
     let z = days + 719_468;
     let era = z.div_euclid(146_097);
