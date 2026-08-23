@@ -5,8 +5,8 @@
 use bess_core::state::{EmsMode, HvacMode, PcsOpState, SiteState};
 use egui::{Color32, ProgressBar, RichText, Slider};
 
+use crate::clock;
 use crate::layout::Selection;
-use crate::sun;
 use crate::ViewerCommand;
 
 /// UI scratch state that outlives a frame (slider positions).
@@ -54,7 +54,7 @@ pub fn side_panel(
         .show(ui, |ui| {
             ui.add_space(6.0);
             ui.heading(&state.meta.site_id);
-            ui.label(sun::format_utc(state.unix_time_s()));
+            ui.label(clock::format_utc(state.unix_time_s()));
             ui.separator();
 
             // -- site KPIs -------------------------------------------

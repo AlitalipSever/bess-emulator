@@ -201,6 +201,29 @@ degrees of elevation, so a correct handover leaves at most 7.3e-4 of daylight
 behind, while the old one left 8.7e-3. A guard is only worth what it has been
 shown to catch, and this one had to be shown twice.
 
+### Code organization, adopted mid-iteration
+
+PR1 produced a 494-line `sun.rs` and that prompted a contract the repository
+did not have: AGENTS.md now states one file, one concern, with a soft ceiling
+at 300 lines and a hard one at 500, counted over the whole file.
+
+`sun.rs` was the first thing held to it, and length turned out to be the
+symptom rather than the problem. The file carried three subjects: astronomy,
+art direction, and calendar arithmetic that had nothing to do with the sun at
+all and lived there only because a deleted lookup table once needed the month.
+It is now `sun.rs` (module doc, the shared ramp, test fixtures),
+`sun/position.rs`, `sun/light.rs` and a separate `clock.rs`, at 77, 229, 208
+and 56 lines.
+
+The split is worth two files for `sun` specifically because one half makes
+claims about the world and the other makes choices about a picture, and a
+reader should be able to tell which lines they are allowed to argue with
+without reading the doc comments.
+
+Six pre-existing files exceed the hard limit. They are named in AGENTS.md
+rather than hidden in a tool exemption list, and the CI check that enforces
+the limit lands in the pull request that clears them.
+
 ## 6. Compatibility impact
 
 - **Checkpoint format: unchanged.** No state field is added. The digest does
