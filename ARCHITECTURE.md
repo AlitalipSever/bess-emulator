@@ -356,7 +356,7 @@ bess-emulator/
   ARCHITECTURE.md  this file
   ROADMAP.md       order of work
   CALIBRATION.md   measurements (bess-bench) and provenance (by hand)
-  COMPATIBILITY.md register map stability contract (arrives with the first public map)
+  COMPATIBILITY.md register map stability contract, semver, independent of the crate
   DATA-LICENSES.md license and redistribution status of every bundled dataset
 ```
 

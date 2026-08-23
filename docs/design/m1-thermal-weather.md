@@ -194,6 +194,38 @@ Eight PRs, each landing green:
 8. **Docs + release v0.3.0:** ARCHITECTURE.md thermal section, README,
    ROADMAP status flip, release notes.
 
+Done in PR8. Less writing than planned, because the architecture and
+calibration prose landed with the PRs that earned it rather than being saved
+up: ARCHITECTURE.md got its thermal path in PR3, its house-load inventory in
+PR5 and its bench section in PR7, and CALIBRATION.md has been current since
+each measurement. What was left was the release itself and four things the
+milestone had outgrown.
+
+The version moved to 0.3.0, which forced the annual record to be regenerated
+because it names the kernel it was measured on. Every measured figure came
+back identical and only the version string moved, which is the evidence that
+this release changes documentation and nothing else.
+
+ROADMAP.md gained two entries it should have had already. The calibration
+sources paragraph still named CAISO and EPRI for the field round-trip band,
+which is where the band was expected to come from in M0; PR7 actually sourced
+it from EIA Form EIA-923 and the NREL Annual Technology Baseline, so the page
+now names what was used and says that a gate names its real source. And the
+view mini-iteration decided on 2026-08-19 existed only in private notes, so
+the public roadmap said nothing about what v0.3.x holds. It is M1.5 now, with
+its scope and the explicit note that it carries no calibration gate, because a
+view iteration that needed one would mean the scene had started deciding
+something.
+
+The last one is the version number itself. Shipping 1.0.0 was considered and
+rejected: in this project 1.0 is the release where COMPATIBILITY.md takes
+effect and addresses stop moving, and two major changes are already scheduled
+against published points, the M2 alarm bits and the M3 PCS state machine.
+Declaring the contract now would mean either breaking it or shipping 2.0.0 and
+3.0.0 within two milestones. What the repository was missing was not the
+number but the criterion, so ROADMAP.md now states what 1.0 has to pass and
+COMPATIBILITY.md says why it has not passed yet.
+
 ## 6. Signal map delta
 
 Constraint discovered during design: per-block registers stride by 10

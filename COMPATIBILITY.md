@@ -11,6 +11,13 @@ map reaches version 1.0. Until then (0.x releases), any register, topic, or
 endpoint may change in any release; breaking changes are called out in the
 release notes.
 
+Two of those changes are already known and scheduled, which is the honest
+reason this page still says pre-1.0. M2 gives meaning to the rack alarm bits
+that read zero today, and M3 replaces the three-value PCS state with a
+five-state machine. Both reinterpret a published point, which is a major
+change under the rules below, so both happen before the contract takes effect
+rather than after it. [ROADMAP.md](ROADMAP.md) records what 1.0 has to pass.
+
 ## The signal map is an API
 
 The reference is [refmodel/gw01-signal-map.csv](refmodel/gw01-signal-map.csv),
@@ -45,7 +52,7 @@ check which contract it is talking to without fetching this file.
 | Map | Introduced | Change |
 |---|---|---|
 | 0.1.0 | crate v0.2.0 | The first published map. It carried no version number; it is recorded here as 0.1.0 so the sequence has a beginning. |
-| 0.2.0 | M1, first crate release to carry it is v0.3.0 | Additions only: the five itemized house-load points at site 32 to 41, and per block `container.air_temp_c` and `hvac.state` in the two slots each block had free. Nothing moved, nothing was renamed. The file gained its version comment line. |
+| 0.2.0 | crate v0.3.0 | Additions only: the five itemized house-load points at site 32 to 41, and per block `container.air_temp_c` and `hvac.state` in the two slots each block had free. Nothing moved, nothing was renamed. The file gained its version comment line. |
 
 ## Deprecation process (from map 1.0)
 
