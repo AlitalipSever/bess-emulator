@@ -17,7 +17,8 @@
 //! - `style`     material palette
 //! - `mesh`      the unit cube every instance reuses
 //! - `shaders`   GLSL sources, composed per platform
-//! - `instances` state tree -> cube instances (pure)
+//! - `instances` state tree and weather -> cube instances (pure)
+//! - `scenery`   what the sky is doing, from the observed series (pure)
 //! - `renderer`  the only module with GL calls (and the only unsafe one)
 //! - `camera`    orbit / pan / fly control
 //! - `scene`     egui widget tying camera, picking and renderer together
@@ -32,6 +33,7 @@ pub mod mesh;
 pub mod panels;
 pub mod renderer;
 pub mod scene;
+pub mod scenery;
 pub mod shaders;
 pub mod style;
 pub mod sun;

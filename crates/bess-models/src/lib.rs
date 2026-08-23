@@ -22,6 +22,9 @@ pub use grid::SimpleGrid;
 pub use pcs::{CurvePcs, FlatPcs};
 pub use thermal::LumpedThermal;
 pub use weather::{synthetic_grid_frequency_hz, HistoricalWeather, SyntheticWeather};
+// Re-exported because `HistoricalWeather::hour_at` returns them: a caller
+// should not have to depend on `bess-data` to name what this crate hands it.
+pub use bess_data::{HourSample, PrecipForm};
 
 use bess_core::config::PlantConfig;
 use bess_core::traits::Models;
