@@ -159,6 +159,8 @@ meters say crossed it.
 A mini-iteration in the M0.5 pattern, decided 2026-08-19. It deepens the view
 layer only; no kernel model changes, so M2's scope is untouched.
 
+Detailed design: [docs/design/m1_5-view-scenery.md](docs/design/m1_5-view-scenery.md).
+
 The principle is the one already stated in `bess-scene/src/sun.rs`: every
 visual effect is driven either by a measured series or by pure mathematics on
 position and time. No invented decoration. The boundary that makes this safe
