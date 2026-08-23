@@ -168,7 +168,11 @@ impl SceneView {
         let amb = 0.28 + 0.45 * light.sky + 0.27 * beam + 0.10 * light.daylight * scenery.cloud;
         let anim_s = ui.input(|i| i.time) as f32;
 
-        let mut objects = Vec::with_capacity(self.static_objects.len() + 4096 * instances::FPI);
+        // Enough for the dynamic pass and a full precipitation field, so a
+        // heavy hour does not reallocate mid-frame.
+        let per_frame = 4096 + instances::weather::MAX_PARTICLES;
+        let mut objects =
+            Vec::with_capacity(self.static_objects.len() + per_frame * instances::FPI);
         objects.extend_from_slice(&self.static_objects);
         instances::build_dynamic(
             &mut objects,

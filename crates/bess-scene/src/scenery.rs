@@ -43,7 +43,11 @@ pub struct Observed {
 }
 
 /// The sky, ready to draw.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+///
+/// `Default` is a clear sky rather than a zeroed struct, because a zeroed
+/// struct means `dimming: 0.0`, which is a sun with nothing coming out of it.
+/// A default that has to be avoided is a trap left in a public type.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Scenery {
     /// Cloud cover as a fraction, 0 clear to 1 overcast.
     pub cloud: f32,
@@ -64,6 +68,12 @@ pub struct Scenery {
 /// ratio to carry information.
 const RATIO_FLOOR_DEG: f64 = 3.0;
 
+impl Default for Scenery {
+    fn default() -> Self {
+        Self::clear()
+    }
+}
+
 impl Scenery {
     /// A clear, still sky. What the scene draws when there is no observation
     /// to draw from, and the identity the synthetic weather driver produces.
@@ -71,7 +81,10 @@ impl Scenery {
         Self {
             cloud: 0.0,
             dimming: 1.0,
-            ..Self::default()
+            precip_mm_h: 0.0,
+            precip: Precip::None,
+            wind_ms: 0.0,
+            wind_dir_deg: 0.0,
         }
     }
 
@@ -122,7 +135,8 @@ mod tests {
     use super::{dimming, Observed, Precip, Scenery};
 
     #[test]
-    fn a_clear_sky_is_the_identity() {
+    fn a_clear_sky_is_the_identity_and_the_default() {
+        assert_eq!(Scenery::default(), Scenery::clear());
         let clear = Scenery::clear();
         assert!((clear.dimming - 1.0).abs() < f32::EPSILON);
         assert!(clear.cloud.abs() < f32::EPSILON);

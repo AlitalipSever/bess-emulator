@@ -269,6 +269,35 @@ identical frame, and nothing has to be seeded or reset. Density follows the
 square root of the measured rate, because a linear map spends the whole
 budget on the first millimetre.
 
+### PR2's review, and what it changed
+
+Five findings. The first is the one worth remembering, because it is the same
+defect the register map's review found in PR6 and it arrived by the same road.
+
+1. **The mapping from dataset to scene had no test.** Six field-to-field
+   assignments, buried in a method that needs a GL context to reach, which is
+   exactly the shape that silently swaps two of them. It is a free function
+   now, `observed_from`, tested by giving every source field a distinct value
+   and asserting each lands in its own slot. Swapping wind speed and direction
+   fails it; so does letting humidity, which has no consumer, leak into the
+   irradiance field.
+2. **`Scenery::default()` was a black sun.** The derive zeroed `dimming`,
+   which means fully dimmed, so a correct-looking call produced a sun with
+   nothing coming out of it. `Default` is `clear()` now. A default that has to
+   be avoided is a trap left in a public type.
+3. **An unnamed factor in a file claiming not to have any.** The module doc
+   says every effect is driven by a measured series or by pure mathematics,
+   and then `wind_ms * 0.35` sat in the middle of it. It is `WIND_CARRY` now,
+   with the arithmetic that justifies it: honouring the real drift would sweep
+   the field further than the site is wide.
+4. **Wind direction zero is the dataset's word for calm, and the code read it
+   as north.** Latent rather than live: Lindenberg 2024 never uses the
+   sentinel, which was checked before the finding was written. A calm hour
+   carries nothing now, and 360 still means north because the trigonometry
+   already agreed.
+5. **The instance buffer's capacity hint predated particles** and a heavy hour
+   could push past it.
+
 ## 6. Compatibility impact
 
 - **Checkpoint format: unchanged.** No state field is added. The digest does

@@ -4,7 +4,7 @@
 //! the kernel, keeping the scene/panels strictly read-only.
 
 use bess_core::{PlantConfig, Simulation};
-use bess_models::{gw01_models, gw01_weather, HistoricalWeather, PrecipForm};
+use bess_models::{gw01_models, gw01_weather, HistoricalWeather, HourSample, PrecipForm};
 
 use crate::panels::{self, PanelState};
 use crate::scene::SceneView;
@@ -62,19 +62,25 @@ impl ViewerApp {
     /// viewer owns both, so the translation is its job.
     fn scenery(&self) -> Scenery {
         let now = self.sim.unix_time_s();
-        let observed = self.weather.hour_at(now);
         let elevation = sun_position(now, self.sim.config().location).elevation_deg;
-        Scenery::from_observed(
-            &Observed {
-                cloud_okta: observed.cloud_okta,
-                irradiance_wm2: observed.ghi_wm2,
-                precip_mm_h: observed.precip_mm,
-                precip: precip_of(observed.precip_form, observed.temp_c),
-                wind_ms: observed.wind_ms,
-                wind_dir_deg: observed.wind_dir_deg,
-            },
-            elevation,
-        )
+        Scenery::from_observed(&observed_from(&self.weather.hour_at(now)), elevation)
+    }
+}
+
+/// One observed hour, in the terms the scene uses.
+///
+/// A free function with a test rather than six lines inside a method that
+/// needs a GL context to reach. Six field-to-field assignments is exactly the
+/// shape that silently swaps two of them, and the register map's review found
+/// that same defect the same way.
+fn observed_from(sample: &HourSample) -> Observed {
+    Observed {
+        cloud_okta: sample.cloud_okta,
+        irradiance_wm2: sample.ghi_wm2,
+        precip_mm_h: sample.precip_mm,
+        precip: precip_of(sample.precip_form, sample.temp_c),
+        wind_ms: sample.wind_ms,
+        wind_dir_deg: sample.wind_dir_deg,
     }
 }
 
@@ -137,5 +143,57 @@ impl eframe::App for ViewerApp {
         if let Some(gl) = gl {
             self.scene.destroy(gl);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{observed_from, precip_of};
+    use crate::scenery::Precip;
+    use bess_models::{HourSample, PrecipForm};
+
+    /// Every field a different value, so a swapped pair cannot hide behind a
+    /// coincidence. The precipitation form is the one field that is derived
+    /// rather than copied, and it is pinned separately below.
+    fn distinct() -> HourSample {
+        HourSample {
+            temp_c: 11.0,
+            rel_humidity_pct: 22.0,
+            ghi_wm2: 333.0,
+            precip_mm: 4.4,
+            precip_form: PrecipForm::Rain,
+            wind_ms: 5.5,
+            wind_dir_deg: 66.0,
+            cloud_okta: 7,
+        }
+    }
+
+    #[test]
+    fn every_observed_field_comes_from_its_own_measurement() {
+        let o = observed_from(&distinct());
+        assert_eq!(o.cloud_okta, 7);
+        assert!((o.irradiance_wm2 - 333.0).abs() < f32::EPSILON);
+        assert!((o.precip_mm_h - 4.4).abs() < f32::EPSILON);
+        assert!((o.wind_ms - 5.5).abs() < f32::EPSILON);
+        assert!((o.wind_dir_deg - 66.0).abs() < f32::EPSILON);
+        assert_eq!(o.precip, Precip::Rain);
+        // Humidity has no consumer in the scene and must not have quietly
+        // acquired one by landing in a field that belongs to something else.
+        let mut humid = distinct();
+        humid.rel_humidity_pct = 99.0;
+        assert_eq!(observed_from(&humid), o);
+    }
+
+    #[test]
+    fn an_unclassified_hour_follows_the_temperature() {
+        let unknown = |temp_c| precip_of(PrecipForm::Unknown, temp_c);
+        assert_eq!(unknown(-4.0), Precip::Snow);
+        assert_eq!(unknown(1.5), Precip::Sleet);
+        assert_eq!(unknown(9.0), Precip::Rain);
+        // A classified hour is never second-guessed, however cold it is.
+        assert_eq!(precip_of(PrecipForm::Rain, -10.0), Precip::Rain);
+        assert_eq!(precip_of(PrecipForm::Snow, 20.0), Precip::Snow);
+        assert_eq!(precip_of(PrecipForm::Mixed, 20.0), Precip::Sleet);
+        assert_eq!(precip_of(PrecipForm::NoPrecip, 5.0), Precip::None);
     }
 }

@@ -17,7 +17,7 @@ use super::push;
 /// Particles at the heaviest rate drawn. Sized so the field reads as weather
 /// rather than as a texture, and so the instance buffer stays in the same
 /// order of magnitude as the site itself.
-const MAX_PARTICLES: usize = 2_400;
+pub const MAX_PARTICLES: usize = 2_400;
 
 /// Rate, in millimetres per hour, at which the field reaches [`MAX_PARTICLES`].
 /// Heavier rain than this looks the same; the DWD year's wettest hour at
@@ -31,6 +31,16 @@ const CEILING_M: f32 = 34.0;
 /// drifts and reads as a fleck.
 const RAIN_FALL_MS: f32 = 8.0;
 const SNOW_FALL_MS: f32 = 1.1;
+
+/// Fraction of the measured wind the field is actually carried by.
+///
+/// The one number in this file that is neither measured nor derived, so it is
+/// named rather than buried. A drop reaches close to the horizontal wind
+/// speed, and honouring that would sweep the field clean off the plant: an
+/// 8 m/s wind over a 34 m fall at 8 m/s is 34 m of drift, further than the
+/// site is wide. This trades physical drift for keeping the weather over the
+/// thing the scene exists to show.
+const WIND_CARRY: f32 = 0.35;
 
 /// How many particles a rate draws.
 pub fn particle_count(rate_mm_h: f32) -> usize {
@@ -78,9 +88,17 @@ pub fn build_precipitation(
 
     // Wind pushes the column over as it falls: a particle that has fallen
     // half the ceiling has drifted half as far as one about to land.
+    //
+    // A direction of exactly zero is the dataset's way of saying calm or
+    // undetermined, not north, so it carries nothing. 360 is north and needs
+    // no special case, the trigonometry already agrees.
+    let carried = if scenery.wind_dir_deg == 0.0 {
+        0.0
+    } else {
+        scenery.wind_ms * WIND_CARRY
+    };
     let drift_rad = scenery.wind_dir_deg.to_radians();
-    let drift = scenery.wind_ms * 0.35;
-    let (drift_x, drift_z) = (-drift * drift_rad.sin(), -drift * drift_rad.cos());
+    let (drift_x, drift_z) = (-carried * drift_rad.sin(), -carried * drift_rad.cos());
 
     for i in 0..count {
         let (rx, rz, phase) = scatter(i);
@@ -178,6 +196,35 @@ mod tests {
                 assert!(chunk.iter().all(|v| v.is_finite()));
             }
         }
+    }
+
+    #[test]
+    fn a_calm_hour_does_not_drift_north() {
+        // The dataset spends 0 on "calm or undetermined", not on north.
+        // Lindenberg 2024 never uses it, so this guards another station or
+        // another year rather than a picture anyone has seen.
+        let cfg = PlantConfig::gw01();
+        let layout = SiteLayout::new(&cfg);
+        let mut undetermined = falling(Precip::Rain, 4.0);
+        undetermined.wind_dir_deg = 0.0;
+        undetermined.wind_ms = 9.0;
+        let mut still = undetermined;
+        still.wind_ms = 0.0;
+
+        let (mut drifting, mut calm) = (Vec::new(), Vec::new());
+        build_precipitation(&mut drifting, &undetermined, &layout, 5.0);
+        build_precipitation(&mut calm, &still, &layout, 5.0);
+        assert_eq!(
+            drifting, calm,
+            "an undetermined direction carried the field somewhere"
+        );
+
+        // And a real direction still does move it.
+        let mut northerly = undetermined;
+        northerly.wind_dir_deg = 360.0;
+        let mut moved = Vec::new();
+        build_precipitation(&mut moved, &northerly, &layout, 5.0);
+        assert_ne!(moved, calm, "a 9 m/s wind moved nothing");
     }
 
     #[test]
