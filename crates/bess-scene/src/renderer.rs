@@ -14,6 +14,16 @@ use crate::instances::FPI;
 use crate::math::{Mat4, Vec3};
 use crate::{mesh, shaders};
 
+pub mod sky;
+pub use sky::{SkyFrame, SkyPass};
+
+struct Target {
+    fbo: glow::Framebuffer,
+    color: glow::Texture,
+    depth: glow::Renderbuffer,
+    size: (i32, i32),
+}
+
 /// Everything one frame needs: instance streams plus uniforms. Built by the
 /// scene widget (pure code), consumed here.
 pub struct FrameData {
@@ -37,13 +47,8 @@ pub struct FrameData {
     pub fog_color: Vec3,
     /// Fog start and full distance, m.
     pub fog_range: [f32; 2],
-}
-
-struct Target {
-    fbo: glow::Framebuffer,
-    color: glow::Texture,
-    depth: glow::Renderbuffer,
-    size: (i32, i32),
+    /// Everything the sky pass needs.
+    pub sky_frame: SkyFrame,
 }
 
 struct Uniforms {
@@ -73,6 +78,10 @@ pub struct Renderer {
     present_program: glow::Program,
     present_vao: glow::VertexArray,
     present_tex_loc: glow::UniformLocation,
+    /// Sky pass: a fullscreen triangle drawn before the scene. The sky is a
+    /// picture rather than a clear colour because the sun has to be
+    /// somewhere.
+    sky: SkyPass,
     uniforms: Uniforms,
     target: Option<Target>,
 }
@@ -166,6 +175,7 @@ impl Renderer {
 
             Ok(Self {
                 program,
+                sky: SkyPass::new(gl, es)?,
                 vao,
                 mesh_vbo,
                 ground_vbo,
@@ -317,6 +327,8 @@ impl Renderer {
             );
             gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
 
+            self.sky.draw(gl, &frame.sky_frame, frame.light_dir);
+
             gl.use_program(Some(self.program));
             gl.bind_vertex_array(Some(self.vao));
             gl.uniform_matrix_4_f32_slice(Some(&u.view_proj), false, &frame.view_proj);
@@ -402,6 +414,7 @@ impl Renderer {
     /// Delete all GL resources. Call before the context goes away.
     pub fn destroy(&mut self, gl: &glow::Context) {
         unsafe {
+            self.sky.destroy(gl);
             gl.delete_program(self.program);
             gl.delete_program(self.present_program);
             gl.delete_vertex_array(self.vao);

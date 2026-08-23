@@ -10,7 +10,7 @@
 //! replay maps: `HistoricalWeather` looks up the reference year by month and
 //! day, so the same stop works whatever year the simulated clock says.
 
-use bess_models::WeatherYear;
+use bess_models::{HourSample, PrecipForm, WeatherYear};
 
 use crate::clock::civil_from_unix;
 use crate::panels::Stop;
@@ -25,20 +25,43 @@ const OPENING_HOUR: u32 = 9;
 
 /// The stops for a compiled year, in the order they are offered.
 pub fn stops(year: &WeatherYear) -> Vec<Stop> {
-    let mut out = Vec::with_capacity(4);
+    let mut out = Vec::with_capacity(5);
     if let Some(day) = extreme_day(year.temp_c(), Extreme::Highest) {
-        out.push(stop("Warmest day", day));
+        out.push(from_day("Warmest day", day));
     }
     if let Some(day) = extreme_day(year.temp_c(), Extreme::Lowest) {
-        out.push(stop("Coldest day", day));
+        out.push(from_day("Coldest day", day));
     }
     if let Some(day) = extreme_day(year.ghi_wm2(), Extreme::Highest) {
-        out.push(stop("Sunniest day", day));
+        out.push(from_day("Sunniest day", day));
     }
-    if let Some(day) = extreme_day(year.precip_mm(), Extreme::Highest) {
-        out.push(stop("Wettest day", day));
+    // Rain is the exception, and finding out why cost a screenshot. The
+    // wettest day of the reference year holds 34.7 mm, of which 32.9 falls
+    // in the single hour at 20:00; a stop that picked the day and landed at
+    // nine in the morning arrived in the dry. Anything this spiky has to be
+    // found by the hour it happened in, not by the day it belongs to.
+    if let Some(hour) = wettest_hour(year, |_| true) {
+        out.push(from_hour("Heaviest rain", hour));
+    }
+    if let Some(hour) = wettest_hour(year, |s| s.precip_form == PrecipForm::Snow) {
+        out.push(from_hour("Snowfall", hour));
     }
     out
+}
+
+/// The hour with the most precipitation among those the filter accepts.
+fn wettest_hour(year: &WeatherYear, accept: impl Fn(&HourSample) -> bool) -> Option<usize> {
+    let mut best: Option<(usize, f32)> = None;
+    for hour in 0..year.len() {
+        let sample = year.hour(hour);
+        if sample.precip_mm <= 0.05 || !accept(&sample) {
+            continue;
+        }
+        if best.is_none_or(|(_, mm)| sample.precip_mm > mm) {
+            best = Some((hour, sample.precip_mm));
+        }
+    }
+    best.map(|(hour, _)| hour)
 }
 
 /// Which end of the range a stop is looking for.
@@ -76,8 +99,8 @@ fn extreme_day(hourly: &[f32], want: Extreme) -> Option<usize> {
     best.map(|(day, _)| day)
 }
 
-/// A day index of the reference year, as a calendar date.
-fn stop(label: &'static str, day_index: usize) -> Stop {
+/// A day of the reference year, opened mid-morning.
+fn from_day(label: &'static str, day_index: usize) -> Stop {
     let (_, month, day, ..) = civil_from_unix(REFERENCE_YEAR_START + day_index as i64 * 86_400);
     Stop {
         label,
@@ -87,27 +110,85 @@ fn stop(label: &'static str, day_index: usize) -> Stop {
     }
 }
 
+/// A specific hour of the reference year, opened just before it so the
+/// weather arrives rather than being already there.
+fn from_hour(label: &'static str, hour_index: usize) -> Stop {
+    let start = hour_index.saturating_sub(1);
+    let (_, month, day, hour, ..) = civil_from_unix(REFERENCE_YEAR_START + start as i64 * 3600);
+    Stop {
+        label,
+        month,
+        day,
+        hour,
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{extreme_day, stops, Extreme};
+    use super::{civil_from_unix, extreme_day, stops, Extreme, REFERENCE_YEAR_START};
 
     #[test]
-    fn the_stops_are_four_distinct_days_of_the_reference_year() {
+    fn the_stops_are_distinct_moments_of_the_reference_year() {
         let year = bess_data::lindenberg_2024();
         let found = stops(year);
-        assert_eq!(found.len(), 4);
+        assert_eq!(found.len(), 5, "{found:?}");
         for stop in &found {
             assert!((1..=12).contains(&stop.month), "{stop:?}");
             assert!((1..=31).contains(&stop.day), "{stop:?}");
+            assert!(stop.hour < 24, "{stop:?}");
         }
-        // Warm and cold cannot be the same day, and neither can wet and sunny.
-        assert_ne!(
-            (found[0].month, found[0].day),
-            (found[1].month, found[1].day)
+        let mut moments: Vec<_> = found.iter().map(|s| (s.month, s.day, s.hour)).collect();
+        moments.sort_unstable();
+        moments.dedup();
+        assert_eq!(
+            moments.len(),
+            found.len(),
+            "two stops land on the same hour"
         );
-        assert_ne!(
-            (found[2].month, found[2].day),
-            (found[3].month, found[3].day)
+    }
+
+    #[test]
+    fn a_rain_stop_lands_where_it_is_actually_raining() {
+        // The finding this test exists for: the wettest *day* of the year
+        // puts 32.9 of its 34.7 mm into the single hour at 20:00, so a stop
+        // that picked the day and opened at nine in the morning arrived in
+        // the dry and looked like a broken feature.
+        let year = bess_data::lindenberg_2024();
+        let found = stops(year);
+        let rain = found
+            .iter()
+            .find(|s| s.label == "Heaviest rain")
+            .expect("a rain stop");
+
+        let mut wet_within_reach = false;
+        for hour in 0..year.len() {
+            let (_, month, day, h, ..) = civil_from_unix(REFERENCE_YEAR_START + hour as i64 * 3600);
+            if (month, day) != (rain.month, rain.day) {
+                continue;
+            }
+            if h >= rain.hour && h <= rain.hour + 2 && year.hour(hour).precip_mm > 1.0 {
+                wet_within_reach = true;
+            }
+        }
+        assert!(
+            wet_within_reach,
+            "the rain stop opens at {:02}:00 on {}-{} with no rain within two hours",
+            rain.hour, rain.month, rain.day
+        );
+    }
+
+    #[test]
+    fn the_snow_stop_falls_in_a_month_that_can_hold_snow() {
+        let year = bess_data::lindenberg_2024();
+        let found = stops(year);
+        let snow = found
+            .iter()
+            .find(|s| s.label == "Snowfall")
+            .expect("a snow stop");
+        assert!(
+            snow.month <= 4 || snow.month >= 10,
+            "snow landed in month {}",
+            snow.month
         );
     }
 
@@ -156,8 +237,14 @@ mod tests {
     }
 
     #[test]
-    fn a_stop_opens_mid_morning() {
+    fn the_all_day_stops_open_mid_morning() {
+        // Temperature and sunshine are day-long facts, so those stops still
+        // open at nine with the day ahead of them.
         let year = bess_data::lindenberg_2024();
-        assert!(stops(year).iter().all(|s| s.hour == 9));
+        let found = stops(year);
+        for label in ["Warmest day", "Coldest day", "Sunniest day"] {
+            let stop = found.iter().find(|s| s.label == label).expect(label);
+            assert_eq!(stop.hour, 9, "{label} opened at {}", stop.hour);
+        }
     }
 }

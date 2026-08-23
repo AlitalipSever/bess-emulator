@@ -207,21 +207,30 @@ impl Camera {
     /// Ray through a point given in normalized device coordinates
     /// (x right, y up, both -1..1).
     pub fn ray_through(&self, ndc_x: f32, ndc_y: f32, aspect: f32) -> Ray {
-        let fwd = self.forward();
-        let right = math::normalize(math::cross(fwd, [0.0, 1.0, 0.0]));
-        let up = math::cross(right, fwd);
-        let tan = (self.fovy / 2.0).tan();
+        let [fwd, right, up] = self.ray_basis(aspect);
         let dir = math::normalize(math::add(
             fwd,
-            math::add(
-                math::scale(right, ndc_x * tan * aspect),
-                math::scale(up, ndc_y * tan),
-            ),
+            math::add(math::scale(right, ndc_x), math::scale(up, ndc_y)),
         ));
         Ray {
             origin: self.eye(),
             dir,
         }
+    }
+
+    /// The three vectors that turn normalized device coordinates into a view
+    /// ray: forward, and the right and up axes already scaled by the field of
+    /// view. A ray through (x, y) is `forward + x * right + y * up`.
+    ///
+    /// Shared with the sky shader, which needs the same ray per pixel that
+    /// picking needs per click. Two derivations of one frustum is two chances
+    /// to disagree about where the camera is looking.
+    pub fn ray_basis(&self, aspect: f32) -> [Vec3; 3] {
+        let fwd = self.forward();
+        let right = math::normalize(math::cross(fwd, [0.0, 1.0, 0.0]));
+        let up = math::cross(right, fwd);
+        let tan = (self.fovy / 2.0).tan();
+        [fwd, math::scale(right, tan * aspect), math::scale(up, tan)]
     }
 }
 
