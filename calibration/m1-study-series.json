@@ -166,7 +166,7 @@
     }
   ],
   "hot_week": {
-    "label": "The warmest week of the replayed year, centred on 29-08",
+    "label": "The week around the warmest day of the replayed year, 29-08",
     "interval_s": 900,
     "samples": [
       {
