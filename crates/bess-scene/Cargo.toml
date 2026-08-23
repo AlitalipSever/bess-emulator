@@ -29,6 +29,12 @@ eframe = { version = "0.35", default-features = false, features = [
 ] }
 log = "0.4.33"
 
+[dev-dependencies]
+# The compiled weather year, so the computed sun can be held against a
+# measured series rather than against a second copy of its own formula. A dev
+# dependency: it never reaches the browser build or a downstream consumer.
+bess-data = { workspace = true }
+
 [[example]]
 name = "viewer"
 required-features = ["sim"]

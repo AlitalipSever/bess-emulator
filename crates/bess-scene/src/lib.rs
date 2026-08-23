@@ -10,7 +10,7 @@
 //!
 //! Module map:
 //! - `math`      camera matrices and rays (pure)
-//! - `sun`       day-night model from the simulated clock (pure)
+//! - `sun`       solar position, and the lighting derived from it (pure)
 //! - `layout`    GW-01 site geometry and picking boxes (pure)
 //! - `style`     material palette
 //! - `mesh`      the unit cube every instance reuses
