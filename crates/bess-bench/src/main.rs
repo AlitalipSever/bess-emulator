@@ -17,6 +17,7 @@
 mod bands;
 mod report;
 mod run;
+mod series;
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -30,6 +31,8 @@ use run::{Kpis, RunSpec, DEFAULT_DAYS, DEFAULT_SEED, DEFAULT_START_UNIX_S};
 const RECORD_PATH: &str = "calibration/m1-annual.json";
 /// Document carrying the generated block.
 const CALIBRATION_PATH: &str = "CALIBRATION.md";
+/// Committed chart material: the year month by month, and one hard week.
+const SERIES_PATH: &str = "calibration/m1-study-series.json";
 
 /// Run the reference plant over a replayed year and measure the milestone
 /// gates.
@@ -85,6 +88,10 @@ struct Cli {
     /// Path to the document carrying the generated block.
     #[arg(long, value_name = "PATH", default_value = CALIBRATION_PATH)]
     calibration: PathBuf,
+
+    /// Path to the committed study series.
+    #[arg(long, value_name = "PATH", default_value = SERIES_PATH)]
+    series: PathBuf,
 }
 
 impl Cli {
@@ -134,7 +141,7 @@ fn main() -> ExitCode {
     }
 
     let started = Instant::now();
-    let kpis = measure(spec, cli.quiet);
+    let (kpis, series) = measure(spec, cli.quiet);
     let elapsed = started.elapsed().as_secs_f64();
     print_report(&kpis, elapsed);
 
@@ -146,7 +153,7 @@ fn main() -> ExitCode {
     }
 
     if cli.write {
-        return match write_published(&kpis, &cli.record, &cli.calibration) {
+        return match write_published(&kpis, &series, &cli.record, &cli.calibration, &cli.series) {
             Ok(()) => {
                 println!(
                     "wrote {} and the generated block of {}",
@@ -160,7 +167,7 @@ fn main() -> ExitCode {
     }
 
     if cli.check {
-        return match check(&kpis, &cli.record, &cli.calibration) {
+        return match check(&kpis, &cli.record, &cli.calibration, &cli.series) {
             Ok(()) => {
                 println!("every gate holds and the published record is current");
                 ExitCode::SUCCESS
@@ -174,7 +181,7 @@ fn main() -> ExitCode {
 
 /// Run the plant, reporting progress on stderr so a redirected stdout stays
 /// machine-readable.
-fn measure(spec: RunSpec, quiet: bool) -> Kpis {
+fn measure(spec: RunSpec, quiet: bool) -> (Kpis, series::StudySeries) {
     let started = Instant::now();
     run::run(spec, |day, days| {
         if quiet || day % 7 != 0 {
@@ -211,8 +218,15 @@ fn print_report(kpis: &Kpis, elapsed_s: f64) {
 /// Write the record, then render the document from what was written. Reading
 /// the record back means the document can only ever describe a record that
 /// exists on disk.
-fn write_published(kpis: &Kpis, record: &Path, calibration: &Path) -> Result<(), String> {
+fn write_published(
+    kpis: &Kpis,
+    series: &series::StudySeries,
+    record: &Path,
+    calibration: &Path,
+    series_path: &Path,
+) -> Result<(), String> {
     write_file(record, &report::to_json(kpis))?;
+    write_file(series_path, &report::series_to_json(series))?;
     render_document(record, calibration)
 }
 
@@ -226,8 +240,23 @@ fn render_document(record: &Path, calibration: &Path) -> Result<(), String> {
 }
 
 /// The CI gate: bands hold, the record is current, the document matches it.
-fn check(kpis: &Kpis, record: &Path, calibration: &Path) -> Result<(), String> {
+fn check(kpis: &Kpis, record: &Path, calibration: &Path, series_path: &Path) -> Result<(), String> {
     let mut failures = bands::check(kpis);
+
+    // The series is chart material, not a gate: comparing seven hundred
+    // samples field by field would put a wall of diff in front of every
+    // physics change for no extra safety. What is checked is that it came
+    // from the same run as the record, which is what catches a regeneration
+    // that refreshed one and forgot the other.
+    match read_file(series_path).and_then(|text| report::series_from_json(&text)) {
+        Ok(series) if series.run != kpis.run => failures.push(format!(
+            "{} was produced by a different run than the record; regenerate with \
+             `cargo run --release -p bess-bench -- --write`",
+            series_path.display()
+        )),
+        Ok(_) => {}
+        Err(message) => failures.push(message),
+    }
 
     match read_record(record) {
         Ok(published) => {

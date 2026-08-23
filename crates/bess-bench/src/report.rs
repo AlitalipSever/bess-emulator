@@ -33,6 +33,18 @@ pub fn to_json(kpis: &Kpis) -> String {
     text
 }
 
+/// Serialize the study series the way it is committed.
+pub fn series_to_json(series: &crate::series::StudySeries) -> String {
+    let mut text = serde_json::to_string_pretty(series).expect("series serialize");
+    text.push('\n');
+    text
+}
+
+/// Parse a committed study series.
+pub fn series_from_json(text: &str) -> Result<crate::series::StudySeries, String> {
+    serde_json::from_str(text).map_err(|err| format!("cannot read the study series: {err}"))
+}
+
 /// Parse a committed record.
 pub fn from_json(text: &str) -> Result<Kpis, String> {
     serde_json::from_str(text).map_err(|err| format!("cannot read the calibration record: {err}"))
