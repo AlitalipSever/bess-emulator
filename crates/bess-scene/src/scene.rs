@@ -11,6 +11,7 @@ use crate::camera::{Camera, CameraMode, FlyInput};
 use crate::instances::{self, DynamicInput};
 use crate::layout::{Selection, SiteLayout};
 use crate::renderer::{FrameData, Renderer};
+use crate::scenery::Scenery;
 use crate::style::{Palette, Style};
 use crate::sun;
 
@@ -61,7 +62,11 @@ impl SceneView {
     }
 
     /// Show the scene filling the available space and handle interaction.
-    pub fn show(&mut self, ui: &mut egui::Ui, state: &SiteState) {
+    ///
+    /// `scenery` is what the sky is doing, which the kernel does not carry
+    /// because the physics does not consume it. Callers without an
+    /// observation series pass [`Scenery::clear`].
+    pub fn show(&mut self, ui: &mut egui::Ui, state: &SiteState, scenery: &Scenery) {
         let (rect, response) =
             ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
         let aspect = (rect.width() / rect.height().max(1.0)).max(0.1);
@@ -141,18 +146,26 @@ impl SceneView {
         // The sky ramp spans civil twilight, so dusk fades rather than
         // snapping to black the moment the sun clears the horizon.
         let sky_t = light.sky;
+        // Cloud greys the daytime sky toward its own night colour without
+        // darkening it to night: an overcast noon is flat and bright, not
+        // dim. It is the observed okta series that does this, independently
+        // of the pyranometer that dims the sun below.
+        let overcast = scenery.cloud * 0.55;
         let day = self.style.day_sky;
         let night = self.style.night_sky;
         let scene_bg = [
-            night[0] + (day[0] - night[0]) * sky_t,
-            night[1] + (day[1] - night[1]) * sky_t,
-            night[2] + (day[2] - night[2]) * sky_t,
+            night[0] + (day[0] - night[0]) * sky_t * (1.0 - overcast * 0.35),
+            night[1] + (day[1] - night[1]) * sky_t * (1.0 - overcast * 0.22),
+            night[2] + (day[2] - night[2]) * sky_t * (1.0 - overcast * 0.10),
         ];
         // Ambient light comes off the sky dome, so it follows the sky ramp
         // and only leans on the direct beam. That keeps dusk lit after the
         // sun is down and lets a winter noon read dimmer than a summer one,
-        // which at 52 N it genuinely is.
-        let amb = 0.28 + 0.45 * light.sky + 0.27 * light.daylight;
+        // which at 52 N it genuinely is. Cloud moves light from the beam into
+        // the dome rather than removing it, so ambient gains a little of what
+        // the sun loses.
+        let beam = light.daylight * scenery.dimming;
+        let amb = 0.28 + 0.45 * light.sky + 0.27 * beam + 0.10 * light.daylight * scenery.cloud;
         let anim_s = ui.input(|i| i.time) as f32;
 
         let mut objects = Vec::with_capacity(self.static_objects.len() + 4096 * instances::FPI);
@@ -170,13 +183,24 @@ impl SceneView {
             },
         );
 
+        instances::weather::build_precipitation(&mut objects, scenery, &self.layout, anim_s);
+
+        // The pyranometer decides how much sun actually arrives. The sun's
+        // colour keeps its shape and loses its strength, which is what a
+        // cloud does to a beam.
+        let light_color = [
+            light.color[0] * scenery.dimming,
+            light.color[1] * scenery.dimming,
+            light.color[2] * scenery.dimming,
+        ];
+
         let frame = FrameData {
             ground: self.ground.clone(),
             objects,
             view_proj: self.camera.view_proj(aspect),
             eye: self.camera.eye(),
             light_dir: light.dir,
-            light_color: light.color,
+            light_color,
             sky: [
                 self.style.sky[0] * amb,
                 self.style.sky[1] * amb,

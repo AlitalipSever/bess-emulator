@@ -14,7 +14,7 @@ use std::f64::consts::{PI, TAU};
 use std::fmt;
 
 use bess_core::kernel::{Inputs, Weather};
-use bess_data::WeatherYear;
+use bess_data::{HourSample, WeatherYear};
 
 /// Grid frequency at a UTC timestamp: 50 Hz plus a +/- 10 mHz wander on a
 /// 10 minute period. Deterministic and shared by both drivers.
@@ -133,6 +133,18 @@ impl HistoricalWeather {
             },
             grid_frequency_hz: synthetic_grid_frequency_hz(unix_time_s),
         }
+    }
+
+    /// The whole observation bucket a timestamp falls in.
+    ///
+    /// `inputs_at` returns only what the physics consumes, interpolated.
+    /// This returns the hour as observed, every series of it, for the view
+    /// layer's scenery. Not interpolated: cloud cover is an integer count of
+    /// eighths and precipitation form is a category, and averaging either
+    /// across an hour boundary would invent a reading nobody took.
+    pub fn hour_at(&self, unix_time_s: i64) -> HourSample {
+        let hours = self.position_h(unix_time_s) as usize;
+        self.year.hour(hours.min(self.year.len() - 1))
     }
 
     /// Position of a timestamp inside the reference year, in fractional

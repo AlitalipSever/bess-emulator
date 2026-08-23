@@ -227,6 +227,48 @@ count moves risk into files nobody was otherwise changing. Within this
 iteration that means one of them, `instances.rs`, which PR2 splits because
 precipitation particles are a new concern in it.
 
+### Done in PR2
+
+`instances.rs` split first, because precipitation is a new concern in a file
+that was already over the limit: `instances/site.rs` for what the plant is
+made of, `instances/live.rs` for what it is doing this frame,
+`instances/weather.rs` for what the sky is doing, and a root holding the
+instance format and the one test that belongs to all three. The root went
+from 680 lines to 81. `site.rs` sits at 342, above the soft ceiling, and stays
+one file: ground, containers, skids, substation and fence are one concern, and
+five seventy-line files would be fragmentation bought with a number.
+
+`Scenery` carries six numbers and no `bess-data` type, so the scene still
+builds without the `sim` feature and the kernel still cannot see a series it
+does not consume. The viewer does the translation, which needed one addition
+upstream: `HistoricalWeather::hour_at` returns the whole observed bucket,
+uninterpolated, because cloud cover is an integer count of eighths and
+precipitation form is a category, and averaging either across an hour boundary
+would invent a reading nobody took. `bess-models` re-exports `HourSample` and
+`PrecipForm` rather than making callers depend on `bess-data` to name what it
+hands them.
+
+Two independent witnesses, kept independent. Cloud cover greys the sky;
+dimming, the pyranometer reading over a Haurwitz clear-sky expectation,
+darkens the sun. They are never averaged, so a disagreement shows in the
+picture instead of vanishing into it. What holds them honest is a test over
+the real year: hours at 0 to 2 okta average 0.87 of their clear-sky
+expectation, hours at 7 to 8 okta average well below that, and the
+eighth-by-eighth progression trends down throughout. Feeding the clear-sky
+model degrees instead of radians collapses the gap to 0.12 and fails it.
+
+The dimming ratio reports 1 below three degrees of elevation, where its
+denominator collapses. That is safe rather than arbitrary: the only thing it
+multiplies is the sun's own brightness, which the lighting has already taken
+to zero by then. Continuity across that floor is held by a test, which is the
+category PR1's review added.
+
+Particles carry no state. A position is a pure function of index, frame clock
+and observed weather, so a jump to another date and back produces the
+identical frame, and nothing has to be seeded or reset. Density follows the
+square root of the measured rate, because a linear map spends the whole
+budget on the first millimetre.
+
 ## 6. Compatibility impact
 
 - **Checkpoint format: unchanged.** No state field is added. The digest does
@@ -285,6 +327,13 @@ archaeology exercise.
 - **`bess-data` is a dev-dependency of `bess-scene`** (PR1), so the sun can be
   tested against the measured year. It does not reach the browser build or a
   downstream consumer.
+- **`SceneView::show` takes a `&Scenery`** (PR2). Callers without an
+  observation series pass `Scenery::clear()`.
+- **New `HistoricalWeather::hour_at`** (PR2), returning the observed hour
+  bucket uninterpolated, and `bess-models` now re-exports `HourSample` and
+  `PrecipForm`.
+- **`instances` became a module directory** (PR2). The names callers used are
+  re-exported from the root, so nothing outside the module had to change.
 
 ## 9. Open questions
 
@@ -296,7 +345,8 @@ archaeology exercise.
   `WeatherYear` slices in the viewer. If a second shell ever wants them they
   belong in `bess-data` beside the series they summarize. Left in the viewer
   until there is a second caller.
-- **Whether humidity gets a consumer.** It is compiled and licensed as
-  scenery-only along with the other three, but nothing in the PR2 scope reads
-  it. Either it drives something visible (haze) or the honest move is to say
-  in DATA-LICENSES.md that it is carried without a consumer.
+- **Whether humidity gets a consumer.** Resolved for now by saying so:
+  DATA-LICENSES.md records that it is carried without one, and why it is kept
+  anyway (it arrives in the same DWD product as the temperature the physics
+  uses, so dropping it would mean re-fetching to get it back). If haze ever
+  earns its place in the scene, that is where it comes from.

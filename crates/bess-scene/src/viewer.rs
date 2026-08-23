@@ -4,10 +4,12 @@
 //! the kernel, keeping the scene/panels strictly read-only.
 
 use bess_core::{PlantConfig, Simulation};
-use bess_models::{gw01_models, gw01_weather, HistoricalWeather};
+use bess_models::{gw01_models, gw01_weather, HistoricalWeather, PrecipForm};
 
 use crate::panels::{self, PanelState};
 use crate::scene::SceneView;
+use crate::scenery::{Observed, Precip, Scenery};
+use crate::sun::sun_position;
 use crate::ViewerCommand;
 
 /// 2026-07-14 11:00:00 UTC: a bright summer late morning, so the plant
@@ -52,6 +54,54 @@ impl ViewerApp {
     }
 }
 
+impl ViewerApp {
+    /// What the sky is doing right now, from the replayed observations.
+    ///
+    /// This is the only place the two halves meet: `bess-scene` does not name
+    /// a `bess-data` type, and `bess-data` has never heard of a scene. The
+    /// viewer owns both, so the translation is its job.
+    fn scenery(&self) -> Scenery {
+        let now = self.sim.unix_time_s();
+        let observed = self.weather.hour_at(now);
+        let elevation = sun_position(now, self.sim.config().location).elevation_deg;
+        Scenery::from_observed(
+            &Observed {
+                cloud_okta: observed.cloud_okta,
+                irradiance_wm2: observed.ghi_wm2,
+                precip_mm_h: observed.precip_mm,
+                precip: precip_of(observed.precip_form, observed.temp_c),
+                wind_ms: observed.wind_ms,
+                wind_dir_deg: observed.wind_dir_deg,
+            },
+            elevation,
+        )
+    }
+}
+
+/// The dataset's precipitation code, as the scene draws it.
+///
+/// One judgement call: DWD reports a form of "unknown" for hours where
+/// something fell and nobody classified it. Rather than drop those hours or
+/// guess a form, they follow the temperature, which is the same thing an
+/// observer would have done.
+fn precip_of(form: PrecipForm, temp_c: f32) -> Precip {
+    match form {
+        PrecipForm::NoPrecip => Precip::None,
+        PrecipForm::Rain => Precip::Rain,
+        PrecipForm::Snow => Precip::Snow,
+        PrecipForm::Mixed => Precip::Sleet,
+        PrecipForm::Unknown => {
+            if temp_c <= 0.5 {
+                Precip::Snow
+            } else if temp_c <= 2.5 {
+                Precip::Sleet
+            } else {
+                Precip::Rain
+            }
+        }
+    }
+}
+
 impl eframe::App for ViewerApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Advance the plant by wall-time x speed.
@@ -77,8 +127,9 @@ impl eframe::App for ViewerApp {
             }
         }
 
+        let scenery = self.scenery();
         egui::CentralPanel::no_frame().show(ui, |ui| {
-            self.scene.show(ui, self.sim.state());
+            self.scene.show(ui, self.sim.state(), &scenery);
         });
     }
 
