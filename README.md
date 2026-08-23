@@ -95,7 +95,9 @@ cargo run --release -p bess-scene --features sim --example viewer
 Orbit with the mouse (right-drag or shift-drag pans, scroll zooms), switch
 to fly mode to move freely over the site (WASD + QE, shift = fast), and
 click a container, a PCS skid, or the transformer to open its panel. The
-browser build is `wasm-pack build crates/bess-wasm --target web`.
+browser build is `wasm-pack build crates/bess-wasm --target web`; the npm
+package is built and published by `scripts/publish-npm.sh`, which renames it
+from the crate name to the product name on the way out.
 
 ## Status
 
