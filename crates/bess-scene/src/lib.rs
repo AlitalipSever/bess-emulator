@@ -49,4 +49,10 @@ pub enum ViewerCommand {
     /// Write (`Some`, W, positive = discharge) or clear (`None`) the
     /// external site setpoint.
     SetSetpoint(Option<f64>),
+    /// Throw the plant away and build a fresh one on this date.
+    RestartAt(i64),
+    /// Keep the plant and run it forward to this moment, computing every
+    /// tick in between. Refused if it does not go forwards: the kernel has
+    /// no inverse, so going back means restarting there.
+    FastForwardTo(i64),
 }

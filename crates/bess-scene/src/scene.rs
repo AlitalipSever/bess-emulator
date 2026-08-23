@@ -10,7 +10,7 @@ use eframe::egui_glow::CallbackFn;
 use crate::camera::{Camera, CameraMode, FlyInput};
 use crate::instances::{self, DynamicInput};
 use crate::layout::{Selection, SiteLayout};
-use crate::renderer::{FrameData, Renderer};
+use crate::renderer::{FrameData, Renderer, SkyFrame};
 use crate::scenery::Scenery;
 use crate::style::{Palette, Style};
 use crate::sun;
@@ -217,6 +217,26 @@ impl SceneView {
             ],
             fog_color: scene_bg,
             fog_range: FOG_RANGE,
+            sky_frame: SkyFrame {
+                ray_basis: self.camera.ray_basis(aspect),
+                // The dome runs from the fog colour at the horizon, so the
+                // ground plane meets the sky without a seam, up to a deeper
+                // version of the same overhead.
+                zenith: [scene_bg[0] * 0.72, scene_bg[1] * 0.80, scene_bg[2] * 1.06],
+                horizon: scene_bg,
+                // The sun's own colour, undimmed by cloud: the disc stays
+                // bright and the cloud in front of it is what hides it.
+                sun_color: light.color,
+                cloud: scenery.cloud,
+                daylight: light.daylight,
+                anim_s,
+                // Wind blows *from* the reported direction, so the deck
+                // travels the other way.
+                wind: [
+                    -scenery.wind_ms * scenery.wind_dir_deg.to_radians().sin(),
+                    -scenery.wind_ms * scenery.wind_dir_deg.to_radians().cos(),
+                ],
+            },
         };
 
         let renderer = Arc::clone(&self.renderer);

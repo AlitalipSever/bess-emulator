@@ -298,6 +298,87 @@ defect the register map's review found in PR6 and it arrived by the same road.
 5. **The instance buffer's capacity hint predated particles** and a heavy hour
    could push past it.
 
+### Done in PR3
+
+Two files were going to cross the ceiling, so the structure came first again.
+`viewer.rs` grew `viewer/jump.rs` and `viewer/presets.rs`; `panels.rs` grew
+`panels/site.rs`, `panels/controls.rs` and `panels/detail.rs`. Nothing over
+272 lines afterwards.
+
+The split paid for itself immediately in `jump.rs`. Fast-forward inside the
+eframe app would have needed a GL context to test, which in practice means it
+would not have been tested. On its own it takes a `Simulation` and a tick
+budget, so the claim that matters can be asserted directly: a jump reaches the
+same state a plain run would have reached, byte for byte, and it does so
+across deliberately awkward budget sizes so that the frame split cannot be
+what makes it come out right.
+
+The budget is in ticks rather than wall time. The browser has no monotonic
+clock without a shim, and a tick count means the same thing on both targets.
+3000 a frame is fifteen milliseconds natively and several times that in the
+browser, which still leaves the canvas moving, and moving is the point: a
+blocking catch-up would show a frozen screen for the length of the jump.
+
+Presets are derived rather than chosen. "Warmest day" is a fact about the
+compiled series, so it is read off the series, by daily total rather than by
+peak hour: the hottest single hour of the year can belong to an otherwise
+ordinary day, and someone clicking that button wants the day that was warm.
+The tests pin the season rather than the date, so refreshing the reference
+year does not rewrite them.
+
+`Stop` lives in `panels.rs` rather than beside the code that derives it,
+because a label and a date are panel vocabulary and the panel has to build
+without the `sim` feature. Same boundary as `Scenery`, same reason.
+
+The panel readouts finally show what M1 built. Ambient, irradiance against
+its clear-sky expectation, cloud in okta, container air across the site, cell
+extremes, and how many of the forty containers are cooling or heating. The two
+that walk the tree are pure functions with tests, because a count that drifts
+from the fleet size is exactly what nobody notices in a screenshot.
+
+### What a screenshot found that no test did
+
+Ali opened the plant and asked why the rain, the clouds and the sun were not
+there. Four answers, three of them defects, and none of them caught by a
+suite that had grown to fifty-five tests.
+
+**Shadows never moved.** The scene has projected a fake planar shadow since
+M0, and the vertex shader flattened each object along a hardcoded offset,
+`world.x + h * 0.42`. It never read the light direction. So PR1 made the sun
+real, wired it into the light's direction and colour, and missed the one
+thing that makes solar position visible from the ground. Worse, PR1's own
+notes told the reader to go and confirm that winter shadows are long, which
+could not have been true. The shadow now lands where the ray leaving a point
+meets the floor, clamped so a sun at the horizon does not stretch it to
+infinity.
+
+**Nothing drew the sun.** The scene drew ground and cubes over a flat clear
+colour; there was no sky, so there was nowhere for a sun to be. There is a
+sky pass now, a fullscreen triangle before the scene, sharing the present
+pass's vertex shader rather than adding a second pipeline. It holds a
+gradient, the sun at its computed position, and a cloud deck thresholded out
+of fractal noise by the observed okta series and drifting on the observed
+wind. Where the sun sits is astronomy; how large it is drawn is art
+direction, and the file says which is which. Drawn at its true half degree it
+would be two pixels and nobody would find it.
+
+**The rain was real and the moment was not.** At the hour in the screenshot
+the dataset reads 0 okta and 0 mm, so the correct picture was an empty sky.
+Only 748 of the year's 8784 hours carry any precipitation at all.
+
+**The stop meant to solve that landed in the dry.** "Wettest day" picked the
+day with the largest total and opened at nine in the morning. The wettest day
+of the reference year holds 34.7 mm, of which 32.9 falls in the single hour
+at 20:00. Anything this spiky has to be found by the hour, not by the day, so
+the precipitation stops now open an hour before the hour they found, and a
+test asserts that rain actually falls within two hours of where the stop
+lands. A snow stop joined it, since the year has 49 hours of it.
+
+The lesson is the one the continuity finding already taught, one level up.
+Every test here asks whether a number is right. None of them could ask
+whether anything was visible, and three defects lived comfortably in that
+gap. A view layer's last gate is a person looking at it.
+
 ## 6. Compatibility impact
 
 - **Checkpoint format: unchanged.** No state field is added. The digest does
@@ -363,6 +444,14 @@ archaeology exercise.
   `PrecipForm`.
 - **`instances` became a module directory** (PR2). The names callers used are
   re-exported from the root, so nothing outside the module had to change.
+- **Two new `ViewerCommand` variants** (PR3), `RestartAt` and
+  `FastForwardTo`, so a downstream `match` on the enum stops being exhaustive.
+- **`panels::side_panel` takes a `&PanelInput`** (PR3) instead of loose
+  arguments, and `PanelState` gained the date fields and a jump progress
+  slot.
+- **`viewer` and `panels` became module directories** (PR3), with the names
+  callers used re-exported or unchanged.
+- **New `clock::unix_from_civil`** (PR3), the inverse of `civil_from_unix`.
 
 ## 9. Open questions
 
