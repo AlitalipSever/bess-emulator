@@ -76,10 +76,25 @@ for debt to become invisible:
 | `crates/bess-emulator/src/http.rs` | 544 | 394 | 150 |
 | `crates/bess-data/src/bin/compile-weather.rs` | 501 | 501 | 0 |
 
-The CI check that enforces the hard limit lands in the same pull request that
-clears this table. Turning it on first would mean either failing every build or
-shipping an exemption list, and this repository has a rule about gates: a gate
-that does not fail is not a gate.
+No campaign to clear this table. A refactor whose only purpose is to satisfy a
+line count moves risk into files nobody was otherwise changing, and the point
+of the contract is readable code, not a clean report.
 
-New and rewritten files comply from now on, and the contract applies to a file
-the moment a change touches it.
+**New and rewritten files comply from now on.** For a file already on this
+list, the trigger is a substantial change, not any change:
+
+- **Splits it.** Work that adds a new concern to the file, or that rewrites
+  enough of it that you had to understand the whole thing anyway. At that
+  point you have already done the thinking a split needs, and leaving it
+  unsplit is a choice to make the next reader do it again.
+- **Does not split it.** A localized fix, a renamed field, a parameter, an
+  extra test. Touching four lines of a 900-line file is not a mandate to
+  restructure it.
+
+The CI check that enforces the hard limit turns on when the table is empty,
+however long that takes. Turning it on earlier would mean either failing every
+build or shipping an exemption list, and this repository has a rule about
+gates: a gate that does not fail is not a gate.
+
+Known next trigger: `instances.rs` gains precipitation particles in M1.5 PR2,
+which is a new concern in an over-limit file, so that PR splits it.

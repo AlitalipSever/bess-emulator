@@ -221,8 +221,11 @@ reader should be able to tell which lines they are allowed to argue with
 without reading the doc comments.
 
 Six pre-existing files exceed the hard limit. They are named in AGENTS.md
-rather than hidden in a tool exemption list, and the CI check that enforces
-the limit lands in the pull request that clears them.
+rather than hidden in a tool exemption list, and they are cleared as work
+reaches them rather than in a campaign: a refactor whose only purpose is a line
+count moves risk into files nobody was otherwise changing. Within this
+iteration that means one of them, `instances.rs`, which PR2 splits because
+precipitation particles are a new concern in it.
 
 ## 6. Compatibility impact
 
