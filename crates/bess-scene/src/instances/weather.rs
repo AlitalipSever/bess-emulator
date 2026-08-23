@@ -166,9 +166,11 @@ mod tests {
             let mut out = Vec::new();
             build_precipitation(&mut out, &scenery, &layout, frame as f32 * 0.37);
             assert!(!out.is_empty());
-            for chunk in out.chunks_exact(super::super::FPI) {
+            let (instances, rest) = out.as_chunks::<{ super::super::FPI }>();
+            assert!(rest.is_empty(), "a partial instance was emitted");
+            for chunk in instances {
                 let (x, y, z) = (chunk[0], chunk[1], chunk[2]);
-                assert!(y >= -0.1 && y <= 35.0, "particle at y = {y}");
+                assert!((-0.1..=35.0).contains(&y), "particle at y = {y}");
                 // Wind carries the column off the fence line; the bound is
                 // the site plus the widest drift the dataset's wind allows.
                 assert!(x > min_x - 60.0 && x < max_x + 60.0, "particle at x = {x}");
