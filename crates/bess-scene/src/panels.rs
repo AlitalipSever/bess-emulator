@@ -1,20 +1,70 @@
-//! egui panels: the site overview with controls, and the detail panel of
+//! egui panels: the site overview with its controls, and the detail panel of
 //! whatever is selected in the scene. Panels read `&SiteState` and emit
 //! [`ViewerCommand`]s; they never touch the kernel.
+//!
+//! - [`site`]     readouts: what the plant and the weather are doing
+//! - [`controls`] the parts that issue commands
+//! - [`detail`]   the selected object
 
-use bess_core::state::{EmsMode, HvacMode, PcsOpState, SiteState};
-use egui::{Color32, ProgressBar, RichText, Slider};
+pub mod controls;
+pub mod detail;
+pub mod site;
+
+use bess_core::state::SiteState;
+use egui::Color32;
 
 use crate::clock;
 use crate::layout::Selection;
+use crate::scenery::Scenery;
 use crate::ViewerCommand;
 
-/// UI scratch state that outlives a frame (slider positions).
+/// A day worth jumping to, and what the button says.
+///
+/// The type lives here rather than with the code that derives it, because a
+/// label and a date are panel vocabulary and the panel must stay buildable
+/// without the `sim` feature. `viewer::presets` produces these from the
+/// compiled weather year.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Stop {
+    /// What the button says.
+    pub label: &'static str,
+    /// Month of the year, 1 to 12.
+    pub month: u32,
+    /// Day of that month.
+    pub day: u32,
+    /// Hour of day the jump lands on.
+    pub hour: u32,
+}
+
+/// Everything the panel draws from this frame.
+pub struct PanelInput<'a> {
+    /// The plant.
+    pub state: &'a SiteState,
+    /// What the sky is doing.
+    pub scenery: &'a Scenery,
+    /// Days the dataset suggests, if any.
+    pub stops: &'a [Stop],
+    /// The object selected in the scene.
+    pub selection: Option<Selection>,
+}
+
+/// UI scratch state that outlives a frame: slider positions, and where the
+/// date fields are pointing.
 pub struct PanelState {
     /// Time acceleration slider value.
     pub speed: f64,
     /// Setpoint slider value, MW (positive = discharge).
     pub setpoint_mw: f64,
+    /// Month the date fields are showing.
+    pub month: u32,
+    /// Day the date fields are showing.
+    pub day: u32,
+    /// Hour a jump lands on.
+    pub hour: u32,
+    /// Progress of a jump in progress, if one is running. The viewer sets
+    /// this; the panel only shows it, and hides the date controls while it
+    /// is set so a second jump cannot be started on top of the first.
+    pub jump_progress: Option<f32>,
 }
 
 impl Default for PanelState {
@@ -22,15 +72,21 @@ impl Default for PanelState {
         Self {
             speed: 60.0,
             setpoint_mw: 0.0,
+            month: 7,
+            day: 14,
+            hour: 9,
+            jump_progress: None,
         }
     }
 }
 
-fn mw(value_w: f64) -> String {
+/// Megawatts, signed.
+pub(crate) fn mw(value_w: f64) -> String {
     format!("{:+.2} MW", value_w / 1.0e6)
 }
 
-fn power_color(value_w: f64) -> Color32 {
+/// Discharging reads warm, charging reads cool, idle reads grey.
+pub(crate) fn power_color(value_w: f64) -> Color32 {
     if value_w > 0.5e6 {
         Color32::from_rgb(255, 168, 61) // discharging
     } else if value_w < -0.5e6 {
@@ -44,203 +100,38 @@ fn power_color(value_w: f64) -> Color32 {
 /// Call before the central panel (panels wrap outside-in in egui).
 pub fn side_panel(
     ui: &mut egui::Ui,
-    state: &SiteState,
-    selection: Option<Selection>,
+    input: &PanelInput,
     ui_state: &mut PanelState,
 ) -> Vec<ViewerCommand> {
     let mut commands = Vec::new();
+    let now = input.state.unix_time_s();
     egui::Panel::right(egui::Id::new("site_panel"))
         .default_size(330.0)
         .show(ui, |ui| {
             ui.add_space(6.0);
-            ui.heading(&state.meta.site_id);
-            ui.label(clock::format_utc(state.unix_time_s()));
+            ui.heading(&input.state.meta.site_id);
+            ui.label(clock::format_utc(now));
             ui.separator();
 
-            // -- site KPIs -------------------------------------------
-            let soc = state.average_soc() as f32;
-            ui.label("State of charge");
-            ui.add(ProgressBar::new(soc).text(format!("{:.1} %", soc * 100.0)));
-            ui.add_space(4.0);
-
-            egui::Grid::new("site_kpis").num_columns(2).show(ui, |ui| {
-                let sub = &state.substation;
-                ui.label("POI power");
-                ui.colored_label(
-                    power_color(sub.poi_active_power_w),
-                    mw(sub.poi_active_power_w),
-                );
-                ui.end_row();
-                ui.label("Setpoint");
-                ui.label(mw(state.ems.site_setpoint_w));
-                ui.end_row();
-                ui.label("EMS mode");
-                ui.label(match state.ems.mode {
-                    EmsMode::FollowPlan => "internal plan",
-                    EmsMode::External => "external",
-                });
-                ui.end_row();
-                ui.label("Available");
-                ui.label(format!(
-                    "+{:.0} / -{:.0} MW",
-                    state.ems.available_discharge_w / 1.0e6,
-                    state.ems.available_charge_w / 1.0e6
-                ));
-                ui.end_row();
-                ui.label("Frequency");
-                ui.label(format!("{:.3} Hz", sub.frequency_hz));
-                ui.end_row();
-                ui.label("Ambient");
-                ui.label(format!("{:.1} \u{b0}C", state.weather.ambient_c));
-                ui.end_row();
-                ui.label("Meters");
-                ui.label(format!(
-                    "\u{2191} {:.1} / \u{2193} {:.1} MWh",
-                    sub.export_wh / 1.0e6,
-                    sub.import_wh / 1.0e6
-                ));
-                ui.end_row();
-            });
-
-            // -- controls --------------------------------------------
+            site::electrical(ui, input.state);
             ui.separator();
-            ui.label("Time acceleration");
-            if ui
-                .add(
-                    Slider::new(&mut ui_state.speed, 1.0..=3600.0)
-                        .logarithmic(true)
-                        .suffix("x"),
-                )
-                .changed()
-            {
-                commands.push(ViewerCommand::SetSpeed(ui_state.speed));
-            }
-            ui.add_space(4.0);
-            ui.label("External setpoint (positive = discharge)");
-            ui.add(Slider::new(&mut ui_state.setpoint_mw, -100.0..=100.0).suffix(" MW"));
-            ui.horizontal(|ui| {
-                if ui.button("Write setpoint").clicked() {
-                    commands.push(ViewerCommand::SetSetpoint(Some(
-                        ui_state.setpoint_mw * 1.0e6,
-                    )));
-                }
-                if ui.button("Follow plan").clicked() {
-                    commands.push(ViewerCommand::SetSetpoint(None));
-                }
-            });
+            site::weather_and_thermal(ui, input.state, input.scenery);
 
-            // -- selection detail ------------------------------------
             ui.separator();
-            match selection {
-                None => {
-                    ui.weak("Click a container, a PCS skid, or the transformer.");
+            controls::dispatch(ui, ui_state, &mut commands);
+
+            ui.separator();
+            controls::time_travel(ui, now, ui_state, &mut commands);
+            controls::stops(ui, now, input.stops, ui_state, &mut commands);
+
+            ui.separator();
+            match input.selection {
+                None => ui.weak("Click a container, a PCS skid, or the transformer."),
+                Some(sel) => {
+                    detail::selection_detail(ui, input.state, sel);
+                    ui.label("")
                 }
-                Some(sel) => selection_detail(ui, state, sel),
-            }
+            };
         });
     commands
-}
-
-fn selection_detail(ui: &mut egui::Ui, state: &SiteState, sel: Selection) {
-    match sel {
-        Selection::Container { block, container } => {
-            let Some(cont) = state
-                .blocks
-                .get(block)
-                .and_then(|b| b.containers.get(container))
-            else {
-                return;
-            };
-            ui.strong(format!("Block {block:02} / container {container} (BMS)"));
-            egui::Grid::new("cont_kpis").num_columns(2).show(ui, |ui| {
-                ui.label("Air temperature");
-                ui.label(format!("{:.1} \u{b0}C", cont.air_temp_c));
-                ui.end_row();
-                ui.label("HVAC");
-                ui.label(match cont.hvac.mode {
-                    HvacMode::Off => "standby".to_owned(),
-                    HvacMode::Cool1 => {
-                        format!("cooling, 1 unit ({:.0} kW)", cont.hvac.thermal_w / 1000.0)
-                    }
-                    HvacMode::Cool2 => {
-                        format!("cooling, 2 units ({:.0} kW)", cont.hvac.thermal_w / 1000.0)
-                    }
-                    HvacMode::Heat => format!("heating ({:.0} kW)", -cont.hvac.thermal_w / 1000.0),
-                });
-                ui.end_row();
-            });
-            ui.add_space(4.0);
-            egui::ScrollArea::vertical()
-                .max_height(280.0)
-                .show(ui, |ui| {
-                    egui::Grid::new("racks")
-                        .striped(true)
-                        .num_columns(4)
-                        .show(ui, |ui| {
-                            ui.strong("rack");
-                            ui.strong("SoC");
-                            ui.strong("T cell");
-                            ui.strong("I");
-                            ui.end_row();
-                            for (i, rack) in cont.racks.iter().enumerate() {
-                                ui.label(format!("{i:02}"));
-                                ui.label(format!("{:.1} %", rack.soc * 100.0));
-                                ui.label(format!("{:.1} \u{b0}C", rack.cell_temp_c));
-                                ui.label(format!("{:+.0} A", rack.current_a));
-                                ui.end_row();
-                            }
-                        });
-                });
-        }
-        Selection::Pcs { block } => {
-            let Some(b) = state.blocks.get(block) else {
-                return;
-            };
-            ui.strong(format!("Block {block:02} / PCS"));
-            egui::Grid::new("pcs_kpis").num_columns(2).show(ui, |ui| {
-                ui.label("State");
-                ui.label(match b.pcs.op_state {
-                    PcsOpState::Standby => "standby",
-                    PcsOpState::Run => "run",
-                    PcsOpState::Fault => "fault",
-                });
-                ui.end_row();
-                ui.label("AC setpoint");
-                ui.label(mw(b.pcs.p_ac_setpoint_w));
-                ui.end_row();
-                ui.label("AC power");
-                ui.colored_label(power_color(b.pcs.p_ac_w), mw(b.pcs.p_ac_w));
-                ui.end_row();
-                ui.label("DC power");
-                ui.label(mw(b.pcs.p_dc_w));
-                ui.end_row();
-                ui.label("Loss");
-                ui.label(format!("{:.0} kW", b.pcs.loss_w / 1.0e3));
-                ui.end_row();
-            });
-        }
-        Selection::Transformer => {
-            let sub = &state.substation;
-            ui.strong("Substation / main transformer");
-            egui::Grid::new("sub_kpis").num_columns(2).show(ui, |ui| {
-                ui.label("HV breaker");
-                ui.label(match sub.hv_breaker {
-                    bess_core::state::BreakerState::Closed => "closed",
-                    bess_core::state::BreakerState::Open => "open",
-                });
-                ui.end_row();
-                ui.label("POI voltage");
-                ui.label(format!("{:.1} kV", sub.poi_voltage_kv));
-                ui.end_row();
-                ui.label("Transformer loss");
-                ui.label(format!("{:.0} kW", sub.transformer_loss_w / 1.0e3));
-                ui.end_row();
-                ui.label("Auxiliaries");
-                ui.label(format!("{:.0} kW", sub.aux_power_w / 1.0e3));
-                ui.end_row();
-            });
-        }
-    }
-    ui.add_space(4.0);
-    ui.weak(RichText::new("Click the object again to deselect.").small());
 }

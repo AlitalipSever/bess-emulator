@@ -298,6 +298,44 @@ defect the register map's review found in PR6 and it arrived by the same road.
 5. **The instance buffer's capacity hint predated particles** and a heavy hour
    could push past it.
 
+### Done in PR3
+
+Two files were going to cross the ceiling, so the structure came first again.
+`viewer.rs` grew `viewer/jump.rs` and `viewer/presets.rs`; `panels.rs` grew
+`panels/site.rs`, `panels/controls.rs` and `panels/detail.rs`. Nothing over
+272 lines afterwards.
+
+The split paid for itself immediately in `jump.rs`. Fast-forward inside the
+eframe app would have needed a GL context to test, which in practice means it
+would not have been tested. On its own it takes a `Simulation` and a tick
+budget, so the claim that matters can be asserted directly: a jump reaches the
+same state a plain run would have reached, byte for byte, and it does so
+across deliberately awkward budget sizes so that the frame split cannot be
+what makes it come out right.
+
+The budget is in ticks rather than wall time. The browser has no monotonic
+clock without a shim, and a tick count means the same thing on both targets.
+3000 a frame is fifteen milliseconds natively and several times that in the
+browser, which still leaves the canvas moving, and moving is the point: a
+blocking catch-up would show a frozen screen for the length of the jump.
+
+Presets are derived rather than chosen. "Warmest day" is a fact about the
+compiled series, so it is read off the series, by daily total rather than by
+peak hour: the hottest single hour of the year can belong to an otherwise
+ordinary day, and someone clicking that button wants the day that was warm.
+The tests pin the season rather than the date, so refreshing the reference
+year does not rewrite them.
+
+`Stop` lives in `panels.rs` rather than beside the code that derives it,
+because a label and a date are panel vocabulary and the panel has to build
+without the `sim` feature. Same boundary as `Scenery`, same reason.
+
+The panel readouts finally show what M1 built. Ambient, irradiance against
+its clear-sky expectation, cloud in okta, container air across the site, cell
+extremes, and how many of the forty containers are cooling or heating. The two
+that walk the tree are pure functions with tests, because a count that drifts
+from the fleet size is exactly what nobody notices in a screenshot.
+
 ## 6. Compatibility impact
 
 - **Checkpoint format: unchanged.** No state field is added. The digest does
@@ -363,6 +401,14 @@ archaeology exercise.
   `PrecipForm`.
 - **`instances` became a module directory** (PR2). The names callers used are
   re-exported from the root, so nothing outside the module had to change.
+- **Two new `ViewerCommand` variants** (PR3), `RestartAt` and
+  `FastForwardTo`, so a downstream `match` on the enum stops being exhaustive.
+- **`panels::side_panel` takes a `&PanelInput`** (PR3) instead of loose
+  arguments, and `PanelState` gained the date fields and a jump progress
+  slot.
+- **`viewer` and `panels` became module directories** (PR3), with the names
+  callers used re-exported or unchanged.
+- **New `clock::unix_from_civil`** (PR3), the inverse of `civil_from_unix`.
 
 ## 9. Open questions
 
