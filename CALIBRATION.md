@@ -54,7 +54,7 @@ is knowledge rather than a measurement, and no harness can produce it.
   loss decomposition; k1 fitting slightly negative is expected and
   documented in `crates/bess-models/src/pcs.rs`.
 
-## M1: the annual measurement
+## M1 (v0.3.0): the annual measurement
 
 This is the M1 gate. Everything else in this file is a parameter, a fit, or a
 single day. This section is the plant run against the whole replayed weather
@@ -64,7 +64,7 @@ ran rather than re-derived afterwards from a summary.
 
 <!-- bess-bench:begin m1-annual -->
 
-Measured by `bess-bench` on kernel 0.2.0: GW-01 on the internal dispatch
+Measured by `bess-bench` on kernel 0.3.0: GW-01 on the internal dispatch
 plan, seed 7, 365 simulated days (31 536 000 ticks) of the replayed weather
 year. Regenerate with `cargo run --release -p bess-bench -- --write`; CI
 fails if this block is stale.
@@ -189,7 +189,7 @@ scheduled rather than forgotten:
 - **The PCS curve has no voltage dimension** and charging reuses the
   discharge curve; both arrive in M3.
 
-## M1: auxiliary inventory
+## M1 (v0.3.0): auxiliary inventory
 
 Until this step the plant's house load was one 150 kW constant living inside
 the substation model, covering everything that was not HVAC. It could not be
@@ -256,7 +256,7 @@ Known gaps in this inventory, recorded rather than hidden:
   item. Real control rooms are air conditioned and real lighting is a night
   load.
 
-## M1: thermal parameter provenance
+## M1 (v0.3.0): thermal parameter provenance
 
 The gate above says what the plant did over a year. This section says what it
 did it with. The two belong together and neither replaces the other: a

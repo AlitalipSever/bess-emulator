@@ -99,23 +99,42 @@ browser build is `wasm-pack build crates/bess-wasm --target web`.
 
 ## Status
 
-Pre-alpha. Milestone M0 (walking skeleton) shipped as v0.1.0 and the M0.5
-mini-iteration (PCS partial-load efficiency curve) as v0.2.0; M1 (thermal +
-weather) is next. The whole plant runs end to end
-with the simplest useful model at every layer: 1-RC cell model, lumped
-container thermal with thermostat HVAC, a partial-load conversion efficiency
-curve calibrated against the CEC inverter database, constant
-transformer parameters, and a placeholder daily price curve. Weather is no
-longer synthetic: the site replays a full year of hourly DWD observations
-from Lindenberg (Mark), 2024, which is the first piece of M1 to land on
-main; the thermal model deepens later in that milestone. Physics invariants (energy conservation, SoC bounds, meter
-monotonicity), byte-identical determinism, and the round-trip-efficiency
-and curve-fit calibration gates ([CALIBRATION.md](CALIBRATION.md)) are
-enforced in CI, alongside the annual gate: `bess-bench` runs the plant over
-the whole replayed year on every pull request and fails the build if the
-round-trip figure leaves its sourced band or the published record goes
-stale. Interfaces and the signal map may change without
-notice until 1.0; see [COMPATIBILITY.md](COMPATIBILITY.md).
+Pre-alpha, and measured rather than described. Three milestones have shipped:
+M0, the walking skeleton, as v0.1.0; the M0.5 mini-iteration, a partial-load
+conversion efficiency curve fitted to the CEC inverter database, as v0.2.0;
+and M1, thermal and weather, as v0.3.0.
+
+What M1 changed is the efficiency story. The site replays a full year of
+hourly DWD observations from Lindenberg (Mark), 2024. Heat leaves a rack into
+its own cell mass before it reaches container air, so cell temperature lags by
+tens of minutes instead of tracking. Cooling is staged against a container
+manufacturer's published capacity, with electric heating and compressor
+protection. The house load is an inventory of five named items rather than a
+constant, each on its own meter.
+
+The result is one number and its decomposition. Run over the whole replayed
+year, the plant returns **84.22%** of the energy it takes in, measured at the
+point of interconnection with everything it spends on itself already inside
+that ratio. The gap to nameplate is not asserted, it is itemized: battery,
+conversion, transformer, and five auxiliary items, each metered separately and
+summing to what crossed the meter. The band it is held against comes from
+public data, its floor from the measured EIA fleet average and its ceiling
+from the NREL Annual Technology Baseline. Every figure is in
+[CALIBRATION.md](CALIBRATION.md), with its sources and its known gaps.
+
+Still at its simplest useful depth: a 1-RC cell model, constant transformer
+parameters, a placeholder daily price curve, synthetic grid frequency, no
+degradation and no faults. Those are M2 through M5.
+
+CI enforces the physics invariants (energy conservation, SoC bounds, meter
+monotonicity), byte-identical determinism, the curve-fit and single-cycle
+calibration gates, and the annual gate: `bess-bench` runs the plant across the
+whole replayed year on every pull request and fails the build if the
+round-trip figure leaves its sourced band or the published record goes stale.
+
+Interfaces and the signal map may change without notice until 1.0, and
+[ROADMAP.md](ROADMAP.md) says what 1.0 has to pass before it arrives; the
+stability contract itself is [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## Documentation
 

@@ -11,7 +11,8 @@ scheduled. Architecture and rationale live in
 |---|---|---|
 | M0 | Walking skeleton, end to end | done (v0.1.0) |
 | M0.5 | PCS partial-load efficiency curve (pulled forward from M3) | done (v0.2.0) |
-| M1 | Thermal + weather | next |
+| M1 | Thermal + weather | done (v0.3.0) |
+| M1.5 | View mini-iteration: real solar position, weather-driven scenery, time controls | next (v0.3.x) |
 | M2 | BMS, alarms, scenario engine | planned |
 | M3 | PCS + electrical | planned |
 | M4 | EMS + market signals | planned |
@@ -32,16 +33,32 @@ interfaces stay stable, and no two modules are reworked at once.
    measured.
 3. **Artifact:** a tagged release shipped, with docs updated.
 
-**Calibration sources.** All gates reference public data only: the EPRI
-failure incident database (failure taxonomy), CAISO/EPRI fleet reports (field
-round-trip efficiency), the Sandia/CEC inverter database (efficiency
-surfaces), published LFP aging studies (capacity fade), and public fleet
-revenue indices for the German market.
+**Calibration sources.** All gates reference public data only. Used so far:
+the Sandia/CEC inverter database for the conversion efficiency curve, EIA
+Form EIA-923 fleet data and the NREL Annual Technology Baseline for the field
+round-trip band, DWD station observations for weather, and a container
+manufacturer's published project data for the HVAC. Planned: the EPRI failure
+incident database (failure taxonomy), published LFP aging studies (capacity
+fade), and public fleet revenue indices for the German market. A gate names
+the source it actually used, never the source it was expected to use.
 
 **Versioning.** Pre-1.0, minor versions may break anything; breaking changes
 are called out in release notes. Once the signal map is published, its
 stability is governed separately by COMPATIBILITY.md (adding registers is
 minor, moving addresses is major).
+
+**What earns 1.0.** In this project 1.0 is a promise rather than a badge: it
+is the release where the stability contract in COMPATIBILITY.md takes effect
+and addresses stop moving. It is therefore a test, not a decision, and three
+things have to be true at once. The signal map has to survive M2 and M3
+without an address moving or an enum value changing meaning. The checkpoint
+format has to hold across two consecutive milestones. And no layer may still
+be running on an unsourced placeholder.
+
+None of the three holds today, and two are known not to: M2 gives meaning to
+alarm bits that currently read zero, and M3 replaces a three-value PCS state
+with a five-state machine. Both are major changes under the contract above,
+which is exactly why they happen before 1.0 rather than after it.
 
 ---
 
@@ -109,7 +126,7 @@ within 0.3 percentage points at all six CEC load points, enforced as a CI
 test. The M0 round-trip gate is re-measured with the curve in place and
 recorded in CALIBRATION.md.
 
-## M1: Thermal + weather
+## M1: Thermal + weather (done, v0.3.0)
 
 **Goal:** the plant starts feeling weather, and the efficiency story becomes
 honest.
@@ -136,6 +153,43 @@ measured EIA fleet average and its ceiling from the NREL Annual Technology
 Baseline. The component-by-component requirement is met by the loss
 waterfall: eight categories, each on its own meter, summing to what the POI
 meters say crossed it.
+
+## M1.5: View mini-iteration (next, v0.3.x)
+
+A mini-iteration in the M0.5 pattern, decided 2026-08-19. It deepens the view
+layer only; no kernel model changes, so M2's scope is untouched.
+
+The principle is the one already stated in `bess-scene/src/sun.rs`: every
+visual effect is driven either by a measured series or by pure mathematics on
+position and time. No invented decoration. The boundary that makes this safe
+stays where it is, in that the core physics never reads the scene, and the
+only authority in the energy accounting remains the measured irradiance.
+
+Scope:
+
+- **Real solar position.** The current monthly sunrise/sunset table and
+  synthetic arc give way to a solar position algorithm taking azimuth and
+  elevation from UTC plus latitude and longitude, with the site fixed at the
+  reference station. Dependency-free, so the browser build stays unaffected.
+  Held by golden instants from a public calculator and by physical bounds.
+- **Cloud and dimming.** Measured irradiance over a clear-sky expectation
+  drives how bright the sun reads; the observed cloud series drives sky
+  color. The two cross-check each other.
+- **Precipitation and wind.** The precipitation series drives particle
+  density, rain against snow follows the observed precipitation type, and
+  wind speed and direction drive the drift.
+- **Time controls.** A date picker that restarts the scenario on the chosen
+  day, and a fast-forward that computes to a target date without rendering,
+  keeping state continuity. No rewind: going back means restarting there.
+  Plus stops computed from the dataset, such as the warmest day of the
+  reference year.
+- **Panels.** Weather and thermal signals in the egui panels: ambient,
+  irradiance, container air, cell temperature, HVAC stage.
+
+**Gate:** no calibration gate. This iteration adds no physics, so it is held
+by the existing determinism and invariant tests plus the golden instants
+above. A view iteration that needed a calibration gate would mean the scene
+had started deciding something.
 
 ## M2: BMS, alarms, and the scenario engine
 
