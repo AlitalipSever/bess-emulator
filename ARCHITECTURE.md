@@ -52,7 +52,10 @@ GW-01 is a fictional site, fixed as the single supported configuration:
   on one site: day-ahead prices, weather, and grid frequency. The weather
   dataset pins the nominal location: DWD station 3015, Lindenberg (Mark) in
   Brandenburg, 52.21 N 14.12 E, 98 m above sea level. Solar position, ambient
-  conditions, and the market zone all follow from that point.
+  conditions, and the market zone all follow from that point, so the
+  coordinates are part of the site descriptor (`PlantConfig::location`) rather
+  than a constant in whichever layer happened to need them first. The view
+  layer computes the sun from them; the market zone reaches for them in M4.
 
 The topology is generated from a site descriptor, but exactly one official site
 is shipped. A fixed reference plant keeps the signal map, the scenarios, the 3D

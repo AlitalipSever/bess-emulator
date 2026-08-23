@@ -3,7 +3,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use bess_core::config::PlantConfig;
+use bess_core::config::{PlantConfig, SiteLocation};
 use bess_core::state::SiteState;
 use eframe::egui_glow::CallbackFn;
 
@@ -21,6 +21,8 @@ const FOG_RANGE: [f32; 2] = [130.0, 460.0];
 pub struct SceneView {
     camera: Camera,
     layout: SiteLayout,
+    /// Where the site stands, so the sun can be computed rather than guessed.
+    location: SiteLocation,
     style: Style,
     palette: Palette,
     renderer: Arc<Mutex<Renderer>>,
@@ -41,6 +43,7 @@ impl SceneView {
         Ok(Self {
             camera: Camera::overview(),
             layout,
+            location: cfg.location,
             style,
             palette: Palette::default(),
             renderer: Arc::new(Mutex::new(renderer)),
@@ -133,10 +136,11 @@ impl SceneView {
             });
 
         // -- frame data -------------------------------------------------
-        let light = sun::sun_at(state.unix_time_s());
-        let nightness = (1.0 - light.daylight).powf(1.4);
-        // Sky brightens faster than the sun climbs (dawn reads as morning).
-        let sky_t = light.daylight.powf(0.6);
+        let light = sun::sun_at(state.unix_time_s(), self.location);
+        let nightness = (1.0 - light.sky).powf(1.4);
+        // The sky ramp spans civil twilight, so dusk fades rather than
+        // snapping to black the moment the sun clears the horizon.
+        let sky_t = light.sky;
         let day = self.style.day_sky;
         let night = self.style.night_sky;
         let scene_bg = [
@@ -144,7 +148,11 @@ impl SceneView {
             night[1] + (day[1] - night[1]) * sky_t,
             night[2] + (day[2] - night[2]) * sky_t,
         ];
-        let amb = 0.28 + 0.72 * light.daylight;
+        // Ambient light comes off the sky dome, so it follows the sky ramp
+        // and only leans on the direct beam. That keeps dusk lit after the
+        // sun is down and lets a winter noon read dimmer than a summer one,
+        // which at 52 N it genuinely is.
+        let amb = 0.28 + 0.45 * light.sky + 0.27 * light.daylight;
         let anim_s = ui.input(|i| i.time) as f32;
 
         let mut objects = Vec::with_capacity(self.static_objects.len() + 4096 * instances::FPI);

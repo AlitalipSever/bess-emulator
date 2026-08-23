@@ -547,6 +547,7 @@ name = "bess-scene"
 version = "0.3.0"
 dependencies = [
  "bess-core",
+ "bess-data",
  "bess-models",
  "bytemuck",
  "eframe",

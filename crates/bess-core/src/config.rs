@@ -26,6 +26,8 @@ pub struct PlantConfig {
     pub pcs_rated_w: f64,
     /// Grid connection ratings.
     pub grid: GridConfig,
+    /// Where on Earth the site stands.
+    pub location: SiteLocation,
     /// State of charge all racks start at, 0..1 (small per-rack spread is
     /// applied on top from the seeded PRNG).
     pub initial_soc: f64,
@@ -47,6 +49,21 @@ pub struct RackConfig {
     pub soc_min: f64,
     /// Upper end of the SoC operating window enforced by the BMS.
     pub soc_max: f64,
+}
+
+/// Geographic position of the site.
+///
+/// Structure rather than behavior, so it belongs here: it is a property of
+/// where the plant was built, not of any model. The weather dataset pins it,
+/// and solar geometry, ambient conditions and the market zone all follow from
+/// the same point (see ARCHITECTURE.md). Consumed today by the view layer's
+/// sun; the market zone reaches for it in M4.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SiteLocation {
+    /// Latitude, degrees north of the equator (negative south).
+    pub latitude_deg: f64,
+    /// Longitude, degrees east of Greenwich (negative west).
+    pub longitude_deg: f64,
 }
 
 /// Grid connection ratings.
@@ -92,6 +109,13 @@ impl PlantConfig {
             grid: GridConfig {
                 poi_nominal_kv: 110.0,
                 site_rated_w: 100.0e6,
+            },
+            // DWD station 3015, Lindenberg (Mark), Brandenburg: the station
+            // whose observations the site replays. Putting the plant anywhere
+            // else would make its weather someone else's.
+            location: SiteLocation {
+                latitude_deg: 52.21,
+                longitude_deg: 14.12,
             },
             initial_soc: 0.5,
         }
