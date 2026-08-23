@@ -154,29 +154,52 @@ subtly wrong algorithm, and it is not a second copy of the formula under test.
 A flipped longitude sign and a six-hour clock offset were both injected and
 both fail it loudly.
 
-### Open against PR1, from its review
+### PR1's review, and what it changed
 
-Five findings, two of them visible to a viewer. Recorded here rather than only
-in the pull request, because the second one is a gap in the method and not
-just in the code:
+Five findings, two of them visible to a viewer, all fixed in the same pull
+request. Recorded here rather than only in the review thread, because the
+second one is a gap in the method and not just in the code.
 
-1. **Refraction is discontinuous.** The cutoff at a true elevation of -1
-   degree drops 0.6466 degrees of refraction in one step, which moves the sky
-   blend by 8% instantaneously at every dusk and dawn. The cutoff is necessary,
-   since the formula has a pole at -5.11 degrees; the taper is what is missing.
-2. **Nothing asks for continuity,** which is why the first finding survived a
+1. **Refraction was discontinuous.** The cutoff at a true elevation of -1
+   degree dropped 0.6466 degrees of correction in one step, which moved the
+   sky blend by 8% instantaneously at every dusk and dawn. The cutoff itself
+   is necessary, since the formula has a pole at -5.11 degrees and stops being
+   monotone below about -2; what was missing was the taper. The correction now
+   fades to zero over the band from -0.5 to -2 degrees, clear of the pole and
+   below the last elevation where a visible disc is being refracted.
+2. **Nothing asked for continuity,** which is why the first finding survived a
    suite that samples solstices, equinoxes, daily peaks and 8784 hours. Every
-   test in it evaluates points; none walks a transition. This is a standing
-   lesson for PR2 and PR3, where dimming and the fast-forward both have
-   transitions of their own.
-3. **The light direction snaps** from sun to moon while the day term is still
-   at 9% intensity, so shadows pop at sunrise and sunset. The colour ramp was
-   made continuous in PR1 and the direction was not.
-4. **The daylight cross-check never asserts the sun sets,** so a sun stuck
-   above the horizon would satisfy both of its directional checks. The
-   correlation test catches it only by producing NaN.
-5. **An unverifiable sentence in the module doc** appeals to what the overview
-   camera shows, and that camera auto-orbits.
+   test in it evaluated points; none walked a transition. Continuity is now a
+   test category rather than an assumption: `nothing_the_eye_integrates_moves_in_steps`
+   walks four days at ten-second resolution and bounds how far elevation,
+   daylight and the sky ramp may move in one step. It fails on the old code by
+   two orders of magnitude. This is the standing lesson for PR2 and PR3, where
+   dimming and the fast-forward both have transitions of their own.
+3. **The light direction snapped** from sun to moon at half a degree of
+   elevation, while the day term was still at about a tenth of its intensity,
+   so shadows swung at every sunrise and sunset. PR1 had made the colour ramp
+   continuous and left the direction where it was. The handover now happens at
+   the horizon, where the day term is zero by construction.
+4. **The daylight cross-check never asserted the sun sets,** so a sun stuck
+   above the horizon would have satisfied both of its directional checks, the
+   first because its premise never fires and the second vacuously. The
+   correlation test caught it only by producing NaN, which is not protection.
+   The hour count is now asserted directly against the roughly even split this
+   latitude gives.
+5. **An unverifiable sentence in the module doc** appealed to what the
+   overview camera shows; that camera auto-orbits, so there was no fixed
+   viewing direction to appeal to. It now points at the test that holds the
+   claim instead.
+
+One thing worth recording from the fixing rather than the review. The first
+version of the test for finding 3 asserted that the light was below 0.15 in
+intensity when the direction swung. The actual value at the old threshold was
+0.146, so the test passed against the very defect it was written for. It was
+rewritten to assert on daylight rather than on colour, with a bound derived
+from the walk resolution instead of chosen round: ten seconds is at most 0.042
+degrees of elevation, so a correct handover leaves at most 7.3e-4 of daylight
+behind, while the old one left 8.7e-3. A guard is only worth what it has been
+shown to catch, and this one had to be shown twice.
 
 ## 6. Compatibility impact
 

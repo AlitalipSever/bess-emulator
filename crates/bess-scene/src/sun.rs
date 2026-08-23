@@ -14,8 +14,8 @@
 //! **World axes.** The site layout already fixes them: `layout.rs` puts row 0
 //! south of the road at negative z and row 1 north of it at positive z. So
 //! +z is north, +y is up, and +x is east. A northern-hemisphere sun therefore
-//! crosses the sky on the negative-z side, which is what the site looks like
-//! from the overview camera.
+//! crosses the sky on the negative-z side, and the light it casts travels
+//! toward +z, which `the_sun_comes_from_the_south_at_midday` holds.
 
 use std::f64::consts::TAU;
 
@@ -100,15 +100,24 @@ pub fn sun_position(unix_time_s: i64, location: SiteLocation) -> SunPosition {
 /// Saemundsson's formula, the standard true-to-apparent companion of
 /// Bennett's. About half a degree at the horizon, which is the sun's own
 /// diameter and the difference between the sun looking set and looking not
-/// quite set. It fades to nothing overhead and is not applied well below the
-/// horizon, where it stops meaning anything.
+/// quite set. It fades to nothing overhead.
+///
+/// It also needs a floor going the other way: the formula has a pole at -5.11
+/// degrees and stops being monotone below about -2, so it cannot simply be
+/// evaluated all the way down. A hard cutoff is the obvious floor and the
+/// wrong one. Cutting at -1 degree would drop 0.65 degrees of correction in a
+/// single step, which lands as an 8% jump in the twilight sky the moment the
+/// sun crosses that line, twice a day. The correction fades out over a band
+/// instead, reaching zero at -2 degrees, well clear of the pole and well below
+/// the last elevation where a visible disc is being refracted.
 fn refraction_deg(true_elevation_deg: f64) -> f64 {
-    if true_elevation_deg < -1.0 {
+    let fade = smoothstep(-2.0, -0.5, true_elevation_deg);
+    if fade <= 0.0 {
         return 0.0;
     }
     let h = true_elevation_deg;
     let arcminutes = 1.02 / (h + 10.3 / (h + 5.11)).to_radians().tan();
-    arcminutes / 60.0
+    fade * arcminutes / 60.0
 }
 
 /// Lighting for one frame.
@@ -136,13 +145,13 @@ pub struct SunLight {
 /// two lines is art direction.
 pub fn sun_at(unix_time_s: i64, location: SiteLocation) -> SunLight {
     let pos = sun_position(unix_time_s, location);
-    let elevation = pos.elevation_deg as f32;
+    let elevation = pos.elevation_deg;
 
-    let daylight = elevation.to_radians().sin().max(0.0);
-    let sky = smoothstep(-6.0, 6.0, elevation);
+    let daylight = elevation.to_radians().sin().max(0.0) as f32;
+    let sky = smoothstep(-6.0, 6.0, elevation) as f32;
 
     // Direction from the site toward the sun, in the world axes fixed above.
-    let el = elevation.to_radians();
+    let el = (elevation as f32).to_radians();
     let az = (pos.azimuth_deg as f32).to_radians();
     let horizontal = el.cos();
     let toward_sun = [az.sin() * horizontal, el.sin(), az.cos() * horizontal];
@@ -163,7 +172,7 @@ pub fn sun_at(unix_time_s: i64, location: SiteLocation) -> SunLight {
 
     // Low sun reads warm. Tied to elevation rather than to intensity, because
     // the golden hour is about the path through the atmosphere.
-    let warm = smoothstep(0.0, 22.0, elevation);
+    let warm = smoothstep(0.0, 22.0, elevation) as f32;
     let lit = daylight.sqrt();
     let day_col = [
         1.0 * lit,
@@ -178,7 +187,13 @@ pub fn sun_at(unix_time_s: i64, location: SiteLocation) -> SunLight {
     ];
 
     SunLight {
-        dir: if elevation > 0.5 { day_dir } else { moon_dir },
+        // The handover to moonlight happens exactly at the horizon, where the
+        // day term is zero by construction (`lit` is the square root of a
+        // daylight that has just reached 0). Switching any higher, as this
+        // did at half a degree, swings the shadows while the sun is still
+        // lighting the site at about a tenth of its intensity, and the eye
+        // catches it.
+        dir: if elevation > 0.0 { day_dir } else { moon_dir },
         color,
         daylight,
         sky,
@@ -186,7 +201,7 @@ pub fn sun_at(unix_time_s: i64, location: SiteLocation) -> SunLight {
 }
 
 /// Hermite ramp from 0 at `lo` to 1 at `hi`.
-fn smoothstep(lo: f32, hi: f32, x: f32) -> f32 {
+fn smoothstep(lo: f64, hi: f64, x: f64) -> f64 {
     let t = ((x - lo) / (hi - lo)).clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
 }
@@ -368,6 +383,82 @@ mod tests {
             summer > winter * 2.5,
             "summer {summer:.3} should tower over winter {winter:.3}"
         );
+    }
+
+    #[test]
+    fn nothing_the_eye_integrates_moves_in_steps() {
+        // Every other test here samples: a solstice noon, a daily peak, an
+        // hour bucket. A discontinuity lives between samples and passes all
+        // of them, which is exactly how a 0.65 degree refraction cliff got
+        // through review. So walk a whole day at ten seconds and hold each
+        // quantity to a bound on how far it may move in one step.
+        //
+        // The sun climbs at most 15 degrees an hour, so 10 seconds is at
+        // most 0.042 degrees of true elevation. The generous ceilings below
+        // leave room for the refraction ramp steepening near the horizon
+        // while still failing on any real cliff by two orders of magnitude.
+        for start in [day(10), day(80), day(171), day(354)] {
+            let mut previous = sun_at(start, SITE);
+            let mut previous_pos = sun_position(start, SITE);
+            for step in 1..=8_640 {
+                let t = start + step * 10;
+                let pos = sun_position(t, SITE);
+                let light = sun_at(t, SITE);
+
+                let d_elevation = (pos.elevation_deg - previous_pos.elevation_deg).abs();
+                assert!(
+                    d_elevation < 0.1,
+                    "elevation stepped {d_elevation:.4} deg at {}",
+                    format_utc(t)
+                );
+                let d_sky = (light.sky - previous.sky).abs();
+                assert!(d_sky < 0.01, "sky stepped {d_sky:.4} at {}", format_utc(t));
+                let d_daylight = (light.daylight - previous.daylight).abs();
+                assert!(
+                    d_daylight < 0.01,
+                    "daylight stepped {d_daylight:.4} at {}",
+                    format_utc(t)
+                );
+
+                previous = light;
+                previous_pos = pos;
+            }
+        }
+    }
+
+    #[test]
+    fn the_light_does_not_swing_while_the_sun_is_still_up() {
+        // The direction hands over from sun to moon in one step, which is
+        // fine only if the sun has nothing left to cast by then. So: whenever
+        // the direction swings, the day contribution on both sides of the
+        // swing has to be gone.
+        //
+        // Not gone to zero, gone to the resolution of the walk. Ten seconds
+        // is at most 0.042 degrees of elevation, so the last sample before
+        // the handover can still read sin(0.042 deg) = 7.3e-4 of daylight and
+        // be correct. Handing over half a degree up, as this did before
+        // review, reads 8.7e-3, which is twelve times larger; the bound sits
+        // between the two rather than at a round number.
+        const RESIDUAL_DAYLIGHT: f32 = 2.0e-3;
+        for start in [day(10), day(171)] {
+            let mut previous = sun_at(start, SITE);
+            for step in 1..=8_640 {
+                let light = sun_at(start + step * 10, SITE);
+                let swing = (0..3)
+                    .map(|i| (light.dir[i] - previous.dir[i]).abs())
+                    .fold(0.0f32, f32::max);
+                if swing > 0.05 {
+                    let left_behind = light.daylight.max(previous.daylight);
+                    assert!(
+                        left_behind < RESIDUAL_DAYLIGHT,
+                        "direction swung {swing:.3} with {left_behind:.5} of daylight \
+                         still on the site at {}",
+                        format_utc(start + step * 10)
+                    );
+                }
+                previous = light;
+            }
+        }
     }
 
     #[test]

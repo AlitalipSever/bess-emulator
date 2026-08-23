@@ -54,6 +54,7 @@ fn the_computed_sun_and_the_measured_irradiance_agree_about_daylight() {
 
     let mut sunlight_in_the_dark = Vec::new();
     let mut darkness_in_the_sun = Vec::new();
+    let mut daylight_hours = 0usize;
 
     for (hour, &w) in ghi.iter().enumerate() {
         // The series is an hourly mean, so it belongs to the middle of its
@@ -62,6 +63,9 @@ fn the_computed_sun_and_the_measured_irradiance_agree_about_daylight() {
         let t = YEAR_START_UNIX_S + hour as i64 * 3600 + 1800;
         let elevation = sun_position(t, SITE).elevation_deg;
 
+        if elevation > 0.0 {
+            daylight_hours += 1;
+        }
         if w > DAYLIGHT_WM2 && elevation < 0.0 {
             sunlight_in_the_dark.push((hour, w, elevation));
         }
@@ -69,6 +73,16 @@ fn the_computed_sun_and_the_measured_irradiance_agree_about_daylight() {
             darkness_in_the_sun.push((hour, w, elevation));
         }
     }
+
+    // Both checks above are one-sided: a sun that never sets satisfies the
+    // first because its premise never fires, and the second because it is
+    // vacuous. Say out loud that the sun goes down. Lindenberg sits at 52 N,
+    // where the year splits close to evenly.
+    assert!(
+        (4_000..=4_900).contains(&daylight_hours),
+        "{daylight_hours} of 8784 hours had the sun above the horizon; at this \
+         latitude the year should split close to evenly"
+    );
 
     assert!(
         sunlight_in_the_dark.is_empty(),
