@@ -493,7 +493,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "bess-bench"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bess-core",
  "bess-models",
@@ -504,7 +504,7 @@ dependencies = [
 
 [[package]]
 name = "bess-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -513,11 +513,11 @@ dependencies = [
 
 [[package]]
 name = "bess-data"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "bess-emulator"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "axum",
  "bess-core",
@@ -534,7 +534,7 @@ dependencies = [
 
 [[package]]
 name = "bess-models"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bess-core",
  "bess-data",
@@ -544,7 +544,7 @@ dependencies = [
 
 [[package]]
 name = "bess-scene"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bess-core",
  "bess-data",
@@ -557,7 +557,7 @@ dependencies = [
 
 [[package]]
 name = "bess-wasm"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bess-scene",
  "console_error_panic_hook",

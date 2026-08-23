@@ -95,14 +95,17 @@ cargo run --release -p bess-scene --features sim --example viewer
 Orbit with the mouse (right-drag or shift-drag pans, scroll zooms), switch
 to fly mode to move freely over the site (WASD + QE, shift = fast), and
 click a container, a PCS skid, or the transformer to open its panel. The
-browser build is `wasm-pack build crates/bess-wasm --target web`.
+browser build is `wasm-pack build crates/bess-wasm --target web`; the npm
+package is built and published by `scripts/publish-npm.sh`, which renames it
+from the crate name to the product name on the way out.
 
 ## Status
 
-Pre-alpha, and measured rather than described. Three milestones have shipped:
+Pre-alpha, and measured rather than described. Four milestones have shipped:
 M0, the walking skeleton, as v0.1.0; the M0.5 mini-iteration, a partial-load
 conversion efficiency curve fitted to the CEC inverter database, as v0.2.0;
-and M1, thermal and weather, as v0.3.0.
+M1, thermal and weather, as v0.3.0; and the M1.5 view mini-iteration as
+v0.4.0, which put M1 on the screen.
 
 What M1 changed is the efficiency story. The site replays a full year of
 hourly DWD observations from Lindenberg (Mark), 2024. Heat leaves a rack into
@@ -121,6 +124,13 @@ summing to what crossed the meter. The band it is held against comes from
 public data, its floor from the measured EIA fleet average and its ceiling
 from the NREL Annual Technology Baseline. Every figure is in
 [CALIBRATION.md](CALIBRATION.md), with its sources and its known gaps.
+
+M1.5 added no physics and put what was already there on the screen. The sun
+is computed from the site's coordinates rather than tabulated, so shadows
+shorten at noon and lengthen toward evening and a December day stays low. The
+sky carries the measured cloud cover, and rain and snow fall when the
+replayed hour had them. The clock can jump to any day of the year, either
+restarting there or running the plant forward to it tick by tick.
 
 Still at its simplest useful depth: a 1-RC cell model, constant transformer
 parameters, a placeholder daily price curve, synthetic grid frequency, no

@@ -455,10 +455,11 @@ archaeology exercise.
 
 ## 9. Open questions
 
-- **The release version.** ROADMAP.md says v0.3.x, but `PlantConfig` gaining a
-  field is a source-level break and the M0.5 precedent gave a mini-iteration a
-  minor bump. v0.4.0 with the roadmap line corrected is the consistent choice.
-  Decide when PR3 lands.
+- **The release version** (resolved): v0.4.0, with the roadmap line
+  corrected. Four source-breaking changes landed, not one, and the M0.5
+  precedent gives a mini-iteration a minor bump. Regenerating the calibration
+  record for the bump moved the version string and nothing else, which is the
+  evidence that the iteration was as physics-free as it claimed.
 - **Where the presets live.** PR3 computes "warmest day" and friends from the
   `WeatherYear` slices in the viewer. If a second shell ever wants them they
   belong in `bess-data` beside the series they summarize. Left in the viewer
