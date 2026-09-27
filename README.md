@@ -116,7 +116,7 @@ protection. The house load is an inventory of five named items rather than a
 constant, each on its own meter.
 
 The result is one number and its decomposition. Run over the whole replayed
-year, the plant returns **84.22%** of the energy it takes in, measured at the
+year, the plant returns **84.17%** of the energy it takes in, measured at the
 point of interconnection with everything it spends on itself already inside
 that ratio. The gap to nameplate is not asserted, it is itemized: battery,
 conversion, transformer, and five auxiliary items, each metered separately and

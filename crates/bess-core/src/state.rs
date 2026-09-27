@@ -182,7 +182,7 @@ impl AuxEnergy {
 /// balance, which CI enforces as an invariant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct EnergyAccounting {
-    /// Heat dissipated inside the racks.
+    /// Heat dissipated inside the racks: cell losses and balancing bleed.
     pub battery_loss_wh: f64,
     /// Conversion losses in the PCS units.
     pub pcs_loss_wh: f64,
@@ -303,7 +303,26 @@ pub struct RackState {
     pub temp_offset_c: f64,
     /// Active alarm bits (alarm tree arrives in M2; 0 until then).
     pub alarm_bits: u32,
+    /// SoC spread between the highest and lowest cell of the string, 0..1.
+    /// The BMS's dynamic state: throughput widens it, balancing narrows it.
+    /// One scalar per rack, never per-cell state: SCADA publishes a min and a
+    /// max, and that is the truth this is accountable to.
+    pub cell_dsoc: f64,
+    /// Highest minus lowest cell voltage, V: `cell_dsoc` read through the
+    /// OCV curve at the rack's SoC. Tiny on the LFP plateau, large at the
+    /// top knee, which is why real BMSs balance there.
+    pub cell_dv_v: f64,
+    /// Whether the bleed resistors are on. Status, not an alarm.
+    pub balancing_active: bool,
 }
+
+/// Salt that separates the commissioning-spread stream from the main one.
+const SPREAD_STREAM: u64 = 0x5b12_ead0_ba1a_4ce5;
+
+/// SoC spread a rack leaves the factory with, drawn uniformly per rack.
+/// Strings are top-balanced at commissioning; what remains is the spread a
+/// balancing run leaves behind, well under one percent.
+const COMMISSIONING_DSOC: (f64, f64) = (0.002, 0.006);
 
 impl SiteState {
     /// Build the initial state tree for a configuration. Per-rack spreads
@@ -311,6 +330,9 @@ impl SiteState {
     /// PRNG, so the whole tree is a pure function of `(cfg, seed, start)`.
     pub fn new(cfg: &PlantConfig, seed: u64, start_unix_s: i64) -> Self {
         let mut rng = Rng::from_seed(seed);
+        // The commissioning spread draws from a stream of its own, so adding
+        // it left every draw that predates it where it was.
+        let mut spread_rng = Rng::from_seed(seed ^ SPREAD_STREAM);
         let ambient_c = 12.0;
         let blocks = (0..cfg.blocks)
             .map(|_| BlockState {
@@ -342,6 +364,10 @@ impl SiteState {
                                 resistance_scale: rng.uniform(0.97, 1.03),
                                 temp_offset_c: rng.uniform(-1.5, 1.5),
                                 alarm_bits: 0,
+                                cell_dsoc: spread_rng
+                                    .uniform(COMMISSIONING_DSOC.0, COMMISSIONING_DSOC.1),
+                                cell_dv_v: 0.0,
+                                balancing_active: false,
                             })
                             .collect(),
                     })

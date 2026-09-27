@@ -46,6 +46,16 @@ Accept: a long replayed stretch shows spread sawtoothing (grows through
 cycling, shrinks during top-of-window idle), and the waterfall identity
 still closes.
 
+As built: 90 replayed days from 11 April show a fresh plant reach the
+threshold in about four weeks, then saw between 2.2 and 2.75 % SoC with
+50 to 90 racks bleeding at once; the numbers are in CALIBRATION.md. That
+run is too long for a debug test, so `tests/balancing.rs` starts a day
+with every rack past the threshold and holds one tooth: balancing runs,
+the spread narrows at the top and widens through the evening, the energy
+balance closes. The state is `cell_dsoc` plus its voltage reading, not a
+voltage with dynamics (D3 revised). The Prometheus families went into
+`http/metrics.rs`, which this PR split out of the over-limit `http.rs`.
+
 ## Open questions
 
 - ~~Whether a 314 Ah datasheet with explicit taper bands is publicly
