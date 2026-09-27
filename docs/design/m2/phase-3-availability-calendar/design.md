@@ -34,27 +34,33 @@ Each decision is proposed here and confirmed or revised in its PR.
   closed on local quarter-hours, `slow` class on the map plus a full
   series in Parquet and bench output. Not per block: revenue metering
   happens at the POI, and per-block meters would be an invented signal.
-- **D7, checkpoint format 6.** Block mode, return-sequencer state, revenue
-  meter accumulators and current-period state are all state. One bump for
-  the phase.
+  It is a second meter beside `site.meter.*`, not a rename: the SCADA
+  accumulators keep their addresses and their meaning.
+- **D7, two checkpoint bumps, one per schema-changing PR.** Block mode
+  and return-sequencer state land in PR1 (format 6), the revenue meter
+  accumulators and current-period state in PR2 (format 7). The M1 rule
+  is per change, not per phase: a file written between the two PRs must
+  be rejectable by version, never deserialized with missing state.
 
 ## Signal map impact
 
-Additions only, folded into the release's 0.3.0: site availability
-(available charge and discharge power), block mode (u16 enum on the new
-per-block range from phase 2), revenue meter period energy and period
-index. Exact addresses pinned in PR1/PR2 against the live map, delta table
-written into this file then.
+Additions only, folded into the release's 0.3.0: block mode (u16 enum on
+the new per-block range from phase 2), revenue meter period energy and
+period index. The availability points are not among them: they exist
+since M0 at inputs 8 and 10, and this phase changes their values, not
+the map. Exact addresses pinned in PR1/PR2 against the live map, delta
+table written into this file then.
 
 ## Checkpoint impact
 
-Format 5 to 6 (D7).
+Format 5 to 6 in PR1, 6 to 7 in PR2 (D7).
 
 ## Test plan
 
 - **Property: capability accounting.** Any combination of isolation,
-  maintenance, derating and trip yields site availability equal to the
-  rack-level sum (architecture invariant 1).
+  maintenance, derating and trip satisfies architecture invariant 1:
+  the derated rack-level sum over in-service blocks, and zero while the
+  breaker is open.
 - **Unit: staggered return.** Trip, reset, then blocks reconnect in order
   with the configured spacing, each through its operating-state
   transitions; POI power ramps in steps, not one jump.

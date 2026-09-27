@@ -23,11 +23,12 @@ Each decision is proposed here and confirmed or revised in its PR.
   the phase 2 estimator and the published rack current telemetry both
   read them. Estimator drift and telemetry error now correlate, as
   they do in a real rack, where they are the same copper.
-- **D4, exact points stay exact.** Counters, meters' internal
-  accumulation (a meter integrates its own measured values: the
-  published energy drifts, the kernel's true energy does not),
-  states, enums and config carry no instrument. The list of
-  instrumented points is the inventory, not a heuristic.
+- **D4, exact points stay exact, and the meters are not among them.**
+  Counters, states, enums and config carry no instrument. A meter's
+  energy register is instrumented by construction: it integrates its
+  own measured power, so the published energy drifts within the class
+  budget while the kernel's true energy accounting stays exact. The
+  list of instrumented points is the inventory, not a heuristic.
 - **D5, no checkpoint change for walks if avoidable.** Walk state is
   publication-layer state; proposal is to derive it deterministically
   from (seed, instrument, tick) so it needs no persistence and resume

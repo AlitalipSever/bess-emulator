@@ -80,7 +80,9 @@ scenario engine required.
 
 - An alarm bit set in a published word always has a corresponding raise
   event earlier in the log, and a cleared bit a clear event.
-- Warnings are functions of state with hysteresis; trips are latched until
-  reset; no third behavior.
+- A bit driven by a continuous quantity carries hysteresis; a bit
+  mirroring discrete state (isolation, maintenance) follows that state
+  exactly and cannot chatter by construction; trips are latched until
+  reset. No fourth behavior.
 - Event emission is deterministic: same tuple, same event log, byte for
   byte.

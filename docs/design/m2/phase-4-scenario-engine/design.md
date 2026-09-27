@@ -30,9 +30,14 @@ events:
   `start`. The M0 sketch used clock times ("14:00"); offsets won because
   they are unambiguous across DST days, which this milestone makes real.
   A calendar scenario says what it means by choosing `start`.
-- **D2, target paths are state-tree paths.** The same addressing the MQTT
-  topics use, validated at load against `PlantConfig`. One addressing
-  scheme everywhere is worth more than a friendlier alias syntax.
+- **D2, target paths are state-tree paths.** Bracket-indexed tree
+  addresses (`block[2].container[0].hvac`), validated at load against
+  `PlantConfig`. This is deliberately not the flattened point-name
+  spelling the surfaces publish (`block02.pcs.p_ac_kw`): a point is an
+  aggregated projection, while a scenario addresses the tree itself,
+  container and rack included. The validator's rejection shows the
+  nearest valid path, which is what keeps the two spellings from
+  becoming a trap.
 - **D3, physical fault set v1** (the `FaultAction` enum): `hvac: failure`
   and `repair`, `pcs: trip`, `protection: trip`, `rack: self_discharge`
   with a rate, `rack: isolate` and `restore`, `block: maintenance_enter`
@@ -40,10 +45,13 @@ events:
   3 built; the engine adds none of its own physics. Frequencies and
   combinations are library material (phase 5), not engine material.
 - **D4, data fault set v1 in the schema now, executed in phase 5:**
-  `dropout`, `freeze`, `timestamp_drift`, `unit_error`, `nan_burst`,
-  `chatter`, `backfill_burst`, each with `surface: mqtt | modbus` and
-  parameters per fault. Declaring them now freezes the file format so
-  phase 5 does not churn the library.
+  `dropout`, `freeze`, `unit_error` and `chatter` on `surface: mqtt` or
+  `modbus`; `timestamp_drift`, `nan_burst` and `backfill_burst` on
+  `mqtt` only, because Modbus has no wire timestamp, a u16 cannot say
+  NaN, and a register bank has no replay. The validator enforces this
+  matrix from this phase, with the reason in the rejection; phase 5 owns
+  the runtime semantics. Declaring the set and the matrix now freezes
+  the file format so phase 5 does not churn the library.
 - **D5, the file wins.** Scenario-stated seed, start, speed are
   authoritative; conflicting CLI flags are an error (architecture
   rationale: reproductions must not drift silently). Flags the file does
@@ -58,7 +66,7 @@ events:
   bench/Parquet metadata carry the scenario name and the file's content
   hash next to the seed and dataset version, completing the reproduction
   triple as an observable fact.
-- **D8, checkpoint format 7.** Player cursor and the resolved schedule
+- **D8, checkpoint format 8.** Player cursor and the resolved schedule
   hash go into the checkpoint; a checkpoint taken mid-scenario refuses to
   resume under a different scenario file (hash mismatch), the same
   pinned-artifact discipline as the datasets.
@@ -70,7 +78,7 @@ know they are in a story, which is the point.
 
 ## Checkpoint impact
 
-Format 6 to 7 (D8).
+Format 7 to 8 (D8).
 
 ## Test plan
 

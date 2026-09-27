@@ -20,11 +20,14 @@ that means.
   their HVAC, which is realistic and keeps the auxiliary story honest:
   maintenance does not switch the house load off).
 - **EMS availability reporting**: the site publishes available charge and
-  discharge power against nameplate. `EmsState` has carried
-  `available_charge_w` and `available_discharge_w` since M0; this phase
-  makes them visible (map points) and correct under maintenance,
-  isolation, derating, and trips, and adds the partial-availability site
-  alarm bit from phase 2's table.
+  discharge power against nameplate. Both the state (`EmsState` has
+  carried `available_charge_w` and `available_discharge_w` since M0) and
+  the map points (`site.available_discharge_kw` and
+  `site.available_charge_kw`, inputs 8 and 10) already exist; what this
+  phase changes is their truthfulness. The values become correct under
+  maintenance, isolation, derating and trips, and the
+  partial-availability site alarm bit from phase 2's table reads off
+  them. No new availability point is added.
 
 ## Protection trip and the staggered return
 
@@ -62,13 +65,20 @@ Three changes make the replayed calendar real:
   because the roadmap's DST scope names 92 and 100 quarter-hour market
   periods and there is currently no quarter-hour surface on which they
   could be observed. One monotonic import/export energy series at the
-  POI, closed on local quarter-hours. Grid-layer topology does not change;
-  this is an accumulator, not the M3 electrical work.
+  POI, closed on local quarter-hours. It stands beside, not instead of,
+  the SCADA meter accumulators the map has carried since M0
+  (`site.meter.import_kwh` and `export_kwh`): those remain the telemetry
+  meter, this is the fiscal series, and keeping the two distinct is what
+  M2.5's measurement phase later builds on when they receive different
+  accuracy classes. Grid-layer topology does not change; this is an
+  accumulator, not the M3 electrical work.
 
 ## Invariants
 
-- Capability accounting: site availability equals the sum over in-service,
-  non-isolated racks after derating, always.
+- Capability accounting: site availability equals the derated sum over
+  non-isolated, in-service racks in blocks that are themselves in
+  service, and is zero while the HV breaker is open. Maintenance and
+  trips reduce the sum by construction, never by a separate subtraction.
 - A maintained or tripped plant still pays its house load; auxiliary
   meters keep advancing.
 - The revenue meter is monotonic, its period boundaries align with

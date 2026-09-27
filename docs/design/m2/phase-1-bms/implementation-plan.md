@@ -21,7 +21,7 @@ cell temperatures peak, and nothing else about the plant changed.
 
 - `RackState` gains `cell_dv_v` and `balancing_active`; checkpoint format
   3 to 4 (D6), old files rejected by version.
-- `BmsLogic::step_rack` with `BmsFlows`; kernel calls it in the tick
+- `BmsLogic::step_bms` with `BmsFlows`; kernel calls it in the tick
   before limits; balancing heat enters the rack thermal node; energy
   invariant extended.
 - Spread dynamics and balancing policy (D3, D4) with sourced growth and

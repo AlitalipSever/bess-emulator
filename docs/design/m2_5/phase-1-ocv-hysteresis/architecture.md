@@ -23,8 +23,8 @@ which is the physically right behavior for LFP (the separation persists
 for hours) and what makes rested voltage ambiguous.
 
 `CellModel` is the one module that deepens. The trait does not widen:
-`step_rack` already owns rack integration and `RackState` gains the `h`
-field; `stored_energy_wh` keeps its meaning as the OCV-curve integral,
+`CellModel::step_rack` already owns rack integration and `RackState`
+gains the `h` field; `stored_energy_wh` keeps its meaning as the OCV-curve integral,
 with the hysteresis contribution accounted so the energy-conservation
 invariant stays exact rather than gaining a tolerance.
 

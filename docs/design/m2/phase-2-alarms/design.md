@@ -17,10 +17,11 @@ Each decision is proposed here and confirmed or revised in its PR.
   | 2 | SoC high (window edge) | hysteresis |
   | 3 | SoC low | hysteresis |
   | 4 | imbalance warning | hysteresis |
-  | 5 | derate active | condition |
-  | 6 | rack isolated | condition |
+  | 5 | derate active | hysteresis |
+  | 6 | rack isolated | mirrors state |
   | 8 | cell over-temperature trip | latched |
   | 9 | imbalance high trip | latched |
+  | 10 | cell under-temperature trip | latched |
 
   Block and site words get their own tables in the same PR. Gaps are
   headroom; a bit is never reused.
@@ -46,7 +47,10 @@ Each decision is proposed here and confirmed or revised in its PR.
 - **D6, map 0.2.0 to 0.3.0 lands at the release, this phase writes the
   delta.** The meaning change (rack alarm bits documented, base+6 fold now
   nonzero) is the breaking half; additions are the block word, site word,
-  event counter, spread (`cell_dv_mv`), and derate status. Blocks have no
+  event counter, spread and derate status. The spread publishes as
+  `cell_dv_mv`, millivolts at 1 mV LSB so a u16 covers the range; the
+  state field stays `cell_dv_v` in volts like every other voltage in the
+  tree, and the conversion is the projection's job. Blocks have no
   free slots in their original stride (base+0 to 9 are taken), so block
   additions open a second per-block address range, the mechanism M1
   section 6 already reserved for this case. Exact addresses are pinned in

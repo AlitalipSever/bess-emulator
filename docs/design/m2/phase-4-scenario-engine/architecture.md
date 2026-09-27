@@ -75,6 +75,9 @@ phase 5 becomes a compatibility surface of its own.
   included, with and without a checkpoint round-trip mid-scenario.
 - A loaded scenario with zero events is exactly the plain run: the engine
   costs nothing when idle.
-- Every fired scenario event appears in the kernel event log (scenario
-  actions are events too), so a trace can always be read back from the
-  output alone.
+- Every fired physical-fault action appears in the kernel event log
+  (scenario actions are events too). Data-fault firings deliberately do
+  not: they execute in the shells, and phase 5's core property is that
+  the kernel cannot tell. Their trace lives in the scenario status
+  surface, so a full run is still readable back from the outputs, each
+  fault class from the side that fired it.

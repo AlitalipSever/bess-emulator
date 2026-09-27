@@ -15,11 +15,14 @@ What the trait gains is state advancement. Imbalance and balancing are
 dynamics, not lookups, so the trait gets a second method:
 
 ```
-fn step_rack(&self, rack: &mut RackState, cfg: &RackConfig, dt_s: f64) -> BmsFlows;
+fn step_bms(&self, rack: &mut RackState, cfg: &RackConfig, dt_s: f64) -> BmsFlows;
 ```
 
-The kernel calls `step_rack` once per tick before it asks for limits, in
-the same position of the tick where the cell model integrates. `BmsFlows`
+The kernel calls `step_bms` once per tick before it asks for limits, in
+the same position of the tick where the cell model integrates. The name
+is deliberately not `step_rack`: `CellModel::step_rack` already exists,
+and two traits mutating the same rack under one method name would make
+every later mention ambiguous. `BmsFlows`
 reports what the step moved (balancing heat released into the rack's
 thermal mass, balancing charge bled), so the energy conservation invariant
 can hold the BMS to account the same way `ThermalFlows` holds the thermal

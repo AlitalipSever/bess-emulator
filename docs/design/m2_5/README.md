@@ -52,8 +52,9 @@ Per phase, each against public data, recorded in CALIBRATION.md:
   honest-interface decision this iteration exists for, it is breaking,
   and it is called out the way M2's alarm change was. Additions: SoC
   confidence/quality if phase 2's sources justify one.
-- **Checkpoint:** bumps per phase as state lands (hysteresis state,
-  estimator state, sensor offset walks).
+- **Checkpoint:** bumps as state lands: hysteresis state (phase 1) and
+  estimator state (phase 2). Phase 3 targets no bump: its offset walks
+  are derived, not stored (its design D5).
 
 ## Release-note inventory for v0.6.0
 

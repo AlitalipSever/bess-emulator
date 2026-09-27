@@ -71,12 +71,15 @@ explained in CALIBRATION.md.
   the two breaking changes COMPATIBILITY.md has announced since M1: the rack
   alarm bits stop reading zero and gain a documented layout, which
   reinterprets a published point. New points (block and site alarm words,
-  event counter, derate status, availability) are additions.
-- **Checkpoint:** format 3 bumps as schema-changing phases land (spread and
-  balancing state in phase 1, alarm latches in phase 2, maintenance and
-  return-sequence state in phase 3, scenario position in phase 4). Same rule
-  as M1: bump when the schema changes, reject old files by version, no
-  migration pre-1.0.
+  the event counter, the rack spread `cell_dv_mv` and derate status,
+  block mode, and the revenue-meter period points) are additions; the
+  availability points already exist at inputs 8 and 10, and only their
+  values change.
+- **Checkpoint:** format 3 bumps as schema-changing PRs land (spread and
+  balancing state in phase 1, alarm latches in phase 2, block mode and
+  the sequencer then the revenue meter in phase 3's two PRs, scenario
+  position in phase 4). Same rule as M1: bump when the schema changes,
+  reject old files by version, no migration pre-1.0.
 
 ## Release-note inventory for v0.5.0
 
@@ -95,5 +98,6 @@ v0.4.0 can trip over.
   versus ENTSO-E transparency (phase 3 PR2).
 - EPRI database snapshot: exact category shares and retrieval date
   (phase 5).
-- Whether the WASM shell gets scenario loading in M2 or later (phase 4
-  design leans later; the crate is WASM-clean either way).
+- Whether the WASM shell gets scenario loading in M2 or later. This
+  README owns the question; the current lean is later, and the crate is
+  WASM-clean either way.

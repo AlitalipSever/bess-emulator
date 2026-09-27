@@ -10,7 +10,7 @@ Two PRs, each landing green.
   door), scenario actions entering the event log.
 - The player: load-time resolution to tick indices, load-time parameter
   draws, deterministic cursor.
-- Checkpoint format 6 to 7 (D8).
+- Checkpoint format 7 to 8 (D8).
 - Tests: schema goldens and rejections, determinism with checkpoint
   round-trip, idle-cost digest equality.
 
@@ -38,5 +38,5 @@ story end to end, and `GET /api/v1/scenario` narrates it live.
   (every event with its tick) or just counts and next-up; leans resolved
   schedule, it is small and it is the reproduction record.
 - Whether the WASM shell exposes scenario loading now or in the next view
-  iteration (milestone README leans later; the crate compiles for WASM
-  either way, so the cost of later is zero).
+  iteration. The milestone README owns that question; the crate compiles
+  for WASM either way, so the cost of later is zero.

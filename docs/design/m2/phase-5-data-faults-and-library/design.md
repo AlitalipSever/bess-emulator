@@ -4,8 +4,9 @@ Each decision is proposed here and confirmed or revised in its PR.
 
 ## Decisions
 
-- **D1, fault semantics per surface.** The v1 matrix (schema names from
-  phase 4 D4):
+- **D1, fault semantics per surface.** The v1 matrix (legal pairs are
+  declared and validated since phase 4 D4; this phase owns the runtime
+  semantics):
 
   | Fault | MQTT | Modbus |
   |---|---|---|
