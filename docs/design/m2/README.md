@@ -106,6 +106,22 @@ v0.4.0 can trip over.
 - **New Prometheus families** (phase 1 PR2): `bess_rack_cell_dv_volts`
   (`stat="min"|"max"`) and `bess_racks_balancing`. No map change: the
   registers arrive in phase 2.
+- **Rack alarm bits carry meaning** (phase 2 PR1). The existing block
+  register `blockNN.alarm_bits` (input base+6, the OR of the block's rack
+  words) and `site.alarm_count` (input 31) stop reading zero; the layout
+  is documented in `bess_core::alarms::layout`. This is the announced
+  breaking change; the map version moves to 0.3.0 at release.
+- **Checkpoint format 5** (phase 2 PR1): alarm words on blocks and site,
+  the setpoint-miss timer, the HVAC failure flag, the event log's count
+  and digest. Format 4 files are rejected by version.
+- **`Event` gains `AlarmRaised` and `AlarmCleared`** (phase 2 PR1), and
+  `PcsOpState::Fault` gains its exit, `Simulation::reset_alarms`, which
+  returns a `Result` and refuses a node the site does not have. Code
+  matching on `Event` exhaustively has two new arms to write.
+- **A clean year raises warnings** (phase 2 PR1). The reference plan
+  overruns the SoC window twice a day, so the block setpoint bit and the
+  site power-limited bit raise and clear daily, and winter mornings raise
+  derate-active. No trips; `bess-bench` gates that.
 
 ## Open questions
 

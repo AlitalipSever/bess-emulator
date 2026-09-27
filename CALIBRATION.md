@@ -120,6 +120,14 @@ Temperatures and HVAC over the run:
 | Duty, one unit / both units / heating | 17.89% / 0.33% / 0.03% |
 | Cooling starts per container | 6 819.5 |
 
+Alarms raised over the run: 0 trips (gate: none), 33 037 warnings.
+
+| Alarm | Raised |
+|---|---|
+| `block.setpoint_not_met` | 14 600 |
+| `rack.derate_active` | 17 707 |
+| `site.power_limited` | 730 |
+
 <!-- bess-bench:end m1-annual -->
 
 **Where the round-trip band comes from.** Its floor is the measured fleet:
@@ -441,6 +449,39 @@ balancing). [Orion BMS balancing parameters](https://www.orionbms.com/manuals/ut
 Sources, coulombic efficiency measurement (abstract only). [Field
 voltage spreads, 300 Ah LFP container](https://arxiv.org/pdf/2601.03007).
 Retrieved 2026-09-27.
+
+## M2 (v0.5.0): alarm thresholds
+
+The three alarm words are laid out in `bess_core::alarms::layout`. Each
+threshold rests on the physics it watches, and the bench gates one claim
+about all of them: a clean replayed year trips nothing.
+
+| Bit | Raise / clear (or trip) | Basis | Status |
+|---|---|---|---|
+| `rack.over_temp_warning` / `_trip` | 50 / 47 C; trip 60 C | EVE MB31: power falls from 55 C and reaches zero at 60 C, where the datasheet says to stop charging | referenced limits, estimated warning margin |
+| `rack.under_temp_warning` / `_trip` | 0 / 2 C; trip -30 C | EVE MB31: charging prohibited below 0 C; -30 C minimum operating temperature | referenced |
+| `rack.imbalance_warning` / `_trip` | 120 / 100 mV; trip 500 mV | 0.12 V is the imbalance threshold in the published analysis of eight months of LFP container data; 500 mV is the voltage-difference fault of a published LFP BMS parameter sheet | referenced |
+| `rack.derate_active` | factor below 0.98, clear at 0.995 | the lower of the two temperature factors | estimate |
+| `rack.soc_high` / `soc_low` | 1 % past the window, clear at the edge | the plant sits at its window edges daily by design, so only a violation counts | estimate |
+| `block.setpoint_not_met` | miss above 2 % of PCS rating for 10 s, clear below 1 % | the M0 PCS has no ramp, so the deadband is not sized against ramp lag | estimate |
+| `block.container_over_temp` | 40 / 37 C air | 11 K above the warmest replayed July air, under the 45 C top of the EVE MB31 recommended range | estimate |
+| `site.power_limited` | delivery short by 2 % of site rating (2 MW), clear below 1 % | a shortfall a dispatcher would act on | estimate |
+
+Measured over the replayed year (the generated block above):
+
+- **Zero trips.** This is the gate.
+- **Warning raises:**
+  - `block.setpoint_not_met`: 14 600, which is two per block per day;
+  - `site.power_limited`: 730, two per day;
+  - `rack.derate_active`: 17 707, about 37 per rack, all on cold mornings when cells dip below the 15 C knee of the charging table.
+- **What the daily warnings mean.** The reference dispatch plan asks for 100 MW for longer than the SoC window holds, so the plant runs short at both ends of every cycle and says so. That is the plan's behavior, not a fault. A dispatcher under test that stays inside the window sees none of them.
+- **Temperature never approaches a warning.** Cells stay between 9 and 38 C.
+
+The causal chain test (`tests/alarm_chain.rs`) needs a whole block's HVAC
+down to reach the site bit. With one container failed, the physics limits
+itself. Its racks derate, the block delivers less and makes less heat, and
+it settles near 59 C, about 1.6 MW short. That is under the 2 MW site
+threshold, so the site bit stays down.
 
 ## Planned gates (from ROADMAP.md)
 

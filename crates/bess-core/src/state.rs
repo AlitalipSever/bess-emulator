@@ -6,9 +6,16 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::PlantConfig;
-use crate::kernel::Weather;
+use crate::alarms::EventLog;
+use crate::kernel::{Event, Weather};
 use crate::rng::Rng;
+
+mod energy;
+mod init;
+mod plant;
+
+pub use energy::{AuxEnergy, AuxPower, EnergyAccounting};
+pub use plant::{BlockState, ContainerState, HvacMode, HvacState, PcsOpState, PcsState, RackState};
 
 /// Root of the state tree.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -35,6 +42,15 @@ pub struct SiteState {
     pub energy: EnergyAccounting,
     /// Power blocks, index 0..blocks.
     pub blocks: Vec<BlockState>,
+    /// Site alarm word, laid out in `alarms::layout::site`. Kept in a u32
+    /// like the rack word; the documented layout is the low 16 bits.
+    pub alarm_bits: u32,
+    /// Count and digest of every event handed out since tick 0.
+    pub event_log: EventLog,
+    /// Events that happened between ticks (an operator reset) and go out
+    /// with the next one. Empty except in that gap; part of the tree so a
+    /// checkpoint taken inside the gap loses nothing.
+    pub pending_events: Vec<Event>,
 }
 
 /// Run identity.
@@ -106,311 +122,7 @@ pub struct SubstationState {
     pub export_wh: f64,
 }
 
-/// The site's own consumption during the last tick, W, itemized by what
-/// drew it.
-///
-/// The M1 gate asks for the nameplate-to-field gap to be explainable item by
-/// item, which makes an unattributed lump of auxiliary power a design defect
-/// rather than a simplification. Every consumer therefore reports here, and
-/// `total_w` is what the substation meters as the house load.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
-pub struct AuxPower {
-    /// Container HVAC: compressors, heaters and fans.
-    pub hvac_w: f64,
-    /// Rack battery-management electronics.
-    pub bms_w: f64,
-    /// PCS units energized but not converting. A converting unit's own
-    /// supply is already inside its conversion loss, so it is not counted
-    /// twice here.
-    pub pcs_standby_w: f64,
-    /// Plant control, protection and SCADA.
-    pub controls_w: f64,
-    /// Fire and gas detection, security and access control, site and
-    /// building lighting, small power. An enumerated row, not a remainder:
-    /// nothing is assigned here because it did not fit elsewhere.
-    pub lighting_and_safety_w: f64,
-}
-
-impl AuxPower {
-    /// Total auxiliary draw, W.
-    pub fn total_w(&self) -> f64 {
-        self.hvac_w + self.bms_w + self.pcs_standby_w + self.controls_w + self.lighting_and_safety_w
-    }
-}
-
-/// Auxiliary consumption accumulated per item, Wh.
-///
-/// The same five items as [`AuxPower`], integrated. `bess-bench` builds the
-/// loss waterfall by reading these, rather than by re-deriving the physics
-/// from a run it did not perform.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct AuxEnergy {
-    /// Container HVAC.
-    pub hvac_wh: f64,
-    /// Rack battery-management electronics.
-    pub bms_wh: f64,
-    /// PCS standby tare.
-    pub pcs_standby_wh: f64,
-    /// Plant control, protection and SCADA.
-    pub controls_wh: f64,
-    /// Fire and gas detection, security, lighting and small power.
-    pub lighting_and_safety_wh: f64,
-}
-
-impl AuxEnergy {
-    /// Add one tick of `power` lasting `hours`.
-    pub fn accumulate(&mut self, power: &AuxPower, hours: f64) {
-        self.hvac_wh += power.hvac_w * hours;
-        self.bms_wh += power.bms_w * hours;
-        self.pcs_standby_wh += power.pcs_standby_w * hours;
-        self.controls_wh += power.controls_w * hours;
-        self.lighting_and_safety_wh += power.lighting_and_safety_w * hours;
-    }
-
-    /// Total auxiliary energy, Wh.
-    pub fn total_wh(&self) -> f64 {
-        self.hvac_wh
-            + self.bms_wh
-            + self.pcs_standby_wh
-            + self.controls_wh
-            + self.lighting_and_safety_wh
-    }
-}
-
-/// Cumulative energy accounting, Wh. All counters are monotonic; together
-/// with the POI meters and the stored energy they close the site energy
-/// balance, which CI enforces as an invariant.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct EnergyAccounting {
-    /// Heat dissipated inside the racks: cell losses and balancing bleed.
-    pub battery_loss_wh: f64,
-    /// Conversion losses in the PCS units.
-    pub pcs_loss_wh: f64,
-    /// Transformer losses.
-    pub transformer_loss_wh: f64,
-    /// Auxiliary consumption as the substation meters it: the total that
-    /// crossed into the house load.
-    pub aux_wh: f64,
-    /// The same energy attributed to the items that drew it. Accumulated on
-    /// its own path, so `total_wh` matching `aux_wh` is a testable property
-    /// rather than an arithmetic identity.
-    pub aux_items: AuxEnergy,
-}
-
-/// One power block: a PCS and its containers.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct BlockState {
-    /// Power conversion system of this block.
-    pub pcs: PcsState,
-    /// Battery containers, index 0..containers_per_block.
-    pub containers: Vec<ContainerState>,
-}
-
-/// PCS operating state (full state machine arrives in M3).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum PcsOpState {
-    /// Energized, not converting.
-    Standby,
-    /// Converting power.
-    Run,
-    /// Tripped; requires a scenario or operator action to clear (M2+).
-    Fault,
-}
-
-/// Power conversion system state.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PcsState {
-    /// Operating state.
-    pub op_state: PcsOpState,
-    /// AC-side setpoint received from the plant controller, W.
-    pub p_ac_setpoint_w: f64,
-    /// AC-side power actually converted, W (positive = discharge).
-    pub p_ac_w: f64,
-    /// DC-side power, W (positive = discharge).
-    pub p_dc_w: f64,
-    /// Conversion loss during the last tick, W.
-    pub loss_w: f64,
-}
-
-/// One battery container.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ContainerState {
-    /// Bulk air temperature inside the container, degrees Celsius.
-    pub air_temp_c: f64,
-    /// HVAC unit state.
-    pub hvac: HvacState,
-    /// Racks, index 0..racks_per_container.
-    pub racks: Vec<RackState>,
-}
-
-/// What the container HVAC unit is doing.
-///
-/// Cooling is staged because the reference container carries more than one
-/// unit; heating is a single electric mode, since that is what container
-/// datasheets fit (see CALIBRATION.md).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum HvacMode {
-    /// Controls energized, no compressor and no heater.
-    Off,
-    /// One cooling unit running.
-    Cool1,
-    /// Both cooling units running.
-    Cool2,
-    /// Electric heating.
-    Heat,
-}
-
-/// Container HVAC state.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct HvacState {
-    /// Operating mode.
-    pub mode: HvacMode,
-    /// Seconds of compressor protection left: how long before a compressor
-    /// may start or stop again. It guards the compressors and nothing else,
-    /// so electric heating starts and stops on its band regardless. Part of
-    /// the state because a resumed run has to continue mid-cycle rather than
-    /// restart the timer.
-    pub compressor_hold_s: f64,
-    /// Electrical power drawn, W.
-    pub electrical_w: f64,
-    /// Heat currently being moved, W (thermal). Positive when cooling
-    /// removes heat from the container, negative when heating adds it.
-    pub thermal_w: f64,
-}
-
-/// One battery rack (one series string).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RackState {
-    /// Whether the rack is connected to the DC bus.
-    pub in_service: bool,
-    /// State of charge, 0..1.
-    pub soc: f64,
-    /// State of health, 0..1 (aging arrives in M5; 1.0 until then).
-    pub soh: f64,
-    /// Terminal voltage, V.
-    pub voltage_v: f64,
-    /// Current, A (positive = discharge).
-    pub current_a: f64,
-    /// Representative cell temperature, degrees Celsius.
-    pub cell_temp_c: f64,
-    /// Polarization voltage of the RC branch in the equivalent circuit, V.
-    pub polarization_v: f64,
-    /// Per-rack manufacturing spread multiplier on internal resistance
-    /// (drawn once at initialization from the seeded PRNG).
-    pub resistance_scale: f64,
-    /// Fixed thermal offset of this rack relative to container air, K
-    /// (position in the airflow; drawn once at initialization).
-    pub temp_offset_c: f64,
-    /// Active alarm bits (alarm tree arrives in M2; 0 until then).
-    pub alarm_bits: u32,
-    /// SoC spread between the highest and lowest cell of the string, 0..1.
-    /// The BMS's dynamic state: throughput widens it, balancing narrows it.
-    /// One scalar per rack, never per-cell state: SCADA publishes a min and a
-    /// max, and that is the truth this is accountable to.
-    pub cell_dsoc: f64,
-    /// Highest minus lowest cell voltage, V: `cell_dsoc` read through the
-    /// OCV curve at the rack's SoC. Tiny on the LFP plateau, large at the
-    /// top knee, which is why real BMSs balance there.
-    pub cell_dv_v: f64,
-    /// Whether the bleed resistors are on. Status, not an alarm.
-    pub balancing_active: bool,
-}
-
-/// Salt that separates the commissioning-spread stream from the main one.
-const SPREAD_STREAM: u64 = 0x5b12_ead0_ba1a_4ce5;
-
-/// SoC spread a rack leaves the factory with, drawn uniformly per rack.
-/// Strings are top-balanced at commissioning; what remains is the spread a
-/// balancing run leaves behind, well under one percent.
-const COMMISSIONING_DSOC: (f64, f64) = (0.002, 0.006);
-
 impl SiteState {
-    /// Build the initial state tree for a configuration. Per-rack spreads
-    /// (initial SoC, resistance, thermal position) are drawn from the seeded
-    /// PRNG, so the whole tree is a pure function of `(cfg, seed, start)`.
-    pub fn new(cfg: &PlantConfig, seed: u64, start_unix_s: i64) -> Self {
-        let mut rng = Rng::from_seed(seed);
-        // The commissioning spread draws from a stream of its own, so adding
-        // it left every draw that predates it where it was.
-        let mut spread_rng = Rng::from_seed(seed ^ SPREAD_STREAM);
-        let ambient_c = 12.0;
-        let blocks = (0..cfg.blocks)
-            .map(|_| BlockState {
-                pcs: PcsState {
-                    op_state: PcsOpState::Standby,
-                    p_ac_setpoint_w: 0.0,
-                    p_ac_w: 0.0,
-                    p_dc_w: 0.0,
-                    loss_w: 0.0,
-                },
-                containers: (0..cfg.containers_per_block)
-                    .map(|_| ContainerState {
-                        air_temp_c: 20.0,
-                        hvac: HvacState {
-                            mode: HvacMode::Off,
-                            compressor_hold_s: 0.0,
-                            electrical_w: 0.0,
-                            thermal_w: 0.0,
-                        },
-                        racks: (0..cfg.racks_per_container)
-                            .map(|_| RackState {
-                                in_service: true,
-                                soc: (cfg.initial_soc + rng.uniform(-0.005, 0.005)).clamp(0.0, 1.0),
-                                soh: 1.0,
-                                voltage_v: cfg.rack.nominal_v(),
-                                current_a: 0.0,
-                                cell_temp_c: 20.0,
-                                polarization_v: 0.0,
-                                resistance_scale: rng.uniform(0.97, 1.03),
-                                temp_offset_c: rng.uniform(-1.5, 1.5),
-                                alarm_bits: 0,
-                                cell_dsoc: spread_rng
-                                    .uniform(COMMISSIONING_DSOC.0, COMMISSIONING_DSOC.1),
-                                cell_dv_v: 0.0,
-                                balancing_active: false,
-                            })
-                            .collect(),
-                    })
-                    .collect(),
-            })
-            .collect();
-
-        Self {
-            meta: SiteMeta {
-                site_id: cfg.site_id.clone(),
-                seed,
-                start_unix_s,
-            },
-            tick: 0,
-            rng,
-            weather: Weather {
-                ambient_c,
-                irradiance_wm2: 0.0,
-            },
-            ems: EmsState {
-                mode: EmsMode::FollowPlan,
-                site_setpoint_w: 0.0,
-                external_setpoint_w: 0.0,
-                available_discharge_w: 0.0,
-                available_charge_w: 0.0,
-            },
-            substation: SubstationState {
-                hv_breaker: BreakerState::Closed,
-                poi_active_power_w: 0.0,
-                poi_reactive_power_var: 0.0,
-                poi_voltage_kv: cfg.grid.poi_nominal_kv,
-                frequency_hz: 50.0,
-                transformer_loss_w: 0.0,
-                aux_power_w: 0.0,
-                import_wh: 0.0,
-                export_wh: 0.0,
-            },
-            aux: AuxPower::default(),
-            energy: EnergyAccounting::default(),
-            blocks,
-        }
-    }
-
     /// Unix timestamp (UTC seconds) of the current tick.
     pub fn unix_time_s(&self) -> i64 {
         self.meta.start_unix_s + self.tick as i64

@@ -14,6 +14,7 @@
 //! cargo run --release -p bess-bench -- --check-docs # document matches the record, no simulation
 //! ```
 
+mod alarms;
 mod bands;
 mod report;
 mod run;

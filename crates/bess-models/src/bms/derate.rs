@@ -12,20 +12,48 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct TempCurve {
     /// Strictly increasing in temperature.
-    pub points: Vec<(f64, f64)>,
+    points: Vec<(f64, f64)>,
+    /// Highest listed rate, the curve's full rate. Read on every rack every
+    /// tick, so it is found once here rather than on each call.
+    peak: f64,
+    /// The longest run of consecutive listed points at full rate: between
+    /// two neighbours at full rate the line is at full rate too, so the
+    /// factor there is exactly 1 and the scan can be skipped. Most of a
+    /// replayed year sits inside it. Empty (lo > hi) when no two
+    /// neighbours are at full rate.
+    full: (f64, f64),
 }
 
 impl TempCurve {
+    /// A curve through `points`, (degrees Celsius, rate), strictly
+    /// increasing in temperature.
+    pub fn new(points: &[(f64, f64)]) -> Self {
+        let peak = points.iter().map(|p| p.1).fold(0.0_f64, f64::max);
+        Self {
+            points: points.to_vec(),
+            peak,
+            full: longest_full_run(points, peak),
+        }
+    }
+
+    /// The listed points.
+    pub fn points(&self) -> &[(f64, f64)] {
+        &self.points
+    }
+
     /// Permitted rate at `temp_c` as a fraction of the curve's own peak, in
     /// [0, 1]. The table's absolute level (0.5P for this cell) is the cell's
     /// continuous rating; the rack's rating is a separate site parameter, so
     /// only the shape is carried over.
     pub fn factor(&self, temp_c: f64) -> f64 {
-        let peak = self.points.iter().map(|p| p.1).fold(0.0_f64, f64::max);
-        if peak <= 0.0 {
+        if self.peak <= 0.0 {
             return 0.0;
         }
-        (self.rate_at(temp_c) / peak).clamp(0.0, 1.0)
+        // Exact by construction of `full`; the scan-equivalence tests hold it.
+        if (self.full.0..=self.full.1).contains(&temp_c) {
+            return 1.0;
+        }
+        (self.rate_at(temp_c) / self.peak).clamp(0.0, 1.0)
     }
 
     /// Permitted rate at `temp_c`, in the table's unit.
@@ -45,6 +73,24 @@ impl TempCurve {
         }
         last.1
     }
+}
+
+/// Longest span of consecutive points all at `peak`, as (first, last)
+/// temperature; empty when no two neighbours reach it.
+fn longest_full_run(points: &[(f64, f64)], peak: f64) -> (f64, f64) {
+    let mut best = (f64::INFINITY, f64::NEG_INFINITY);
+    let mut start: Option<f64> = None;
+    for &(t, rate) in points {
+        if rate >= peak {
+            let first = *start.get_or_insert(t);
+            if t > first && t - first > best.1 - best.0 {
+                best = (first, t);
+            }
+        } else {
+            start = None;
+        }
+    }
+    best
 }
 
 /// EVE MB31 Table 5, maximum continuous charging power (P) by cell
@@ -84,21 +130,17 @@ mod tests {
     use super::*;
 
     fn charge() -> TempCurve {
-        TempCurve {
-            points: EVE_MB31_CHARGE_P.to_vec(),
-        }
+        TempCurve::new(EVE_MB31_CHARGE_P)
     }
 
     fn discharge() -> TempCurve {
-        TempCurve {
-            points: EVE_MB31_DISCHARGE_P.to_vec(),
-        }
+        TempCurve::new(EVE_MB31_DISCHARGE_P)
     }
 
     #[test]
     fn listed_points_are_reproduced_exactly() {
         for curve in [charge(), discharge()] {
-            for &(t, r) in &curve.points {
+            for &(t, r) in curve.points() {
                 assert!((curve.rate_at(t) - r).abs() < 1.0e-12, "{t} C");
             }
         }
@@ -147,5 +189,30 @@ mod tests {
     fn at_the_cold_charge_limit_discharge_is_still_permitted() {
         assert!(charge().factor(-0.01).abs() < f64::EPSILON);
         assert!((discharge().factor(-0.01) - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn the_full_rate_shortcut_agrees_with_the_scan() {
+        for curve in [charge(), discharge()] {
+            for step in 0..=11_000 {
+                let t = -40.0 + f64::from(step) * 0.01;
+                let scanned = (curve.rate_at(t) / 0.5).clamp(0.0, 1.0);
+                assert!((curve.factor(t) - scanned).abs() < 1.0e-12, "{t} C");
+            }
+        }
+    }
+
+    /// A curve that dips between two full-rate points: the shortcut must not
+    /// span the dip.
+    #[test]
+    fn a_dip_between_two_full_rate_points_is_not_skipped() {
+        let dip = TempCurve::new(&[(0.0, 0.5), (10.0, 0.3), (20.0, 0.5)]);
+        assert!((dip.factor(10.0) - 0.6).abs() < 1.0e-12);
+        let plateau = TempCurve::new(&[(0.0, 0.2), (10.0, 0.5), (20.0, 0.5), (30.0, 0.1)]);
+        for step in 0..=3000 {
+            let t = f64::from(step) * 0.01;
+            let scanned = plateau.rate_at(t) / 0.5;
+            assert!((plateau.factor(t) - scanned).abs() < 1.0e-12, "{t} C");
+        }
     }
 }

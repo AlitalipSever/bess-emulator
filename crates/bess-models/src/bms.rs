@@ -1,6 +1,7 @@
 //! Basic BMS: SoC operating window with linear power taper, derated by
 //! cell temperature, with a cell spread that passive balancing narrows.
 
+pub mod alarms;
 pub mod balance;
 pub mod derate;
 
@@ -8,6 +9,7 @@ use bess_core::config::RackConfig;
 use bess_core::state::RackState;
 use bess_core::traits::{BmsFlows, BmsLogic, PowerLimits};
 
+pub use alarms::RackAlarmThresholds;
 pub use balance::Balancing;
 pub use derate::{TempCurve, EVE_MB31_CHARGE_P, EVE_MB31_DISCHARGE_P};
 
@@ -15,8 +17,8 @@ pub use derate::{TempCurve, EVE_MB31_CHARGE_P, EVE_MB31_DISCHARGE_P};
 /// power limit linearly to zero inside a band at each end, and derate each
 /// direction by cell temperature. The two factors multiply: a cold rack
 /// near the top of the window charges worse than either alone would allow.
-/// Its step advances the cell spread and runs top balancing; the alarm tree
-/// arrives in M2 phase 2.
+/// Its step advances the cell spread and runs top balancing, and it owns
+/// the rack alarm word.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BasicBms {
     /// Width of the linear taper band inside each SoC limit.
@@ -27,19 +29,18 @@ pub struct BasicBms {
     pub discharge_temp: TempCurve,
     /// Cell spread dynamics and the balancing policy.
     pub balancing: Balancing,
+    /// Where the rack alarm bits raise, clear and latch.
+    pub alarms: RackAlarmThresholds,
 }
 
 impl Default for BasicBms {
     fn default() -> Self {
         Self {
             taper_soc_band: 0.03,
-            charge_temp: TempCurve {
-                points: EVE_MB31_CHARGE_P.to_vec(),
-            },
-            discharge_temp: TempCurve {
-                points: EVE_MB31_DISCHARGE_P.to_vec(),
-            },
+            charge_temp: TempCurve::new(EVE_MB31_CHARGE_P),
+            discharge_temp: TempCurve::new(EVE_MB31_DISCHARGE_P),
             balancing: Balancing::default(),
+            alarms: RackAlarmThresholds::default(),
         }
     }
 }
@@ -62,6 +63,15 @@ impl BmsLogic for BasicBms {
 
     fn step_bms(&self, rack: &mut RackState, cfg: &RackConfig, dt_s: f64) -> BmsFlows {
         self.balancing.step(rack, cfg, dt_s)
+    }
+
+    fn rack_alarms(&self, rack: &RackState, cfg: &RackConfig) -> u32 {
+        let t = rack.cell_temp_c;
+        let factor = self
+            .charge_temp
+            .factor(t)
+            .min(self.discharge_temp.factor(t));
+        self.alarms.evaluate(rack, cfg, factor)
     }
 }
 
@@ -128,8 +138,8 @@ mod tests {
     #[test]
     fn defaults_are_the_datasheet_tables() {
         let bms = BasicBms::default();
-        assert_eq!(bms.charge_temp.points, EVE_MB31_CHARGE_P);
-        assert_eq!(bms.discharge_temp.points, EVE_MB31_DISCHARGE_P);
+        assert_eq!(bms.charge_temp.points(), EVE_MB31_CHARGE_P);
+        assert_eq!(bms.discharge_temp.points(), EVE_MB31_DISCHARGE_P);
     }
 
     #[test]

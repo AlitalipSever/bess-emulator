@@ -18,6 +18,11 @@ use crate::state::SiteState;
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
 ///
+/// v5 (M2): alarm words on blocks and site, the setpoint-miss timer, the
+/// HVAC failure flag, the event log's count and digest, and the events a
+/// reset left to go out with the next tick. Latched bits and the hysteresis
+/// side a bit sits on are carried in the words, so a resumed run neither
+/// re-raises nor silently clears.
 /// v4 (M2): racks gained the cell spread (`cell_dsoc`, `cell_dv_v`) and
 /// the balancing flag. v3 (M1): the auxiliary inventory added the itemized draw to the site
 /// state and the per-item accumulators to the energy meters. v2 (M1):
@@ -25,7 +30,7 @@ pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Pre-1.0 checkpoints are not migrated; an older file is rejected with its
 /// version named rather than half-restored, since a missing item would
 /// otherwise restore as a plant whose auxiliary meters silently read zero.
-pub const FORMAT_VERSION: u32 = 4;
+pub const FORMAT_VERSION: u32 = 5;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {
