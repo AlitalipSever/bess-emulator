@@ -75,6 +75,12 @@ pub trait BmsLogic: Send + Sync {
     /// mutating one rack under one method name would make every mention
     /// ambiguous.
     fn step_bms(&self, rack: &mut RackState, cfg: &RackConfig, dt_s: f64) -> BmsFlows;
+
+    /// The rack's alarm word after this tick, laid out in
+    /// `alarms::layout::rack`. `rack.alarm_bits` holds the word as the last
+    /// tick left it, which is what hysteresis and latching read; the kernel
+    /// stores the result and turns the difference into events.
+    fn rack_alarms(&self, rack: &RackState, cfg: &RackConfig) -> u32;
 }
 
 /// The heat flows one container tick moved, W.

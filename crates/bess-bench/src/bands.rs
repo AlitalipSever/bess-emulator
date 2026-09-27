@@ -134,6 +134,13 @@ pub fn check(kpis: &Kpis) -> Vec<String> {
              the loss accounts do not explain what crossed the POI"
         ));
     }
+    if kpis.alarms.trips_raised > 0 {
+        failures.push(format!(
+            "{} trips raised on the reference year ({:?}): a clean plant that trips \
+             is failing the realism it claims",
+            kpis.alarms.trips_raised, kpis.alarms.raised_by_alarm
+        ));
+    }
     failures
 }
 
@@ -190,6 +197,17 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("balance residual")),
             "an unexplained residual passed: {failures:?}"
+        );
+    }
+
+    #[test]
+    fn a_single_trip_fails_the_year() {
+        let mut kpis = passing();
+        kpis.alarms.trips_raised = 1;
+        let failures = check(&kpis);
+        assert!(
+            failures.iter().any(|line| line.contains("trips raised")),
+            "a tripping year passed: {failures:?}"
         );
     }
 }

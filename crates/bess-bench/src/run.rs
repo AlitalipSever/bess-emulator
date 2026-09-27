@@ -220,6 +220,8 @@ pub struct Kpis {
     pub thermal: ThermalKpis,
     /// HVAC duty and cycling.
     pub hvac: HvacKpis,
+    /// Alarm raises over the run.
+    pub alarms: crate::alarms::AlarmKpis,
 }
 
 /// Running tallies over the walk of the state tree.
@@ -314,6 +316,7 @@ fn measure(
     let stored_start_wh = sim.stored_energy_wh();
     let ticks = spec.days * DAY_S / TICK_SECONDS;
     let mut tallies = Tallies::new(containers);
+    let mut alarms = crate::alarms::AlarmKpis::default();
     let (window, label) = crate::series::window::hot_week(weather, spec);
     let mut series = crate::series::Collector::new(
         containers,
@@ -324,7 +327,7 @@ fn measure(
 
     for tick in 0..ticks {
         let inputs = weather.inputs_at(sim.unix_time_s());
-        sim.step(&inputs);
+        alarms.observe(sim.step(&inputs));
         tallies.observe(&sim, tick);
         series.observe(&sim, sim.unix_time_s());
         if (tick + 1) % (DAY_S / TICK_SECONDS) == 0 {
@@ -362,6 +365,7 @@ fn measure(
             heat_duty: round(tallies.heat_ticks as f64 / container_ticks, 5),
             compressor_starts_per_container: round(tallies.starts as f64 / containers as f64, 1),
         },
+        alarms,
     };
     let series = series.finish(&sim, kpis.run.clone());
     (kpis, series)

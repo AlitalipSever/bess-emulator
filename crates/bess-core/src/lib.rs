@@ -10,6 +10,7 @@
 //! and time control (real time, accelerated, as-fast-as-possible) live in
 //! the shells; the kernel cannot tell the difference.
 
+pub mod alarms;
 pub mod checkpoint;
 pub mod config;
 pub mod kernel;

@@ -41,5 +41,14 @@
     "stage2_duty": 0.00333,
     "heat_duty": 0.00025,
     "compressor_starts_per_container": 6819.5
+  },
+  "alarms": {
+    "trips_raised": 0,
+    "warnings_raised": 33037,
+    "raised_by_alarm": {
+      "block.setpoint_not_met": 14600,
+      "rack.derate_active": 17707,
+      "site.power_limited": 730
+    }
   }
 }

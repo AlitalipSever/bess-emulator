@@ -25,6 +25,26 @@ Each decision is proposed here and confirmed or revised in its PR.
 
   Block and site words get their own tables in the same PR. Gaps are
   headroom; a bit is never reused.
+  **Frozen in PR1** (`bess_core::alarms::layout`, with published names
+  and a test that no bit or name is laid out twice). The rack table above
+  stands as proposed. Block and site:
+
+  | Word | Bit | Condition | Behavior |
+  |---|---|---|---|
+  | block | 0 | PCS setpoint not met, past a 10 s deadband | hysteresis |
+  | block | 1 | container air over temperature | hysteresis |
+  | block | 2 | HVAC failure in one of the block's containers | mirrors state |
+  | block | 8 | PCS fault | mirrors `PcsOpState::Fault`, which only a reset leaves |
+  | site | 0 | power limited: blocks deliver less than the site setpoint | hysteresis |
+  | site | 1 | partial availability: a PCS in fault or a rack isolated | mirrors state |
+  | site | 2 | HV breaker open | mirrors state |
+  | site | 8 | protection trip | latched; laid out now, raised from phase 3 |
+
+  Site "power limited" reads delivered power, not `available_*`. The
+  capability sums every rack's limit, but the even split has no
+  redistribution pass, so a block with hot racks claims its full rating
+  while leaving its share undelivered; a capability-based bit never fired
+  in the chain test.
 - **D2, alarm evaluation lives in the owning layer.** `BmsLogic` evaluates
   rack bits (it has the thresholds already, from phase 1), the kernel
   evaluates block and site bits from PCS, thermal, and grid state during
@@ -32,15 +52,29 @@ Each decision is proposed here and confirmed or revised in its PR.
   tree, would be simpler to write and would put cause and alarm in
   different files forever.
 - **D3, hysteresis bands are model parameters with datasheet-adjacent
-  defaults.** Warning thresholds sit inside the trip thresholds pinned in
+  defaults.** **Confirmed in PR1**, values and sources on the defaults
+  (`RackAlarmThresholds`, `BlockSiteThresholds`) and in CALIBRATION.md.
+  Two definitions settled there: "derate active" is a temperature factor
+  below 0.98, not "the derate took power the dispatch asked for" (the BMS
+  cannot see the request; that question is the block's setpoint bit), so
+  it raises on cold winter mornings; and SoC high and low raise only past
+  the window, since the plant sits at its edges every day by design. Warning thresholds sit inside the trip thresholds pinned in
   phase 1, with clear-below offsets sized so a steady plant near a
   threshold does not chatter (the anti short-cycle lesson from the M1
   HVAC, applied to bits).
-- **D4, reset semantics.** `Command::ResetAlarms { scope }` with scopes
+- **D4, reset semantics.** **Confirmed in PR1** as
+  `Simulation::reset_alarms(ResetScope)`: clears the latched bits in
+  scope and takes a PCS in scope out of fault, emits the clears as events
+  (recorded at once, handed out with the next tick), and returns the bits
+  whose cause is still present, which the next tick raises again. The
+  emulator command and REST endpoint are PR2. `Command::ResetAlarms { scope }` with scopes
   site, block, rack. Clears latched bits whose condition is gone, returns
   which bits stayed. REST: `POST /api/v1/alarms/reset`. Rationale for
   scoped rather than per-bit reset: that is what HMI reset buttons do.
-- **D5, the event counter is per site, u16, wrapping.** One register,
+- **D5, the event counter is per site, u16, wrapping.** The state keeps a
+  u64 count and a running digest (`SiteState::event_log`); the u16 is the
+  projection's (`EventLog::counter_u16`), since a counter that wraps in
+  the tree would make the digest ambiguous. One register,
   incremented per event emitted. A SCADA poller diffing it knows how many
   events it missed between polls. Per-block counters were considered and
   dropped: the register budget is better spent when someone asks.
@@ -55,7 +89,8 @@ Each decision is proposed here and confirmed or revised in its PR.
   additions open a second per-block address range, the mechanism M1
   section 6 already reserved for this case. Exact addresses are pinned in
   PR2 against the live map.
-- **D7, checkpoint format 5.** Latched bits and hysteresis side are state
+- **D7, checkpoint format 5.** **Landed in PR1**, with the HVAC failure
+  flag and the setpoint-miss timer in the same bump. Latched bits and hysteresis side are state
   (a resumed run must not re-raise or silently clear). Block and site
   words are derived each tick except their latched bits, which persist.
 

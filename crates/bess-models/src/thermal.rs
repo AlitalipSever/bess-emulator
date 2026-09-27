@@ -306,7 +306,13 @@ impl ThermalModel for LumpedThermal {
 
         let previous_mode = container.hvac.mode;
         let compressor_free = container.hvac.compressor_hold_s <= 0.0;
-        let mode = self.next_mode(previous_mode, air_c, compressor_free);
+        // A failed unit stops whatever it was doing; its controls stay
+        // energized, so it draws what Off draws.
+        let mode = if container.hvac.failed {
+            HvacMode::Off
+        } else {
+            self.next_mode(previous_mode, air_c, compressor_free)
+        };
         container.hvac.mode = mode;
         container.hvac.compressor_hold_s =
             self.next_hold_s(previous_mode, mode, container.hvac.compressor_hold_s, dt_s);
@@ -360,6 +366,7 @@ mod tests {
                 compressor_hold_s: 0.0,
                 electrical_w: 0.0,
                 thermal_w: 0.0,
+                failed: false,
             },
             racks: (0..racks)
                 .map(|i| RackState {
