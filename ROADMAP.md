@@ -14,6 +14,7 @@ scheduled. Architecture and rationale live in
 | M1 | Thermal + weather | done (v0.3.0) |
 | M1.5 | View mini-iteration: real solar position, weather-driven scenery, time controls | done (v0.4.0) |
 | M2 | BMS, alarms, scenario engine | planned |
+| M2.5 | SoC realism mini-iteration: OCV hysteresis, reported SoC, measurement imperfections | planned |
 | M3 | PCS + electrical | planned |
 | M4 | EMS + market signals | planned |
 | M5 | Degradation | planned |
@@ -210,6 +211,10 @@ person looking at it.
 
 **Goal:** the plant learns to misbehave, on demand and reproducibly.
 
+Detailed design: [docs/design/m2/](docs/design/m2/), one folder per phase,
+in the layout [docs/design/README.md](docs/design/README.md) fixes from
+this milestone on.
+
 Scope:
 
 - Rack-level BMS: charge/discharge limits, temperature and SoC derating,
@@ -227,9 +232,42 @@ Scope:
 - CI assertion mode: run a scenario headless, compare against a snapshot,
   exit nonzero on drift
 
+Two items move here from M3's list, the M0.5 pattern pointing the other
+way: the staggered return after a protection trip, because the trip is an
+M2 fault and a site that came back in one tick would waste it; and the
+15-minute revenue meter series, because the DST scenario's 92 and 100
+quarter-hour periods need a quarter-hour surface to be observable on. The
+five-state PCS machine, the electrical depth behind both, stays in M3.
+
 **Calibration gate:** injected failure types and frequencies follow the public
 EPRI failure incident taxonomy (controls and balance-of-system dominant, cells
 rare).
+
+## M2.5: SoC realism mini-iteration
+
+A mini-iteration in the M0.5/M1.5 pattern, decided 2026-09-26 while
+designing M2: the realism backlog's SoC chain earns its own iteration
+rather than bending M2's one-module discipline, because its first half
+belongs to the cell model, not the BMS.
+
+Detailed design: [docs/design/m2_5/](docs/design/m2_5/).
+
+Scope, in dependency order:
+
+- **LFP OCV hysteresis** in the cell model (Plett one-state), so voltage
+  stops being a cheap oracle for SoC
+- **Reported SoC:** the published SoC becomes the BMS's imperfect estimate
+  (coulomb-counting drift, weak plateau correction, resnap at the knees);
+  the truth stays internal and on the research surfaces
+- **Measurement imperfections:** an instrument inventory with accuracy
+  classes (0.2S revenue, 0.5S auxiliary), slow offset drift and
+  load-dependent error, always on
+
+**Calibration gates:** the modeled charge/discharge OCV separation matches
+a published LFP curve pair; estimator drift and correction jumps land
+inside published observation bands, or a stated sanity bound where no
+source exists at this scale; metering error stays inside the claimed IEC
+accuracy classes.
 
 ## M3: PCS + electrical
 
@@ -243,13 +281,12 @@ Scope:
 - SoC-dependent power limits (fixed current limit against SoC-dependent DC
   voltage)
 - Operating state machine: standby, precharge, contactor close, synchronize,
-  ramp; a protection trip takes the site offline and blocks return in a
-  staggered sequence
+  ramp (the protection trip and the staggered return sequencing ship in M2;
+  M3 gives the returning blocks their real startup states)
 - Setpoint response: dead time, ramp limits, first-order settling
 - Thermal derating from converter temperatures; short-term overload budget
 - Substation depth: breaker/disconnector interlocks, transformer thermal
   model, OLTC tap behavior visible in voltage steps
-- Separate 15-minute revenue meter series alongside SCADA telemetry
 
 **Calibration gate:** efficiency surfaces match public Sandia/CEC inverter
 database curves; the M1 round-trip efficiency gate still holds with the new
