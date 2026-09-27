@@ -17,6 +17,17 @@ Two PRs, each landing green.
 Accept: a replayed July heat week shows limits dipping below rated while
 cell temperatures peak, and nothing else about the plant changed.
 
+As built: the acceptance criterion assumed a warm knee near 45 C. The
+pinned table (EVE MB31) keeps full power to 55 C, and July cells peak at
+38 C, so July leaves the factor at 1.00. January cells dip to 13.6 C and
+move the charging factor to 0.89, which does not bind: the plant draws
+0.498 of rack rating. The annual record re-ran unchanged, so there was no
+throughput delta to explain and nothing was regenerated. The criterion
+was replaced by what can be held: `bms_derating.rs` pins "moves in
+winter, never binds, untouched in summer", and a July rack pushed onto the
+hot shoulder halves its limits and loses them past 60 C. Derating reaches
+the plant through phase 4 scenarios (HVAC loss, cold start).
+
 ## PR2: spread and balancing
 
 - `RackState` gains `cell_dv_v` and `balancing_active`; checkpoint format
@@ -37,9 +48,9 @@ still closes.
 
 ## Open questions
 
-- Whether a 314 Ah datasheet with explicit taper bands is publicly
-  retrievable, or the bands must be stated as engineering defaults labeled
-  as such (D1 fallback).
+- ~~Whether a 314 Ah datasheet with explicit taper bands is publicly
+  retrievable.~~ Resolved in PR1: EVE MB31 Tables 5 and 7, through a
+  distributor mirror (CALIBRATION.md).
 - Whether spread growth should also widen with temperature spread across
   the container (racks near the HVAC run cooler). Deferred unless the
   imbalance alarm in phase 2 turns out to be too uniform across the plant

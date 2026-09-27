@@ -1,22 +1,39 @@
-//! Basic BMS: SoC operating window with linear power taper.
+//! Basic BMS: SoC operating window with linear power taper, derated by
+//! cell temperature.
+
+pub mod derate;
 
 use bess_core::config::RackConfig;
 use bess_core::state::RackState;
 use bess_core::traits::{BmsLogic, PowerLimits};
 
-/// M0 battery management: enforce the SoC operating window by tapering the
-/// power limit linearly to zero inside a band at each end. Temperature
-/// derating, balancing, and the alarm tree arrive in M2.
+pub use derate::{TempCurve, EVE_MB31_CHARGE_P, EVE_MB31_DISCHARGE_P};
+
+/// Battery management: enforce the SoC operating window by tapering the
+/// power limit linearly to zero inside a band at each end, and derate each
+/// direction by cell temperature. The two factors multiply: a cold rack
+/// near the top of the window charges worse than either alone would allow.
+/// Balancing and the alarm tree arrive later in M2.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BasicBms {
     /// Width of the linear taper band inside each SoC limit.
     pub taper_soc_band: f64,
+    /// Permitted charging power against cell temperature.
+    pub charge_temp: TempCurve,
+    /// Permitted discharging power against cell temperature.
+    pub discharge_temp: TempCurve,
 }
 
 impl Default for BasicBms {
     fn default() -> Self {
         Self {
             taper_soc_band: 0.03,
+            charge_temp: TempCurve {
+                points: EVE_MB31_CHARGE_P.to_vec(),
+            },
+            discharge_temp: TempCurve {
+                points: EVE_MB31_DISCHARGE_P.to_vec(),
+            },
         }
     }
 }
@@ -27,8 +44,10 @@ impl BmsLogic for BasicBms {
             return PowerLimits::default();
         }
         let rated_w = cfg.max_current_a * cfg.nominal_v();
-        let discharge_f = ((rack.soc - cfg.soc_min) / self.taper_soc_band).clamp(0.0, 1.0);
-        let charge_f = ((cfg.soc_max - rack.soc) / self.taper_soc_band).clamp(0.0, 1.0);
+        let discharge_f = ((rack.soc - cfg.soc_min) / self.taper_soc_band).clamp(0.0, 1.0)
+            * self.discharge_temp.factor(rack.cell_temp_c);
+        let charge_f = ((cfg.soc_max - rack.soc) / self.taper_soc_band).clamp(0.0, 1.0)
+            * self.charge_temp.factor(rack.cell_temp_c);
         PowerLimits {
             max_charge_w: rated_w * charge_f,
             max_discharge_w: rated_w * discharge_f,
@@ -42,13 +61,17 @@ mod tests {
     use bess_core::config::PlantConfig;
 
     fn rack(soc: f64) -> RackState {
+        rack_at(soc, 25.0)
+    }
+
+    fn rack_at(soc: f64, cell_temp_c: f64) -> RackState {
         RackState {
             in_service: true,
             soc,
             soh: 1.0,
             voltage_v: 1331.0,
             current_a: 0.0,
-            cell_temp_c: 25.0,
+            cell_temp_c,
             polarization_v: 0.0,
             resistance_scale: 1.0,
             temp_offset_c: 0.0,
@@ -87,5 +110,47 @@ mod tests {
         let lim = bms.rack_limits(&r, &cfg);
         assert!(lim.max_charge_w.abs() < f64::EPSILON);
         assert!(lim.max_discharge_w.abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn defaults_are_the_datasheet_tables() {
+        let bms = BasicBms::default();
+        assert_eq!(bms.charge_temp.points, EVE_MB31_CHARGE_P);
+        assert_eq!(bms.discharge_temp.points, EVE_MB31_DISCHARGE_P);
+    }
+
+    #[test]
+    fn cold_rack_charges_slowly_but_still_discharges() {
+        let bms = BasicBms::default();
+        let cfg = PlantConfig::gw01().rack;
+        let rated = cfg.max_current_a * cfg.nominal_v();
+        let cold = bms.rack_limits(&rack_at(0.5, 5.0), &cfg);
+        // 0.12P against the table's 0.5P peak.
+        assert!((cold.max_charge_w - rated * 0.24).abs() < 1.0e-6);
+        assert!((cold.max_discharge_w - rated).abs() < 1.0e-6);
+        let frozen = bms.rack_limits(&rack_at(0.5, -5.0), &cfg);
+        assert!(frozen.max_charge_w.abs() < f64::EPSILON);
+        assert!(frozen.max_discharge_w > 0.0);
+    }
+
+    #[test]
+    fn beyond_the_hot_limit_nothing_flows() {
+        let bms = BasicBms::default();
+        let cfg = PlantConfig::gw01().rack;
+        let lim = bms.rack_limits(&rack_at(0.5, 61.0), &cfg);
+        assert!(lim.max_charge_w.abs() < f64::EPSILON);
+        assert!(lim.max_discharge_w.abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn temperature_multiplies_the_soc_taper() {
+        let bms = BasicBms::default();
+        let cfg = PlantConfig::gw01().rack;
+        let rated = cfg.max_current_a * cfg.nominal_v();
+        // Halfway into the top taper band and halfway down the cold ramp
+        // from 10 C to 15 C (0.4P of 0.5P).
+        let soc = cfg.soc_max - bms.taper_soc_band / 2.0;
+        let lim = bms.rack_limits(&rack_at(soc, 12.5), &cfg);
+        assert!((lim.max_charge_w - rated * 0.5 * 0.8).abs() < 1.0e-6);
     }
 }
