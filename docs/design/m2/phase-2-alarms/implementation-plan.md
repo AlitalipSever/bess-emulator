@@ -29,7 +29,7 @@ As built:
   - The bench's `report.rs` was split into `report/render.rs`.
   - The alarm tally is new, in `bess-bench/src/alarms.rs`.
   - The new fields pushed `state.rs` past the 500-line hard limit. It was split into `state/energy.rs`, `state/plant.rs` and `state/init.rs`, all re-exported, so no path changed.
-- **Speed.** Evaluating the rack words first cost 45 % of the annual run's speed. Two changes recovered it and more: the temperature curves cache their peak and skip the scan inside their full-rate span, and unchanged words skip the event diff. 30 replayed days now run at 56 k ticks/s, against 51.5 k before this PR. The shortcut returns exactly what the scan returns, and a test holds that at 0.01 K steps.
+- **Speed.** Evaluating the rack words first cost 45 % of the annual run's speed. Two changes recovered it and more: the temperature curves cache their peak and skip the scan inside their full-rate span, and unchanged words skip the event diff. 30 replayed days now run at 52 to 56 k ticks/s across runs, against 51.5 k before this PR. The shortcut returns exactly what the scan returns, and a test holds that at 0.01 K steps.
 
 ## PR2: publication
 

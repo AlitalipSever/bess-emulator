@@ -64,10 +64,15 @@ Each decision is proposed here and confirmed or revised in its PR.
   HVAC, applied to bits).
 - **D4, reset semantics.** **Confirmed in PR1** as
   `Simulation::reset_alarms(ResetScope)`: clears the latched bits in
-  scope and takes a PCS in scope out of fault, emits the clears as events
-  (recorded at once, handed out with the next tick), and returns the bits
-  whose cause is still present, which the next tick raises again. The
-  emulator command and REST endpoint are PR2. `Command::ResetAlarms { scope }` with scopes
+  scope and takes a PCS in scope out of fault, emitting the clears and the
+  PCS leaving fault as events. They wait in the tree
+  (`SiteState::pending_events`, so a checkpoint in the gap keeps them) and
+  go out, and into the log's count, with the next tick. It returns the
+  bits whose cause is still present, which the next tick raises again, and
+  refuses a scope naming a node the site does not have
+  (`ResetError::NoSuchNode`) before changing anything, which is what the
+  PR2 REST endpoint will answer with a 4xx. The emulator command and REST
+  endpoint are PR2. `Command::ResetAlarms { scope }` with scopes
   site, block, rack. Clears latched bits whose condition is gone, returns
   which bits stayed. REST: `POST /api/v1/alarms/reset`. Rationale for
   scoped rather than per-bit reset: that is what HMI reset buttons do.

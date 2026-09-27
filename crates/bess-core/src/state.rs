@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::alarms::EventLog;
-use crate::kernel::Weather;
+use crate::kernel::{Event, Weather};
 use crate::rng::Rng;
 
 mod energy;
@@ -45,8 +45,12 @@ pub struct SiteState {
     /// Site alarm word, laid out in `alarms::layout::site`. Kept in a u32
     /// like the rack word; the documented layout is the low 16 bits.
     pub alarm_bits: u32,
-    /// Count and digest of every event emitted since tick 0.
+    /// Count and digest of every event handed out since tick 0.
     pub event_log: EventLog,
+    /// Events that happened between ticks (an operator reset) and go out
+    /// with the next one. Empty except in that gap; part of the tree so a
+    /// checkpoint taken inside the gap loses nothing.
+    pub pending_events: Vec<Event>,
 }
 
 /// Run identity.

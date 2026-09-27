@@ -115,7 +115,8 @@ v0.4.0 can trip over.
   the setpoint-miss timer, the HVAC failure flag, the event log's count
   and digest. Format 4 files are rejected by version.
 - **`Event` gains `AlarmRaised` and `AlarmCleared`** (phase 2 PR1), and
-  `PcsOpState::Fault` gains its exit, `Simulation::reset_alarms`. Code
+  `PcsOpState::Fault` gains its exit, `Simulation::reset_alarms`, which
+  returns a `Result` and refuses a node the site does not have. Code
   matching on `Event` exhaustively has two new arms to write.
 - **A clean year raises warnings** (phase 2 PR1). The reference plan
   overruns the SoC window twice a day, so the block setpoint bit and the

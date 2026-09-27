@@ -80,9 +80,6 @@ pub struct Simulation {
     models: Models,
     state: SiteState,
     events: Vec<Event>,
-    /// Events that happened between ticks (an operator reset), already
-    /// recorded in the log and handed out with the next tick's.
-    pending: Vec<Event>,
     thresholds: BlockSiteThresholds,
     scratch: Scratch,
 }
@@ -103,7 +100,6 @@ impl Simulation {
             models,
             state,
             events: Vec::with_capacity(16),
-            pending: Vec::new(),
             thresholds: BlockSiteThresholds::default(),
             scratch: Scratch {
                 rack_limits: vec![PowerLimits::default(); racks_per_block],
@@ -162,10 +158,9 @@ impl Simulation {
         let dt_s = TICK_SECONDS as f64;
         let wh = dt_s / 3600.0;
         self.events.clear();
-        // A reset between ticks already recorded its clears; they go out
+        // A reset between ticks left its clears in the tree; they go out
         // first, ahead of anything this tick raises again.
-        self.events.append(&mut self.pending);
-        let recorded = self.events.len();
+        self.events.append(&mut self.state.pending_events);
 
         self.state.weather = inputs.weather;
 
@@ -277,7 +272,7 @@ impl Simulation {
         );
 
         // 6. Site word, from the plant as this tick left it, then the log.
-        self.close_tick_alarms(recorded);
+        self.close_tick_alarms();
 
         self.state.tick += 1;
         &self.events

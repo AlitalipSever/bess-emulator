@@ -7,7 +7,8 @@
 
 use crate::alarms::layout::{block as b, site as s};
 use crate::alarms::{
-    has_bit, rising, with_bit, AlarmNode, BlockSiteThresholds, ResetScope, Severity, TRIP_MASK,
+    has_bit, rising, with_bit, AlarmNode, BlockSiteThresholds, ResetError, ResetScope, Severity,
+    TRIP_MASK,
 };
 use crate::config::PlantConfig;
 use crate::state::{BlockState, BreakerState, PcsOpState, SiteState};
@@ -121,8 +122,10 @@ fn evaluate_site(state: &SiteState, cfg: &PlantConfig, th: &BlockSiteThresholds)
 
 impl Simulation {
     /// End of tick: evaluate the site word, then fold every event this tick
-    /// emitted from `recorded` on into the log.
-    pub(super) fn close_tick_alarms(&mut self, recorded: usize) {
+    /// hands out, reset clears included, into the log. An event counts when
+    /// it is handed out, so the counter a poller reads never runs ahead of
+    /// what any surface could have seen.
+    pub(super) fn close_tick_alarms(&mut self) {
         let word = evaluate_site(&self.state, &self.cfg, &self.thresholds);
         push_changes(
             &mut self.events,
@@ -131,18 +134,22 @@ impl Simulation {
             word,
         );
         self.state.alarm_bits = word;
-        for event in &self.events[recorded..] {
+        for event in &self.events {
             self.state.event_log.record(event);
         }
     }
 
     /// Operator reset, the HMI button: clear the latched bits in `scope` and
-    /// take any PCS in scope out of fault. The clears are events, recorded
-    /// now and handed out with the next tick's.
+    /// take any PCS in scope out of fault. The clears and the PCS leaving
+    /// fault are events; they wait in the tree (`SiteState::pending_events`,
+    /// so a checkpoint taken now keeps them) and go out with the next tick.
     ///
     /// Returns the bits whose cause is still present. They re-raise on the
-    /// next tick, as a real plant does to an impatient operator.
-    pub fn reset_alarms(&mut self, scope: ResetScope) -> Vec<(AlarmNode, u8)> {
+    /// next tick, as a real plant does to an impatient operator. A scope
+    /// naming a block, container or rack the site does not have is refused
+    /// before anything changes.
+    pub fn reset_alarms(&mut self, scope: ResetScope) -> Result<Vec<(AlarmNode, u8)>, ResetError> {
+        self.check_scope(scope)?;
         let mut events = Vec::new();
         let mut still = Vec::new();
         let (blocks, site_too): (Vec<usize>, bool) = match scope {
@@ -155,6 +162,11 @@ impl Simulation {
             let block = &mut self.state.blocks[bi];
             if block.pcs.op_state == PcsOpState::Fault {
                 block.pcs.op_state = PcsOpState::Standby;
+                events.push(Event::PcsStateChanged {
+                    block: bi,
+                    from: PcsOpState::Fault,
+                    to: PcsOpState::Standby,
+                });
             }
             let old = block.alarm_bits;
             block.alarm_bits &= !TRIP_MASK;
@@ -185,11 +197,29 @@ impl Simulation {
             push_changes(&mut events, AlarmNode::Site, old, self.state.alarm_bits);
         }
 
-        for e in &events {
-            self.state.event_log.record(e);
+        self.state.pending_events.extend(events);
+        Ok(still)
+    }
+
+    fn check_scope(&self, scope: ResetScope) -> Result<(), ResetError> {
+        let blocks = &self.state.blocks;
+        let ok = match scope {
+            ResetScope::Site => true,
+            ResetScope::Block(b) => b < blocks.len(),
+            ResetScope::Rack {
+                block,
+                container,
+                rack,
+            } => blocks
+                .get(block)
+                .and_then(|b| b.containers.get(container))
+                .is_some_and(|c| rack < c.racks.len()),
+        };
+        if ok {
+            Ok(())
+        } else {
+            Err(ResetError::NoSuchNode(scope))
         }
-        self.pending.extend(events);
-        still
     }
 
     fn reset_rack(

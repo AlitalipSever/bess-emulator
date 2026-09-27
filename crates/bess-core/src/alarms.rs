@@ -80,6 +80,14 @@ pub enum ResetScope {
     },
 }
 
+/// Why an operator reset was refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum ResetError {
+    /// The scope names a block, container or rack the site does not have.
+    #[error("no such node on this site: {0:?}")]
+    NoSuchNode(ResetScope),
+}
+
 /// Mask of the latched (trip) half of a word.
 pub const TRIP_MASK: u32 = 0xff00;
 

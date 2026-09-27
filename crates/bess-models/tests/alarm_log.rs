@@ -4,10 +4,10 @@
 use std::collections::HashMap;
 
 use bess_core::alarms::layout::{block as b, rack as r, site as s};
-use bess_core::alarms::{has_bit, AlarmNode, ResetScope};
+use bess_core::alarms::{has_bit, AlarmNode, ResetError, ResetScope};
 use bess_core::kernel::Event;
 use bess_core::state::PcsOpState;
-use bess_core::{PlantConfig, Simulation, SiteState};
+use bess_core::{checkpoint, PlantConfig, Simulation, SiteState};
 use bess_models::{gw01_models, gw01_weather};
 
 /// 2026-07-14 14:00 UTC.
@@ -83,7 +83,7 @@ fn the_log_rebuilds_every_word_every_tick() {
     let mut raises = 0;
     for tick in 0..2400u64 {
         if tick == 1200 {
-            sim.reset_alarms(ResetScope::Site);
+            sim.reset_alarms(ResetScope::Site).expect("site scope");
         }
         let events = sim.step(&weather.inputs_at(sim.unix_time_s())).to_vec();
         raises += events
@@ -131,11 +131,13 @@ fn a_reset_clears_only_what_has_cooled() {
     sim.step(&weather.inputs_at(sim.unix_time_s()));
     assert!(trip_of(&sim));
 
-    let still = sim.reset_alarms(ResetScope::Rack {
-        block: 0,
-        container: 0,
-        rack: 0,
-    });
+    let still = sim
+        .reset_alarms(ResetScope::Rack {
+            block: 0,
+            container: 0,
+            rack: 0,
+        })
+        .expect("rack 0 exists");
     assert_eq!(still, vec![(rack0, r::OVER_TEMP_TRIP)]);
     assert!(!trip_of(&sim));
     let events = sim.step(&weather.inputs_at(sim.unix_time_s())).to_vec();
@@ -151,7 +153,9 @@ fn a_reset_clears_only_what_has_cooled() {
     assert!(sim.state().blocks[0].containers[0].racks[0].cell_temp_c < 59.0);
     assert!(trip_of(&sim), "the trip cleared without a reset");
 
-    let still = sim.reset_alarms(ResetScope::Block(0));
+    let still = sim
+        .reset_alarms(ResetScope::Block(0))
+        .expect("block 0 exists");
     assert!(still.is_empty());
     sim.step(&weather.inputs_at(sim.unix_time_s()));
     assert!(!trip_of(&sim));
@@ -174,10 +178,92 @@ fn a_faulted_pcs_waits_for_the_operator() {
     assert!(has_bit(st.blocks[3].alarm_bits, b::PCS_FAULT));
     assert!(has_bit(st.alarm_bits, s::PARTIAL_AVAILABILITY));
 
-    sim.reset_alarms(ResetScope::Block(3));
-    sim.step(&weather.inputs_at(sim.unix_time_s()));
+    sim.reset_alarms(ResetScope::Block(3))
+        .expect("block 3 exists");
+    let events = sim.step(&weather.inputs_at(sim.unix_time_s())).to_vec();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            Event::PcsStateChanged {
+                block: 3,
+                from: PcsOpState::Fault,
+                to: PcsOpState::Standby
+            }
+        )),
+        "the PCS left fault without saying so: {events:?}"
+    );
     let st = sim.state();
     assert_ne!(st.blocks[3].pcs.op_state, PcsOpState::Fault);
     assert!(!has_bit(st.blocks[3].alarm_bits, b::PCS_FAULT));
     assert!(!has_bit(st.alarm_bits, s::PARTIAL_AVAILABILITY));
+}
+
+/// A reset refuses a node the site does not have, and changes nothing.
+#[test]
+fn a_reset_for_a_node_that_does_not_exist_is_refused() {
+    let cfg = PlantConfig::gw01();
+    let mut state = SiteState::new(&cfg, 7, JULY_AFTERNOON_S);
+    state.blocks[0].pcs.op_state = PcsOpState::Fault;
+    let mut sim = sim_from(state);
+    let before = sim.state().clone();
+    for scope in [
+        ResetScope::Block(99),
+        ResetScope::Rack {
+            block: 0,
+            container: 7,
+            rack: 0,
+        },
+        ResetScope::Rack {
+            block: 0,
+            container: 0,
+            rack: 99,
+        },
+    ] {
+        assert_eq!(sim.reset_alarms(scope), Err(ResetError::NoSuchNode(scope)));
+    }
+    assert_eq!(*sim.state(), before);
+}
+
+/// A checkpoint taken between a reset and the next tick keeps the clears:
+/// the resumed run hands them out, its words still rebuild from the log,
+/// and the counter matches what went out.
+#[test]
+fn a_reset_survives_a_checkpoint_before_the_next_tick() {
+    let cfg = PlantConfig::gw01();
+    let mut state = SiteState::new(&cfg, 7, JULY_AFTERNOON_S);
+    state.blocks[0].containers[0].racks[0].cell_temp_c = 62.0;
+    state.blocks[1].pcs.op_state = PcsOpState::Fault;
+    let mut sim = sim_from(state);
+    let weather = gw01_weather();
+    let mut rebuilt = words(sim.state());
+    let mut handed_out = 0u64;
+    for _ in 0..600 {
+        let events = sim.step(&weather.inputs_at(sim.unix_time_s())).to_vec();
+        handed_out += events.len() as u64;
+        apply(&mut rebuilt, &events);
+    }
+    sim.reset_alarms(ResetScope::Site).expect("site scope");
+
+    let bytes = checkpoint::save(sim.state()).expect("save");
+    let mut resumed = sim_from(checkpoint::load(&bytes).expect("load"));
+    let events = resumed
+        .step(&weather.inputs_at(resumed.unix_time_s()))
+        .to_vec();
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::AlarmCleared { .. })),
+        "the resumed run lost the reset's clears"
+    );
+    assert!(events.iter().any(|e| matches!(
+        e,
+        Event::PcsStateChanged {
+            from: PcsOpState::Fault,
+            ..
+        }
+    )));
+    handed_out += events.len() as u64;
+    apply(&mut rebuilt, &events);
+    assert_eq!(rebuilt, words(resumed.state()));
+    assert_eq!(resumed.state().event_log.count, handed_out);
 }

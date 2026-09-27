@@ -106,6 +106,7 @@ impl SiteState {
             blocks,
             alarm_bits: 0,
             event_log: EventLog::default(),
+            pending_events: Vec::new(),
         }
     }
 }
