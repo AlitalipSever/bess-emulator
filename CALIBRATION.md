@@ -318,6 +318,66 @@ Three observations that belong here rather than in a commit message:
   full replayed year. The share fell when the station constant was itemized
   in PR5; both readings above are post-inventory.
 
+## M2 (v0.5.0): BMS temperature derating
+
+The BMS now scales each rack's charge and discharge limit by a factor read
+from cell temperature, multiplied onto the SoC taper. The factor is the
+cell maker's own table, taken point for point.
+
+| Cell temperature (C) | -30 | -20 | 0 | 5 | 10 | 15 | 45 | 55 | 60 |
+|---|---|---|---|---|---|---|---|---|---|
+| Charging, P-rate (Table 5) | | | 0.05 | 0.12 | 0.3 | 0.5 | 0.5 | 0.5 | 0 |
+| Discharging, P-rate (Table 7) | 0 | 0.5 | 0.5 | 0.5 | | | 0.5 | 0.5 | 0 |
+
+Charging below 0 C is prohibited by the same document, so the charging curve
+starts there. The discharging table skips 5 to 45 C at 0.5P on both sides,
+and the curve carries 0.5P across the gap. Between listed points the curve is
+linear, because the specification gives points and not a step rule; that
+choice is ours, not the document's. `listed_points_are_reproduced_exactly`
+and `defaults_are_the_datasheet_tables` in
+`crates/bess-models/src/bms.rs` and `bms/derate.rs` hold the numbers above
+to the code.
+
+**Only the shape is carried over, and that is a known gap.** The table peaks
+at 0.5P, the cell's continuous rating. GW-01's racks are rated at 1C
+(`max_current_a` = 314 A, an M0 parameter), so the factor is the table
+divided by its own peak and applied to that rating. Read literally, the
+cell would cap a rack at half its site rating in the comfort band, and the
+plant, which draws 0.498 of rack rating at full PCS power, would sit right
+on that cap. Aligning the rack rating with a named cell changes full-power
+capability and every annual figure below, so it is a decision of its own
+and not a side effect of this one. The Hithium 314 Ah specification (1P
+continuous, the same 0 to 60 C charging and -30 to 60 C discharging window)
+fits the 1C rating but publishes no table.
+
+Measured on replayed days (seed 7, GW-01 on the internal dispatch plan),
+held by `crates/bess-models/tests/bms_derating.rs`:
+
+| Reading | 1 January | 14 July |
+|---|---|---|
+| Cell temperature range | 13.6 to 33.7 C | up to 38.0 C |
+| Lowest temperature factor on any rack | 0.89 (charging) | 1.00 |
+| Binds against dispatch | no | no |
+
+**Derating is capability, not yet a change to the record.** A winter morning
+moves the charging factor, because cells dip below the 15 C knee, but 0.89
+of rack rating is still well above the 0.498 the plant draws. July cells
+stay 17 K under the 55 C shoulder. The annual measurement was re-run with
+derating in place and every published figure held (`bess-bench --check`),
+so the M1 record stands unchanged. Derating first shows in the plant when a
+scenario takes the HVAC away or starts the site cold; phase 4 of M2 is where
+that happens.
+
+**Sources:** EVE Energy, Product Specification, Prismatic LFP Cell MB31
+(314 Ah), PBRI-MB31-D06-01, version A, first issued 2023-11-20, Tables 3, 5,
+7 and 10. No manufacturer-hosted copy was found; the copy used is
+[a distributor mirror](https://www.gobelpower.com/download/EVE-314Ah-CB31-LiFePO4-Cell-Datasheet.pdf)
+(filename says CB31, every page reads MB31), retrieved 2026-09-27.
+Cross-check: Xiamen Hithium, Cell Technical Specification LFP71173207 /
+314 Ah, HC-A314-SPEC-0001 V3.0, effective 2024-01-10, also through a
+[distributor mirror](https://www.xihopower.com/uploadfile/2026/02/26/20260226135453ow8Ryn.pdf),
+retrieved 2026-09-27.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

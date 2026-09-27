@@ -60,10 +60,13 @@ consequences, stated so the invariants stay honest:
 
 Charge and discharge limits get a temperature factor each, multiplied onto
 the existing SoC taper. LFP charge acceptance collapses near freezing and
-both directions taper at high temperature, so the factors are asymmetric:
-charge tapers to zero approaching the cold limit, both taper above the warm
-knee, and beyond the hot limit the limits are zero (the trip itself is an
-alarm, wired in phase 2). Thresholds come from a public 314 Ah class LFP
+both directions taper at high temperature, so the factors are asymmetric.
+As pinned from the EVE MB31 tables: charging falls from full at 15 C to a
+tenth of it at 0 C and stops below; discharging holds full from -20 C and
+fades to nothing at -30 C; both hold full to 55 C and reach zero at 60 C,
+beyond which the limits are zero (the trip itself is an alarm, wired in
+phase 2). The curve lives in `bms/derate.rs`, apart from the BMS policy,
+because it makes claims about a datasheet and nothing else. Thresholds come from a public 314 Ah class LFP
 datasheet, pinned in this phase's first PR; the shape (piecewise linear
 taper bands, mirroring the SoC taper) is fixed here.
 

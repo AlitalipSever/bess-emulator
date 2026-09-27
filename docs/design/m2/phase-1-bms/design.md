@@ -15,6 +15,12 @@ Each decision is proposed here and confirmed or revised in its PR.
   retrieval date. Rationale: GW-01's cells are declared as 314 Ah class in
   ARCHITECTURE.md; the derating story should come from the cell the plant
   claims to have.
+  **Confirmed in PR1:** EVE MB31, PBRI-MB31-D06-01 rev A, Tables 5
+  (charging) and 7 (discharging), linear between listed points. The
+  expectation above was wrong on the warm side: the table holds full power
+  to 55 C, not 45 C. The table's level (0.5P) is not carried over, only its
+  shape, because GW-01 racks are rated 1C; that mismatch is recorded as an
+  open question in the milestone README.
 - **D2, derating multiplies the SoC taper.** The temperature factor and the
   existing SoC taper combine by multiplication, not minimum. Rationale:
   both mechanisms are real and independent (a cold rack at high SoC charges

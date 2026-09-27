@@ -86,12 +86,22 @@ explained in CALIBRATION.md.
 Filled as PRs land. Every entry is a change someone integrating against
 v0.4.0 can trip over.
 
-- (none yet)
+- **Rack limits now depend on cell temperature** (phase 1 PR1). A rack
+  above 55 C loses power in both directions and none flows above 60 C;
+  a rack below 15 C charges slower and none charges below 0 C. On the
+  replayed reference year this never binds against dispatch, so v0.4.0
+  annual figures are unchanged; an integrator driving cells out of the
+  band (external setpoints on a cold site, a future HVAC-loss scenario)
+  will see limits drop that never dropped before.
 
 ## Open questions
 
-- Which public 314 Ah class LFP datasheet pins the derating thresholds
-  (phase 1, resolved in its PR1).
+- ~~Which public 314 Ah class LFP datasheet pins the derating
+  thresholds.~~ Resolved in phase 1 PR1: EVE MB31.
+- Whether GW-01's rack rating (1C, an M0 parameter) should follow the
+  pinned cell's 0.5P continuous rating. Phase 1 carries the table's shape
+  only; aligning the rating changes full-power capability and the annual
+  record, so it needs its own decision (see CALIBRATION.md, M2 derating).
 - Final alarm bit layout of the three alarm words (phase 2 design proposes,
   its PR1 freezes).
 - Day-ahead price source and license for the 2024 reference year, SMARD
