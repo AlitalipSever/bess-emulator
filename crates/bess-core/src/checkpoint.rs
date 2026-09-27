@@ -18,13 +18,14 @@ use crate::state::SiteState;
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
 ///
-/// v3 (M1): the auxiliary inventory added the itemized draw to the site
+/// v4 (M2): racks gained the cell spread (`cell_dsoc`, `cell_dv_v`) and
+/// the balancing flag. v3 (M1): the auxiliary inventory added the itemized draw to the site
 /// state and the per-item accumulators to the energy meters. v2 (M1):
 /// container HVAC gained a staged mode and its anti short-cycle timer.
 /// Pre-1.0 checkpoints are not migrated; an older file is rejected with its
 /// version named rather than half-restored, since a missing item would
 /// otherwise restore as a plant whose auxiliary meters silently read zero.
-pub const FORMAT_VERSION: u32 = 3;
+pub const FORMAT_VERSION: u32 = 4;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {

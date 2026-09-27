@@ -375,6 +375,9 @@ mod tests {
                     // draws them: -1 K, 0 K, +1 K, ...
                     temp_offset_c: i as f64 - 1.0,
                     alarm_bits: 0,
+                    cell_dsoc: 0.0,
+                    cell_dv_v: 0.0,
+                    balancing_active: false,
                 })
                 .collect(),
         }

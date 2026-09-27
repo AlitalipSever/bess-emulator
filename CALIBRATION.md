@@ -71,20 +71,20 @@ fails if this block is stale.
 
 | Gate | Band | Measured | Verdict | Band drawn from |
 |---|---|---|---|---|
-| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 84.22% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
-| Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.59% | inside | no public dataset publishes this at plant scale; see the note below |
+| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 84.17% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
+| Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.60% | inside | no public dataset publishes this at plant scale; see the note below |
 
 Energy at the point of interconnection over the run:
 
 | Quantity | Value |
 |---|---|
-| Imported | 74 400.9 MWh |
-| Exported | 62 657.9 MWh |
-| Round-trip efficiency | 0.8422 |
-| Round-trip efficiency, house load removed from import | 0.8645 |
-| Equivalent full cycles, exported energy over nameplate energy | 312.3 |
+| Imported | 74 406.4 MWh |
+| Exported | 62 629.7 MWh |
+| Round-trip efficiency | 0.8417 |
+| Round-trip efficiency, house load removed from import | 0.8642 |
+| Equivalent full cycles, exported energy over nameplate energy | 312.2 |
 | Stored energy, end minus start | -91.6 MWh |
-| Auxiliary share of import / of export | 2.59% / 3.07% |
+| Auxiliary share of import / of export | 2.60% / 3.08% |
 | Unexplained residual | 0.00069% of throughput, gate below 0.2% |
 
 Three definitions the figures above depend on. The round-trip ratio is
@@ -100,15 +100,15 @@ Where the energy went, each category on its own meter:
 
 | Category | MWh | Share of import |
 |---|---|---|
-| Battery | 5 103.4 | 6.86% |
-| PCS conversion | 3 128.2 | 4.20% |
-| Transformer | 1 680.1 | 2.26% |
-| Auxiliary: HVAC | 1 355.8 | 1.82% |
+| Battery | 5 129.9 | 6.89% |
+| PCS conversion | 3 128.1 | 4.20% |
+| Transformer | 1 679.9 | 2.26% |
+| Auxiliary: HVAC | 1 363.4 | 1.83% |
 | Auxiliary: rack electronics | 301.9 | 0.41% |
 | Auxiliary: PCS standby | 47.1 | 0.06% |
 | Auxiliary: controls and protection | 131.4 | 0.18% |
 | Auxiliary: lighting and safety | 87.6 | 0.12% |
-| **Total** | **11 835.5** | **15.91%** |
+| **Total** | **11 869.3** | **15.95%** |
 
 Temperatures and HVAC over the run:
 
@@ -117,8 +117,8 @@ Temperatures and HVAC over the run:
 | Ambient, coldest to warmest | -12.1 to 33.3 C |
 | Container air, coldest to warmest | 10.0 to 29.0 C |
 | Cells, coldest to warmest | 9.1 to 38.0 C |
-| Duty, one unit / both units / heating | 17.79% / 0.33% / 0.03% |
-| Cooling starts per container | 6 729.6 |
+| Duty, one unit / both units / heating | 17.89% / 0.33% / 0.03% |
+| Cooling starts per container | 6 819.5 |
 
 <!-- bess-bench:end m1-annual -->
 
@@ -377,6 +377,70 @@ Cross-check: Xiamen Hithium, Cell Technical Specification LFP71173207 /
 314 Ah, HC-A314-SPEC-0001 V3.0, effective 2024-01-10, also through a
 [distributor mirror](https://www.xihopower.com/uploadfile/2026/02/26/20260226135453ow8Ryn.pdf),
 retrieved 2026-09-27.
+
+## M2 (v0.5.0): cell spread and balancing
+
+Each rack carries one number with dynamics, the SoC spread between its
+highest and lowest cell, and publishes it the way a BMS does: as the
+voltage spread that SoC difference produces on the OCV curve. The spread
+widens every tick and passive bleed resistors close it again near the top
+of charge.
+
+| Parameter | Value | Basis | Status |
+|---|---|---|---|
+| Spread growth with time | 1.8 % SoC per month | self-discharge of 3.0 %/month (EVE MB31, after the first month), with a cell-to-cell spread of sigma = 10 % of the mean (Nuvation's simulation assumption); the highest and lowest of 416 cells sit about 6 sigma apart | referenced rate, referenced spread assumption, derived range |
+| Spread growth with throughput | 100 ppm of SoC throughput | coulombic efficiency differences are measurable at the 10 ppm level (Yang 2015); Nuvation assumes sigma = 830 ppm, chosen high so imbalance shows | estimate, bracketed by the two |
+| Commissioning spread | 0.2 to 0.6 % SoC, uniform per rack | what a factory top-balance leaves | estimate |
+| Bleed current | 240 mA per cell | TI BQ79616 battery monitor, internal balancing at 240 mA; Nuvation's ESS bleed resistor (13 ohm at 90 % duty) works out to about 250 mA | referenced |
+| Share of cells bleeding | half the string | cells above the lowest by more than the tolerance | estimate |
+| Balancing window | rack SoC 0.90 and up, idle or charging, interrupted above 1 A discharge | Orion BMS starts LFP balancing with a cell within 5 to 10 % of full and balances in charge mode; Nuvation allows charge, low discharge or rest | referenced policy, estimated interrupt current |
+| On / off thresholds | 30 mV / 20 mV | a published LFP BMS parameter sheet: start at 30 mV, stop at 20 mV | referenced |
+
+Measured over 90 replayed days from 11 April (seed 7):
+
+| Reading | Value |
+|---|---|
+| Days until a fresh plant first balances | about 27 |
+| Spread once balancing runs | saws between 2.2 and 2.75 % SoC |
+| Voltage spread at SoC 0.95 at the thresholds | 30 mV on, 20 mV off (by construction) |
+| Racks bleeding at once, busiest 10 minutes of a day | 17 to 94 of 480 |
+| Balancing hours on one rack | 61 in 90 days |
+
+Over the replayed year (the generated block above), balancing added 26.5 MWh
+to the battery loss row, which is where bleed heat is booked, and the HVAC
+drew 7.6 MWh more to remove that heat. Round-trip efficiency fell from
+84.22 % to 84.17 %; both gates still hold. `tests/balancing.rs` holds one
+tooth of the sawtooth on a replayed day, with the energy balance closing
+over it.
+
+**Known gaps.**
+
+- **The plateau reads too tight.** At mid SoC a 2.5 % spread shows as 2 to 3 mV
+  on this OCV curve. Field data from a 300 Ah LFP container (396 cells per
+  string, eight months) averages 12 to 21 mV and reaches 63 to 113 mV at the
+  end of charge.
+  - The missing part is resistance and temperature spread between cells. That spread shows up under current, while this model reads only the open-circuit curve.
+  - The top-of-charge figure is also out of reach: the window stops at SoC 0.95, below the steep knee where those readings come from.
+- **Rack mean SoC does not self-discharge.** Only the spread drifts. The
+  cell model has no self-discharge, so 3 %/month of mean loss is missing
+  from the stored-energy account.
+- **Drift is the same for every rack.** Racks differ only in their commissioning draw.
+  - They therefore reach the threshold within days of each other.
+  - This is the uniformity the phase 1 plan flagged for the imbalance alarm.
+- **No measured growth rate exists to gate against.** No open source found
+  states an SoC imbalance growth rate for LFP ESS strings, so the growth
+  law is built from its causes, not fitted to an observed rate.
+
+**Sources:** EVE MB31 specification (as in the derating section; Table 3
+self-discharge). [Nuvation Energy, cell balancing white paper](https://nuvationenergy.com/wp-content/uploads/2023/04/nuvation-energy-whitepaper-cell-balancing-bms.pdf)
+(Table 1 simulation assumptions, bleed resistor and duty). [TI BQ79616
+datasheet](https://www.ti.com/lit/ds/symlink/bq79616.pdf) (240 mA cell
+balancing). [Orion BMS balancing parameters](https://www.orionbms.com/manuals/utility_o2/param_balancing_description.html).
+[LFP BMS parameter sheet](https://akkudoktor.net/uploads/short-url/1oLsGvxsgF1eFVtFNk2cYVH9P9d.pdf)
+(vendor not named; 30 mV start, 20 mV stop). Yang et al. 2015, J. Power
+Sources, coulombic efficiency measurement (abstract only). [Field
+voltage spreads, 300 Ah LFP container](https://arxiv.org/pdf/2601.03007).
+Retrieved 2026-09-27.
 
 ## Planned gates (from ROADMAP.md)
 

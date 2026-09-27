@@ -93,6 +93,19 @@ v0.4.0 can trip over.
   annual figures are unchanged; an integrator driving cells out of the
   band (external setpoints on a cold site, a future HVAC-loss scenario)
   will see limits drop that never dropped before.
+- **Checkpoint format 4** (phase 1 PR2). Racks carry `cell_dsoc`,
+  `cell_dv_v` and `balancing_active`; v0.4.0 checkpoints (format 3) are
+  rejected by version, no migration.
+- **Racks drift apart and balance** (phase 1 PR2). A fresh plant reaches
+  the balancing threshold after about four weeks of cycling; from then on
+  bleed resistors run at the top of the window, rack SoC falls by what
+  they burn, and that energy is booked in the battery loss row
+  (`bess_loss_watthours_total{category="battery"}`), which therefore
+  grows slightly. The annual figures move; the delta is in
+  CALIBRATION.md.
+- **New Prometheus families** (phase 1 PR2): `bess_rack_cell_dv_volts`
+  (`stat="min"|"max"`) and `bess_racks_balancing`. No map change: the
+  registers arrive in phase 2.
 
 ## Open questions
 

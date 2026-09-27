@@ -63,7 +63,7 @@ for the same reason.
 
 ## Current state
 
-Six files predate this contract and exceed the hard limit. They are named here
+Five files predate this contract and exceed the hard limit. They are named here
 rather than allowlisted in a tool, because an allowlist in a tool is a place
 for debt to become invisible:
 
@@ -73,7 +73,6 @@ for debt to become invisible:
 | `crates/bess-models/src/thermal.rs` | 683 | 342 | 341 |
 | `crates/bess-scene/src/instances.rs` | 680 | 635 | 45 |
 | `crates/bess-data/src/lib.rs` | 568 | 545 | 23 |
-| `crates/bess-emulator/src/http.rs` | 544 | 394 | 150 |
 | `crates/bess-data/src/bin/compile-weather.rs` | 501 | 501 | 0 |
 
 No campaign to clear this table. A refactor whose only purpose is to satisfy a
@@ -98,3 +97,7 @@ gates: a gate that does not fail is not a gate.
 
 Known next trigger: `instances.rs` gains precipitation particles in M1.5 PR2,
 which is a new concern in an over-limit file, so that PR splits it.
+
+Cleared: `http.rs` (544 lines) in M2 phase 1 PR2, when the BMS gauges
+arrived. The Prometheus exposition moved to `http/metrics.rs` with its tests
+beside it in `http/metrics/tests.rs`; `http.rs` keeps routing and handlers.

@@ -59,7 +59,7 @@ fn ocv_rack_v(soc: f64, cfg: &RackConfig) -> f64 {
 }
 
 /// Piecewise-linear interpolation of the cell OCV curve.
-fn ocv_cell_v(soc: f64) -> f64 {
+pub(crate) fn ocv_cell_v(soc: f64) -> f64 {
     let s = soc.clamp(0.0, 1.0);
     // 13 points: a linear scan beats binary search at this size.
     let mut prev = OCV_LFP_V[0];
@@ -75,7 +75,7 @@ fn ocv_cell_v(soc: f64) -> f64 {
 
 /// Integral of the cell OCV curve from 0 to `soc`, in V (multiply by Ah for
 /// energy). Exact for the piecewise-linear curve.
-fn ocv_cell_integral_v(soc: f64) -> f64 {
+pub(crate) fn ocv_cell_integral_v(soc: f64) -> f64 {
     let s = soc.clamp(0.0, 1.0);
     let mut acc = 0.0;
     let mut prev = OCV_LFP_V[0];
@@ -170,6 +170,9 @@ mod tests {
             resistance_scale: 1.0,
             temp_offset_c: 0.0,
             alarm_bits: 0,
+            cell_dsoc: 0.0,
+            cell_dv_v: 0.0,
+            balancing_active: false,
         }
     }
 

@@ -30,14 +30,20 @@ model.
 
 ## New state
 
-`RackState` gains two fields:
+`RackState` gains three fields (as built in PR2; the draft had two):
 
+- `cell_dsoc`: the SoC spread between the highest and lowest cell, the
+  one scalar with dynamics. Throughput and time widen it, balancing
+  narrows it. There is no per-cell state behind it, per the non-goals.
 - `cell_dv_v`: the spread between the highest and lowest cell voltage in
-  the rack, the quantity a real BMS publishes as min/max. It is modeled at
-  rack granularity as one scalar with dynamics: throughput widens it,
-  balancing narrows it. There is no per-cell state behind it, per the
-  non-goals; the register is the truth we are accountable to, and the
-  register is a min/max.
+  the rack, the quantity a real BMS publishes as min/max: `cell_dsoc`
+  read through the OCV curve at the rack's SoC, recomputed every step.
+  The draft made this the dynamic state. It cannot be: the same
+  imbalance reads a few millivolts on the LFP plateau and tens at the top
+  knee, so a voltage with its own dynamics would jump every time SoC
+  crossed the knee. Charge is what drifts; voltage is how it shows. The
+  register is still the truth we are accountable to, and the register is
+  still a min/max.
 - `balancing_active`: whether the bleed resistors are on. Status, not an
   alarm; the alarm phase reads the spread, not this flag.
 
@@ -87,7 +93,7 @@ links real.
 - Energy conservation extends over balancing: stored energy change equals
   cell-model flows minus bleed, bleed reappears as heat in the thermal
   node.
-- `cell_dv_v >= 0` always; balancing strictly narrows, throughput strictly
+- `cell_dsoc >= 0` always; balancing strictly narrows, throughput strictly
   widens, neither may step the spread discontinuously.
 - Derate factors are in [0, 1] and monotonic in temperature on each side of
   the window.

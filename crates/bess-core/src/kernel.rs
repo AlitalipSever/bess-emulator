@@ -56,7 +56,7 @@ struct BlockOutcome {
     p_ac_w: f64,
     /// HVAC electrical draw of the block's containers, W.
     hvac_w: f64,
-    /// Battery heat released, W.
+    /// Battery heat released (cell losses and balancing bleed), W.
     battery_heat_w: f64,
     /// AC-side capability given current BMS limits.
     ac_capability: PowerLimits,
@@ -69,6 +69,8 @@ struct BlockOutcome {
 struct Scratch {
     /// DC limits of the racks in the block being stepped.
     rack_limits: Vec<PowerLimits>,
+    /// Balancing heat of the racks in the block being stepped, W.
+    bms_heat: Vec<f64>,
     /// Heat released by the racks of the container being stepped, in rack
     /// order.
     rack_heat: Vec<f64>,
@@ -101,6 +103,7 @@ impl Simulation {
             events: Vec::with_capacity(16),
             scratch: Scratch {
                 rack_limits: vec![PowerLimits::default(); racks_per_block],
+                bms_heat: vec![0.0; racks_per_block],
                 rack_heat: vec![0.0; racks_per_container],
             },
         }
@@ -270,9 +273,9 @@ impl Simulation {
     }
 }
 
-/// Step one power block: aggregate BMS limits, convert the AC share to a DC
-/// request, distribute it over in-service racks, advance the electrical and
-/// thermal models, and finalize the PCS.
+/// Step one power block: advance the BMS, aggregate its limits, convert the
+/// AC share to a DC request, distribute it over in-service racks, advance
+/// the electrical and thermal models, and finalize the PCS.
 fn step_block(
     models: &Models,
     cfg: &PlantConfig,
@@ -284,16 +287,19 @@ fn step_block(
 ) -> BlockOutcome {
     let Scratch {
         rack_limits,
+        bms_heat,
         rack_heat,
     } = scratch;
 
-    // DC capability of this block, rack by rack.
+    // The BMS's own dynamics first (spread, balancing), then the DC
+    // capability of this block, rack by rack.
     let mut block_limits = PowerLimits::default();
     let mut in_service = 0usize;
     {
         let mut i = 0;
-        for container in &block.containers {
-            for rack in &container.racks {
+        for container in &mut block.containers {
+            for rack in &mut container.racks {
+                bms_heat[i] = models.bms.step_bms(rack, &cfg.rack, dt_s).heat_w;
                 let lim = models.bms.rack_limits(rack, &cfg.rack);
                 rack_limits[i] = lim;
                 block_limits.max_charge_w += lim.max_charge_w;
@@ -329,6 +335,7 @@ fn step_block(
         let heat_slots = &mut rack_heat[..racks_here];
         for (slot, rack) in heat_slots.iter_mut().zip(&mut container.racks) {
             let lim = rack_limits[i];
+            let bleed_w = bms_heat[i];
             i += 1;
             let request_w = if rack.in_service {
                 per_rack_w.clamp(-lim.max_charge_w, lim.max_discharge_w)
@@ -342,8 +349,10 @@ fn step_block(
                 rack.soc
             );
             p_dc_block_w += res.p_dc_w;
-            *slot = res.heat_w;
-            battery_heat_w += res.heat_w;
+            // Bleed resistors dissipate inside the rack, next to the cells:
+            // the same thermal mass, and the same loss row.
+            *slot = res.heat_w + bleed_w;
+            battery_heat_w += res.heat_w + bleed_w;
         }
         hvac_w += models
             .thermal

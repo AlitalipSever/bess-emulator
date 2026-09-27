@@ -8,21 +8,21 @@
     "ticks": 31536000
   },
   "energy": {
-    "import_mwh": 74400.9,
-    "export_mwh": 62657.9,
-    "round_trip_efficiency": 0.8422,
-    "round_trip_efficiency_excluding_aux": 0.8645,
-    "equivalent_full_cycles": 312.3,
+    "import_mwh": 74406.4,
+    "export_mwh": 62629.7,
+    "round_trip_efficiency": 0.8417,
+    "round_trip_efficiency_excluding_aux": 0.8642,
+    "equivalent_full_cycles": 312.2,
     "stored_delta_mwh": -91.6,
-    "aux_share_of_import": 0.02586,
-    "aux_share_of_export": 0.0307,
+    "aux_share_of_import": 0.02596,
+    "aux_share_of_export": 0.03084,
     "balance_residual_share": 6.9e-6
   },
   "losses": {
-    "battery_mwh": 5103.4,
-    "pcs_mwh": 3128.2,
-    "transformer_mwh": 1680.1,
-    "aux_hvac_mwh": 1355.8,
+    "battery_mwh": 5129.9,
+    "pcs_mwh": 3128.1,
+    "transformer_mwh": 1679.9,
+    "aux_hvac_mwh": 1363.4,
     "aux_bms_mwh": 301.9,
     "aux_pcs_standby_mwh": 47.1,
     "aux_controls_mwh": 131.4,
@@ -37,9 +37,9 @@
     "cell_max_c": 38.0
   },
   "hvac": {
-    "stage1_duty": 0.17793,
-    "stage2_duty": 0.00329,
+    "stage1_duty": 0.17894,
+    "stage2_duty": 0.00333,
     "heat_duty": 0.00025,
-    "compressor_starts_per_container": 6729.6
+    "compressor_starts_per_container": 6819.5
   }
 }

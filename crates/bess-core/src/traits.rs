@@ -48,10 +48,33 @@ pub trait CellModel: Send + Sync {
     fn stored_energy_wh(&self, rack: &RackState, cfg: &RackConfig) -> f64;
 }
 
+/// What one BMS step moved.
+///
+/// Passive balancing burns charge off the high cells in bleed resistors
+/// inside the rack. The energy leaves storage and reappears as heat in the
+/// rack's own thermal mass, so the step reports both halves: the energy
+/// conservation invariant holds the interface, not one implementation, the
+/// same way `ThermalFlows` holds the thermal model.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct BmsFlows {
+    /// Energy the step took out of the rack's stored energy, Wh.
+    pub bled_wh: f64,
+    /// Heat released into the rack during the step, W. Equals `bled_wh`
+    /// spread over the step: bleed resistors have nowhere else to put it.
+    pub heat_w: f64,
+}
+
 /// Battery management logic for one rack.
 pub trait BmsLogic: Send + Sync {
     /// Power limits for a rack right now (SoC window, derating).
     fn rack_limits(&self, rack: &RackState, cfg: &RackConfig) -> PowerLimits;
+
+    /// Advance the BMS's own dynamics by `dt_s` (cell spread, balancing).
+    /// The kernel calls this once per tick, before it asks for limits.
+    /// Named apart from `CellModel::step_rack` on purpose: two traits
+    /// mutating one rack under one method name would make every mention
+    /// ambiguous.
+    fn step_bms(&self, rack: &mut RackState, cfg: &RackConfig, dt_s: f64) -> BmsFlows;
 }
 
 /// The heat flows one container tick moved, W.

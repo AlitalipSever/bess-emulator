@@ -1,19 +1,22 @@
 //! Basic BMS: SoC operating window with linear power taper, derated by
-//! cell temperature.
+//! cell temperature, with a cell spread that passive balancing narrows.
 
+pub mod balance;
 pub mod derate;
 
 use bess_core::config::RackConfig;
 use bess_core::state::RackState;
-use bess_core::traits::{BmsLogic, PowerLimits};
+use bess_core::traits::{BmsFlows, BmsLogic, PowerLimits};
 
+pub use balance::Balancing;
 pub use derate::{TempCurve, EVE_MB31_CHARGE_P, EVE_MB31_DISCHARGE_P};
 
 /// Battery management: enforce the SoC operating window by tapering the
 /// power limit linearly to zero inside a band at each end, and derate each
 /// direction by cell temperature. The two factors multiply: a cold rack
 /// near the top of the window charges worse than either alone would allow.
-/// Balancing and the alarm tree arrive later in M2.
+/// Its step advances the cell spread and runs top balancing; the alarm tree
+/// arrives in M2 phase 2.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BasicBms {
     /// Width of the linear taper band inside each SoC limit.
@@ -22,6 +25,8 @@ pub struct BasicBms {
     pub charge_temp: TempCurve,
     /// Permitted discharging power against cell temperature.
     pub discharge_temp: TempCurve,
+    /// Cell spread dynamics and the balancing policy.
+    pub balancing: Balancing,
 }
 
 impl Default for BasicBms {
@@ -34,6 +39,7 @@ impl Default for BasicBms {
             discharge_temp: TempCurve {
                 points: EVE_MB31_DISCHARGE_P.to_vec(),
             },
+            balancing: Balancing::default(),
         }
     }
 }
@@ -52,6 +58,10 @@ impl BmsLogic for BasicBms {
             max_charge_w: rated_w * charge_f,
             max_discharge_w: rated_w * discharge_f,
         }
+    }
+
+    fn step_bms(&self, rack: &mut RackState, cfg: &RackConfig, dt_s: f64) -> BmsFlows {
+        self.balancing.step(rack, cfg, dt_s)
     }
 }
 
@@ -76,6 +86,9 @@ mod tests {
             resistance_scale: 1.0,
             temp_offset_c: 0.0,
             alarm_bits: 0,
+            cell_dsoc: 0.0,
+            cell_dv_v: 0.0,
+            balancing_active: false,
         }
     }
 

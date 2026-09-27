@@ -39,17 +39,34 @@ Each decision is proposed here and confirmed or revised in its PR.
   Rationale: SCADA publishes min/max, so a min/max is what we model, per
   "model to the interface". Per-cell state (200k cells at GW-01) buys
   nothing observable and is a non-goal.
+  **Revised in PR2.** The formula above is a SoC-spread law (|I|/Q is a
+  SoC rate), so the state became `cell_dsoc` and `cell_dv_v` its OCV
+  reading (architecture.md, New state). Growth has two terms, not one:
+  coulombic-efficiency mismatch per unit throughput (100 ppm, an
+  estimate between the 10 ppm measurable and Nuvation's deliberately high
+  830 ppm) and self-discharge mismatch per unit time (EVE MB31's
+  3 %/month at Nuvation's 10 % spread, about 6 sigma across 416 cells:
+  1.8 %/month). Manufacturing capacity sigma, the number this decision
+  first reached for, sets where cells start, not how fast they drift, so
+  it does not enter the law. Bleed: 240 mA per cell (TI BQ79616; Nuvation
+  about 250 mA), half the string bleeding (estimate). Sources in
+  CALIBRATION.md.
 - **D4, balancing policy.** Bleed runs when the rack is near the top of the
   window and the spread exceeds a threshold, and while the rack is idle or
   charging; discharge interrupts it. This mirrors the top-balancing
   behavior of real passive BMS designs (bleed the high cells at the
   charge-voltage shoulder). The policy lives in `BasicBms` parameters, not
   in the trait.
+  **Confirmed in PR2:** bleed at SoC 0.90 and up (Orion: a cell within 5
+  to 10 % of full), on at 30 mV and off at 20 mV (a published LFP BMS
+  parameter sheet), interrupted above 1 A of discharge. The thresholds
+  read the voltage spread, as a real BMS does; at SoC 0.95 our OCV curve
+  turns 30 mV into about 2.7 % SoC.
 - **D5, `BmsFlows` is the accountability surface.** Like `ThermalFlows` in
   M1: the step reports bleed power and heat so the invariant tests hold the
   interface, not one implementation.
-- **D6, checkpoint format 4.** Two new rack fields (`cell_dv_v`,
-  `balancing_active`) change the schema. Old files are rejected by version,
+- **D6, checkpoint format 4.** Three new rack fields (`cell_dsoc`,
+  `cell_dv_v`, `balancing_active`) change the schema. Old files are rejected by version,
   release notes say so, no migration pre-1.0.
 
 ## Signal map impact
