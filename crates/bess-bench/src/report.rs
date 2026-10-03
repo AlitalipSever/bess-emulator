@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn a_record_that_matches_the_measurement_reports_no_drift() {
-        assert!(drift(&kpis(), &kpis()).is_empty());
+        assert_eq!(drift(&kpis(), &kpis()), Vec::<String>::new());
     }
 
     #[test]

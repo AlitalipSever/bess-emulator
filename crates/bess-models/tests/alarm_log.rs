@@ -156,7 +156,11 @@ fn a_reset_clears_only_what_has_cooled() {
     let still = sim
         .reset_alarms(ResetScope::Block(0))
         .expect("block 0 exists");
-    assert!(still.is_empty());
+    assert_eq!(
+        still,
+        Vec::new(),
+        "a cooled rack's trip reported as still present"
+    );
     sim.step(&weather.inputs_at(sim.unix_time_s()));
     assert!(!trip_of(&sim));
 }
