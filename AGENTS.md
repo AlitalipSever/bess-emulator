@@ -63,13 +63,12 @@ for the same reason.
 
 ## Current state
 
-Five files predate this contract and exceed the hard limit. They are named here
+Four files predate this contract and exceed the hard limit. They are named here
 rather than allowlisted in a tool, because an allowlist in a tool is a place
 for debt to become invisible:
 
 | File | Lines | Code | Tests |
 |---|---|---|---|
-| `crates/bess-emulator/src/map.rs` | 946 | 703 | 243 |
 | `crates/bess-models/src/thermal.rs` | 683 | 342 | 341 |
 | `crates/bess-scene/src/instances.rs` | 680 | 635 | 45 |
 | `crates/bess-data/src/lib.rs` | 568 | 545 | 23 |
@@ -101,3 +100,11 @@ which is a new concern in an over-limit file, so that PR splits it.
 Cleared: `http.rs` (544 lines) in M2 phase 1 PR2, when the BMS gauges
 arrived. The Prometheus exposition moved to `http/metrics.rs` with its tests
 beside it in `http/metrics/tests.rs`; `http.rs` keeps routing and handlers.
+
+Cleared: `map.rs` (946 lines) in M2 phase 2 PR2, when the alarm points
+and a second per-block address range arrived. The table is cut by subject
+into `map/site.rs`, `map/control.rs`, `map/block.rs` and `map/alarms.rs`,
+with the Modbus encoding in `map/encode.rs`, the CSV writer in
+`map/csv.rs` and the contract tests in `map/tests.rs`; `map.rs` keeps the
+vocabulary (classes, encodings, the `Point` type, the address bases) and
+sorts the table by address.

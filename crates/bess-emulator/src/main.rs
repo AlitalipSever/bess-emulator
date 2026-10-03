@@ -6,6 +6,9 @@
 //! the kernel cannot tell the difference.
 
 mod cli;
+mod events;
+#[cfg(test)]
+mod fixtures;
 mod http;
 mod map;
 mod modbus;

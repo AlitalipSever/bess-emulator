@@ -167,11 +167,15 @@ mod tests {
         let layout = SiteLayout::new(&cfg);
         let mut out = Vec::new();
         build_precipitation(&mut out, &Scenery::clear(), &layout, 3.0);
-        assert!(out.is_empty());
+        assert!(out.is_empty(), "a clear sky drew {} floats", out.len());
         // A form with no rate, and a rate with no form, are both nothing.
         build_precipitation(&mut out, &falling(Precip::Rain, 0.0), &layout, 3.0);
         build_precipitation(&mut out, &falling(Precip::None, 5.0), &layout, 3.0);
-        assert!(out.is_empty());
+        assert!(
+            out.is_empty(),
+            "rate or form alone drew {} floats",
+            out.len()
+        );
     }
 
     #[test]
@@ -183,7 +187,7 @@ mod tests {
         for frame in 0..40 {
             let mut out = Vec::new();
             build_precipitation(&mut out, &scenery, &layout, frame as f32 * 0.37);
-            assert!(!out.is_empty());
+            assert!(!out.is_empty(), "frame {frame} drew no rain");
             let (instances, rest) = out.as_chunks::<{ super::super::FPI }>();
             assert!(rest.is_empty(), "a partial instance was emitted");
             for chunk in instances {

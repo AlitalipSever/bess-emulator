@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn the_committed_record_passes_every_gate() {
-        assert!(check(&passing()).is_empty());
+        assert_eq!(check(&passing()), Vec::<String>::new());
     }
 
     #[test]
