@@ -9,14 +9,19 @@
 //!
 //! Event-class points (the alarm words and the counts read off them) are
 //! published when they change, retained, so a subscriber arriving late gets
-//! the current word from the broker. Events themselves are published as they
-//! happen, every one, whatever the speed: they come off the simulation's
-//! event channel rather than the latest snapshot, which only ever holds one
-//! tick.
+//! the current word from the broker, and all of them again after every
+//! reconnect, because a broker that restarted without persistence has
+//! forgotten them. Events themselves are published as they happen, whatever
+//! the speed: they come off the simulation's event channel rather than the
+//! latest snapshot, which only ever holds one tick. An event the publisher
+//! could not keep up with, or the client could not queue, is lost and
+//! logged, and the gap in `seq` tells subscribers.
 
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
-use rumqttc::{AsyncClient, MqttOptions, QoS};
+use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, info, warn};
 
@@ -70,10 +75,16 @@ struct Publisher {
     last_pub_s: [Option<i64>; 3],
     /// Last value published per event-class point; `None` until the first.
     last_event_value: Vec<Option<f64>>,
+    /// Connections the broker has accepted, counted by the event loop.
+    connections: Arc<AtomicU64>,
+    /// The connection `last_event_value` was published on.
+    published_on: u64,
+    /// Events the client refused to queue since the start.
+    dropped_events: u64,
 }
 
 impl Publisher {
-    fn new(client: AsyncClient, handle: SimHandle) -> Self {
+    fn new(client: AsyncClient, handle: SimHandle, connections: Arc<AtomicU64>) -> Self {
         let topics = handle.points.iter().map(|p| point_topic(&p.name)).collect();
         let last_event_value = vec![None; handle.points.len()];
         Self {
@@ -82,6 +93,9 @@ impl Publisher {
             topics,
             last_pub_s: [None; 3],
             last_event_value,
+            connections,
+            published_on: 0,
+            dropped_events: 0,
         }
     }
 
@@ -119,6 +133,13 @@ impl Publisher {
     /// The event-class points whose value differs from what was last
     /// published, retained.
     fn publish_changed(&mut self) {
+        // A new connection may be to a broker that lost its retained
+        // store: forget what was published, so every word goes out again.
+        let connection = self.connections.load(Ordering::Relaxed);
+        if connection != self.published_on {
+            self.last_event_value.fill(None);
+            self.published_on = connection;
+        }
         let snap = self.handle.snapshot.borrow().clone();
         let sim_time_s = snap.state.unix_time_s();
         for (i, point) in self.handle.points.iter().enumerate() {
@@ -142,7 +163,7 @@ impl Publisher {
     }
 
     /// Every event of one tick, in log order.
-    fn publish_events(&self, batch: &TickEvents) {
+    fn publish_events(&mut self, batch: &TickEvents) {
         for (seq, event) in batch.numbered() {
             let topic = events::topic(TOPIC_PREFIX, event);
             let payload = events::payload(event, seq, batch.unix_time_s).to_string();
@@ -150,8 +171,16 @@ impl Publisher {
                 .client
                 .try_publish(topic, QoS::AtLeastOnce, false, payload)
             {
-                // The sequence numbers show the gap to whoever is listening.
-                debug!("mqtt: event {seq} skipped: {err}");
+                // Unlike a skipped telemetry sample, a lost event is never
+                // repeated, so it is counted and said out loud; the gap in
+                // `seq` tells subscribers.
+                self.dropped_events += 1;
+                if self.dropped_events == 1 || self.dropped_events.is_multiple_of(1000) {
+                    warn!(
+                        "mqtt: event {seq} dropped ({} so far): {err}",
+                        self.dropped_events
+                    );
+                }
             }
         }
     }
@@ -165,10 +194,16 @@ pub async fn publish(host: String, port: u16, handle: SimHandle) {
     let (client, mut event_loop) = AsyncClient::new(options, CLIENT_QUEUE);
     info!("mqtt: publishing to {host}:{port} under {TOPIC_PREFIX}");
 
+    let connections = Arc::new(AtomicU64::new(0));
+    let accepted = Arc::clone(&connections);
     tokio::spawn(async move {
         let mut errors = 0u32;
         loop {
             match event_loop.poll().await {
+                Ok(Event::Incoming(Packet::ConnAck(_))) => {
+                    errors = 0;
+                    accepted.fetch_add(1, Ordering::Relaxed);
+                }
                 Ok(_) => errors = 0,
                 Err(err) => {
                     errors += 1;
@@ -182,7 +217,7 @@ pub async fn publish(host: String, port: u16, handle: SimHandle) {
     });
 
     let mut events_rx = handle.events.subscribe();
-    let mut publisher = Publisher::new(client, handle);
+    let mut publisher = Publisher::new(client, handle, connections);
     let mut ticker = tokio::time::interval(Duration::from_secs(1));
     loop {
         tokio::select! {

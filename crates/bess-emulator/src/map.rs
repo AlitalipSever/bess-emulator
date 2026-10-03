@@ -6,9 +6,12 @@
 //! table, so they cannot drift apart.
 //!
 //! Register conventions: 32-bit values span two registers, high word first.
-//! `scale` converts physical units to register counts (register = physical
-//! value x scale, rounded). Addresses are stable per COMPATIBILITY.md once
-//! published: adding registers is a minor change, moving them is major.
+//! Every point's extract returns its value in the point's own unit, the one
+//! its name and `unit` state (kW for `_kw`, not W), because MQTT publishes
+//! that value under that unit. `scale` converts it to register counts
+//! (register = value x scale, rounded). Addresses are stable per
+//! COMPATIBILITY.md once published: adding registers is a minor change,
+//! moving them is major.
 //!
 //! The table is cut by what a reader is asking about: the site's telemetry,
 //! the control surface, each block's telemetry, and the alarm points, which
@@ -124,7 +127,7 @@ impl Encoding {
 pub struct Point {
     /// Dotted path, e.g. `site.poi.active_power_w` (MQTT topic uses `/`).
     pub name: String,
-    /// Physical unit of the extracted value.
+    /// Unit of the extracted value, which MQTT publishes beside it.
     pub unit: &'static str,
     /// Publication class.
     pub class: Class,

@@ -59,6 +59,10 @@ fn the_stream_carries_every_event_since_the_last_push() {
     // The summary is still all there.
     assert_eq!(message["site"], "GW-01");
     assert_eq!(message["event_count"], 0);
+    // Block words carry the name they have on Modbus and MQTT, where plain
+    // `alarm_bits` is the rack fold.
+    assert_eq!(message["blocks"][0]["block_alarm_bits"], 0);
+    assert!(message["blocks"][0].get("alarm_bits").is_none());
 
     let quiet = stream_message(&snapshot(), &[], 3);
     assert_eq!(quiet["events"], json!([]));

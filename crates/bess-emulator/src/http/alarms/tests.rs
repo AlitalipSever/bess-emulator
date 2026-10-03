@@ -52,7 +52,7 @@ async fn a_reset_answers_with_what_stayed_and_refuses_unknown_nodes() {
     )
     .await;
     assert_eq!(status, 200, "{body}");
-    assert_eq!(body["scope"], "block01/container0/rack04");
+    assert_eq!(body["node"], "block01/container0/rack04");
     assert_eq!(body["still_present"], json!([hot]));
 
     // The clear, then the raise again, in that order.
@@ -103,9 +103,20 @@ async fn a_reset_answers_with_what_stayed_and_refuses_unknown_nodes() {
             "{request}"
         );
     }
-    let (status, _) = post(addr, "/api/v1/alarms/reset", r#"{"scope": "plant"}"#).await;
-    assert!(
-        (400..500).contains(&status),
-        "an unknown scope is a client error"
-    );
+
+    // Bodies the endpoint does not fully understand are refused, never read
+    // as the nearest scope: a rack reset sent with the block tag would
+    // otherwise clear the whole block, and site with a stray field the site.
+    for request in [
+        r#"{"scope": "block", "block": 1, "container": 0, "rack": 4}"#,
+        r#"{"scope": "site", "block": 2}"#,
+        r#"{"scope": "plant"}"#,
+        r#"{"scope": "block"}"#,
+        r#"{"scope": "block", "block": -1}"#,
+        r#"{"scope": "site""#,
+    ] {
+        let (status, body) = post(addr, "/api/v1/alarms/reset", request).await;
+        assert_eq!(status, 400, "{request}");
+        assert!(body["error"].is_string(), "{request}: {body}");
+    }
 }

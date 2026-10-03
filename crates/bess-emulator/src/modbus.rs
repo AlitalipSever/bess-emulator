@@ -206,10 +206,17 @@ mod tests {
     /// counter advance, and the chain's three links appear on their own
     /// words in causal order and minutes apart: derate on the racks, the
     /// setpoint miss on the block, power limited on the site.
+    ///
+    /// The poller records when it first *saw* each bit, so it has to start
+    /// before the first one raises (tick 471). At 600x the 300 ms start-up
+    /// wait is about 180 ticks, a 5 ms poll about 3, and the links stay
+    /// seconds apart in wall time even on a loaded machine. At full speed
+    /// the first poll landed after the derate and a few dozen milliseconds
+    /// before the miss, and load pushed them into the same poll.
     #[tokio::test(flavor = "multi_thread")]
     async fn a_poller_sees_the_chain_on_the_alarm_registers() {
         let addr = "127.0.0.1:15503".parse().unwrap();
-        let (handle, _sim_task) = sim::start(fixtures::hot_plant(), sim::MAX_SPEED);
+        let (handle, _sim_task) = sim::start(fixtures::hot_plant(), 600.0);
         tokio::spawn(serve(addr, handle));
         tokio::time::sleep(Duration::from_millis(300)).await;
         let mut ctx = tcp::connect_slave(addr, Slave(1)).await.unwrap();

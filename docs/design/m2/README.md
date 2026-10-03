@@ -129,7 +129,10 @@ v0.4.0 can trip over.
   `site.alarm_bits` (42), `site.event_counter` (43), and per block, in a
   second range at 2000 + 10 x block, `block_alarm_bits`, `racks_derated`
   and `cell_dv_mv`. The CSV lists rows in address order, holding registers
-  last. The full table is in COMPATIBILITY.md.
+  last. The scale column of the kW and kWh points now reads 1 instead of
+  0.001: it had been relative to watts while the unit said kW, so a reader
+  dividing by it got values 1000 times too large. The registers are
+  unchanged. The full table is in COMPATIBILITY.md.
 - **MQTT publishes telemetry** (phase 2 PR2). Through v0.4.0 the publisher
   connected but never published a cadence point (an overflow in its first
   timestamp check; see the phase 2 plan). Anyone who wired a subscriber to
@@ -138,11 +141,12 @@ v0.4.0 can trip over.
   transition under `bess/gw01/events/`, QoS 1, with a `seq` that numbers
   the kernel's log.
 - **`POST /api/v1/alarms/reset`** (phase 2 PR2): site, block or rack
-  scope; 200 with the bits still present, 422 for an unknown node.
+  scope; 200 with the bits still present, 400 for a body it cannot read
+  or that carries fields no scope has, 422 for an unknown node.
 - **WebSocket and summary fields** (phase 2 PR2): stream messages carry
   `events` (and `events_lost_ticks` when behind); the summary gains
-  `alarm_bits`, `event_count` and a per-block `alarm_bits`, the block word.
-  Additions only.
+  `alarm_bits` (the site word), `event_count` and a per-block
+  `block_alarm_bits`, named as on Modbus and MQTT. Additions only.
 - **New Prometheus families** (phase 2 PR2): `bess_events_total` and
   `bess_alarms_active{alarm, severity}`; the Grafana dashboard moves to
   version 3 with three alarm panels.

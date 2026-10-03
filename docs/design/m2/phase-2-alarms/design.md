@@ -130,6 +130,7 @@ file by PR2.
 | 2000 + 10b | `blockNN.block_alarm_bits` | u16 bitfield | event | new: the block word |
 | 2000 + 10b + 1 | `blockNN.racks_derated` | u16 count | event | new: the derate status, racks with `derate_active` set |
 | 2000 + 10b + 2 | `blockNN.cell_dv_mv` | u16, 1 mV | medium | new: the block's widest rack spread |
+| 8, 10, 12, 14; base, base+1 | the `_kw` and `_kwh` points | unchanged | unchanged | scale column 0.001 to 1: it was relative to watts under a kW label; registers unchanged |
 
 Three choices made against the live map:
 

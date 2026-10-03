@@ -82,20 +82,20 @@ pub(super) fn points(b: usize) -> Vec<Point> {
             "kW",
             Fast,
             I16,
-            0.001,
+            1.0,
             base,
             Input,
-            move |s: &SiteState| s.blocks[b].pcs.p_ac_w
+            move |s: &SiteState| s.blocks[b].pcs.p_ac_w / 1000.0
         ),
         point!(
             format!("{prefix}.pcs.p_dc_kw"),
             "kW",
             Fast,
             I16,
-            0.001,
+            1.0,
             base + 1,
             Input,
-            move |s: &SiteState| s.blocks[b].pcs.p_dc_w
+            move |s: &SiteState| s.blocks[b].pcs.p_dc_w / 1000.0
         ),
         point!(
             format!("{prefix}.pcs.state"),
@@ -191,10 +191,10 @@ pub(super) fn points(b: usize) -> Vec<Point> {
             "mV",
             Medium,
             U16,
-            1000.0,
+            1.0,
             ext + 2,
             Input,
-            move |s: &SiteState| block_cell_dv_max_v(&s.blocks[b])
+            move |s: &SiteState| block_cell_dv_max_v(&s.blocks[b]) * 1000.0
         ),
     ]
 }

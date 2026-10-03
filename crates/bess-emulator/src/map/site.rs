@@ -70,40 +70,40 @@ pub(super) fn points() -> Vec<Point> {
             "kW",
             Fast,
             U32,
-            0.001,
+            1.0,
             8,
             Input,
-            |s: &SiteState| s.ems.available_discharge_w
+            |s: &SiteState| s.ems.available_discharge_w / 1000.0
         ),
         point!(
             "site.available_charge_kw",
             "kW",
             Fast,
             U32,
-            0.001,
+            1.0,
             10,
             Input,
-            |s: &SiteState| s.ems.available_charge_w
+            |s: &SiteState| s.ems.available_charge_w / 1000.0
         ),
         point!(
             "site.meter.export_kwh",
             "kWh",
             Slow,
             U32,
-            0.001,
+            1.0,
             12,
             Input,
-            |s: &SiteState| s.substation.export_wh
+            |s: &SiteState| s.substation.export_wh / 1000.0
         ),
         point!(
             "site.meter.import_kwh",
             "kWh",
             Slow,
             U32,
-            0.001,
+            1.0,
             14,
             Input,
-            |s: &SiteState| s.substation.import_wh
+            |s: &SiteState| s.substation.import_wh / 1000.0
         ),
         point!(
             "site.substation.hv_breaker_closed",

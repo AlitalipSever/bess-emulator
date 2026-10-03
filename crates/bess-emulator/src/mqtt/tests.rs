@@ -22,6 +22,8 @@ use crate::sim::{self, Command};
 /// One PUBLISH as the broker received it.
 #[derive(Debug)]
 struct Received {
+    /// Which connection it came on, counting from 0.
+    conn: usize,
     topic: String,
     payload: String,
     retain: bool,
@@ -46,9 +48,13 @@ async fn read_packet(stream: &mut TcpStream) -> std::io::Result<(u8, Vec<u8>)> {
     Ok((header, body))
 }
 
-/// Serve one client until it disconnects.
+/// Serve one client until it disconnects, or until the first connection
+/// publishes `drop_first_on`, when the broker hangs up on it as a broker
+/// restart would.
 async fn serve_client(
     mut stream: TcpStream,
+    conn: usize,
+    drop_first_on: Option<&'static str>,
     out: mpsc::UnboundedSender<Received>,
 ) -> std::io::Result<()> {
     loop {
@@ -68,12 +74,17 @@ async fn serve_client(
                         .await?;
                     rest += 2;
                 }
+                let hang_up = conn == 0 && drop_first_on == Some(topic.as_str());
                 let _ = out.send(Received {
+                    conn,
                     topic,
                     payload: String::from_utf8_lossy(&body[rest..]).into_owned(),
                     retain: header & 0x01 == 1,
                     qos,
                 });
+                if hang_up {
+                    return Ok(());
+                }
             }
             // PINGREQ: answer.
             12 => stream.write_all(&[0xd0, 0x00]).await?,
@@ -85,13 +96,15 @@ async fn serve_client(
 }
 
 /// Start the broker on a free port.
-async fn broker() -> (u16, mpsc::UnboundedReceiver<Received>) {
+async fn broker(drop_first_on: Option<&'static str>) -> (u16, mpsc::UnboundedReceiver<Received>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let (tx, rx) = mpsc::unbounded_channel();
     tokio::spawn(async move {
+        let mut conn = 0;
         while let Ok((stream, _)) = listener.accept().await {
-            tokio::spawn(serve_client(stream, tx.clone()));
+            tokio::spawn(serve_client(stream, conn, drop_first_on, tx.clone()));
+            conn += 1;
         }
     });
     (port, rx)
@@ -125,7 +138,7 @@ async fn wait_for(
 /// documented fields, while the alarm words follow as retained topics.
 #[tokio::test(flavor = "multi_thread")]
 async fn an_alarm_raise_and_clear_arrive_with_the_documented_payload() {
-    let (port, mut rx) = broker().await;
+    let (port, mut rx) = broker(None).await;
     let (handle, _sim) = sim::start(fixtures::hot_plant(), sim::MAX_SPEED);
     let commands = handle.commands.clone();
     tokio::spawn(publish("127.0.0.1".into(), port, handle));
@@ -182,6 +195,38 @@ async fn an_alarm_raise_and_clear_arrive_with_the_documented_payload() {
         }
     };
     assert_ne!(word & 0b100, 0, "the HVAC units are still down");
+}
+
+/// A broker that restarts without persistence has forgotten every retained
+/// word. The publisher sends them all again on the new connection, so a
+/// late subscriber still finds the current word, even one that has not
+/// changed since it was first published.
+#[tokio::test(flavor = "multi_thread")]
+async fn retained_words_are_sent_again_after_a_reconnect() {
+    let word = "bess/gw01/site/alarm_bits";
+    let (port, mut rx) = broker(Some(word)).await;
+    let (handle, _sim) = sim::start(fixtures::tripped_plant(), 1.0);
+    tokio::spawn(publish("127.0.0.1".into(), port, handle));
+    let deadline = Instant::now() + Duration::from_secs(30);
+
+    let mut seen = Vec::new();
+    while seen.len() < 2 {
+        let msg = timeout_at(deadline, rx.recv())
+            .await
+            .unwrap_or_else(|_| panic!("{word} seen on {seen:?} only"))
+            .expect("broker stopped");
+        if msg.topic == word {
+            assert!(msg.retain);
+            let payload: Value = serde_json::from_str(&msg.payload).unwrap();
+            seen.push((msg.conn, payload["value"].as_f64().unwrap()));
+        }
+    }
+    assert_eq!(seen[0].0, 0, "first on the first connection");
+    assert_eq!(seen[1].0, 1, "again on the second");
+    assert!(
+        (seen[0].1 - seen[1].1).abs() < f64::EPSILON,
+        "the word did not change, so only the reconnect can have sent it: {seen:?}"
+    );
 }
 
 /// A class that never published is due at once, whatever the clock reads,

@@ -53,7 +53,7 @@ check which contract it is talking to without fetching this file.
 |---|---|---|
 | 0.1.0 | crate v0.2.0 | The first published map. It carried no version number; it is recorded here as 0.1.0 so the sequence has a beginning. |
 | 0.2.0 | crate v0.3.0 | Additions only: the five itemized house-load points at site 32 to 41, and per block `container.air_temp_c` and `hvac.state` in the two slots each block had free. Nothing moved, nothing was renamed. The file gained its version comment line. |
-| 0.3.0 | crate v0.5.0 (unreleased) | **Breaking:** `blockNN.alarm_bits` (base+6) and `site.alarm_count` (input 31) stop reading zero. The rack words behind the first now have a layout (see Alarm words below), and the second counts every set bit on site, rack, block and site words alike. Both, being alarm points, move from class `medium` to the new class `event`. **Additions:** `site.alarm_bits` (42), `site.event_counter` (43), and a second per-block range at 2000 + 10 x block carrying `block_alarm_bits`, `racks_derated` and `cell_dv_mv`. The reference file now lists rows in address order, holding registers last. Drafted in M2 phase 2; later M2 additions join this row until the release. |
+| 0.3.0 | crate v0.5.0 (unreleased) | **Breaking:** `blockNN.alarm_bits` (base+6) and `site.alarm_count` (input 31) stop reading zero. The rack words behind the first now have a layout (see Alarm words below), and the second counts every set bit on site, rack, block and site words alike. Both, being alarm points, move from class `medium` to the new class `event`. **Additions:** `site.alarm_bits` (42), `site.event_counter` (43), and a second per-block range at 2000 + 10 x block carrying `block_alarm_bits`, `racks_derated` and `cell_dv_mv`. **Corrected:** the scale column of `site.available_discharge_kw`, `site.available_charge_kw`, `site.meter.export_kwh`, `site.meter.import_kwh` and `blockNN.pcs.p_ac_kw` / `p_dc_kw` read 0.001, relative to watts, while the unit column said kW or kWh; it now reads 1, relative to the named unit. The registers carry the same counts as before. The reference file now lists rows in address order, holding registers last. Drafted in M2 phase 2; later M2 additions join this row until the release. |
 
 ## Deprecation process (from map 1.0)
 
@@ -144,11 +144,12 @@ so each such point states which container it speaks for:
 
 - **MQTT:** every point publishes under `bess/gw01/` at its name with dots
   as slashes (`bess/gw01/site/poi/active_power_w`), payload
-  `{"ts": <unix s>, "value": <number>, "unit": "<unit>"}`. Points of class
-  `fast`, `medium` and `slow` publish on that cadence in simulation time,
-  QoS 0, not retained. Points of class `event` publish when their value
-  changes, QoS 1, retained, so a late subscriber gets the current word from
-  the broker.
+  `{"ts": <unix s>, "value": <number>, "unit": "<unit>"}`, the value in the
+  unit the point names (kW for a `_kw` point). Points of class `fast`,
+  `medium` and `slow` publish on that cadence in simulation time, QoS 0, not
+  retained. Points of class `event` publish when their value changes, and
+  all of them again after every reconnect, QoS 1, retained, so a late
+  subscriber gets the current word from the broker.
 - **MQTT events:** every kernel event publishes once, QoS 1, not retained,
   under `bess/gw01/events/`, mirroring the telemetry tree:
   `events/block02/container1/rack05/derate_active`,
@@ -158,15 +159,22 @@ so each such point states which container it speaks for:
   "severity": "warning" | "trip"}`; a PCS transition is `{"seq", "ts",
   "node", "event": "pcs_state", "from", "to"}` with states `standby`, `run`,
   `fault`. `seq` is the event's number in the kernel's log, from 1, so a gap
-  means a lost message. These topics and fields follow the same rules as
-  points: renaming is major, adding a field is minor.
+  means a lost message. A word and the event that changed it are not
+  ordered relative to each other: the retained word may arrive first. These
+  topics and fields follow the same rules as points: renaming is major,
+  adding a field is minor.
 - **REST (`/api/v1/...`):** versioned by URL path. Fields may be added to
   responses at any time; fields are only removed with a path version bump.
   `POST /api/v1/alarms/reset` takes `{"scope": "site"}`,
   `{"scope": "block", "block": N}` or
-  `{"scope": "rack", "block": N, "container": C, "rack": R}`, answers 200
-  with the bits whose cause is still present (they raise again on the next
-  tick), and 422 for a node the site does not have.
+  `{"scope": "rack", "block": N, "container": C, "rack": R}` and nothing
+  else. It answers 200 with `{"node": "<path>", "still_present": [{"node",
+  "alarm", "bit"}]}`, the bits whose cause is still present (they raise
+  again on the next tick); 400 for a body it cannot read, an unknown scope,
+  or a field no scope has; 422 for a node the site does not have.
+- **REST summary (`/api/v1/summary`) and the stream:** the site's word is
+  `alarm_bits` and each block's own word `block_alarm_bits`, the names the
+  same words have on Modbus and MQTT.
 - **WebSocket (`/api/v1/stream`):** each message is the summary plus
   `events`, every event since the previous message in the MQTT payload
   shape, and `events_lost_ticks` when the stream fell further behind than the

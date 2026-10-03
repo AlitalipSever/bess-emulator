@@ -68,7 +68,9 @@ fn summary_value(snap: &Snapshot) -> serde_json::Value {
         "blocks": state.blocks.iter().map(|b| json!({
             "p_ac_w": b.pcs.p_ac_w,
             "soc": b.average_soc(),
-            "alarm_bits": b.alarm_bits,
+            // Named as on Modbus and MQTT, where `blockNN.alarm_bits` is
+            // the rack fold and this word is `block_alarm_bits`.
+            "block_alarm_bits": b.alarm_bits,
         })).collect::<Vec<_>>(),
     })
 }

@@ -152,7 +152,7 @@ fn map_digest(points: &[Point]) -> u64 {
 }
 
 /// Digest of the map at [`MAP_VERSION`] 0.3.0.
-const MAP_DIGEST: u64 = 0x2959_ef69_5ecb_0a15;
+const MAP_DIGEST: u64 = 0x1828_8f29_0804_2bf5;
 
 /// A version number nobody is forced to move is decoration.
 ///
@@ -184,4 +184,63 @@ fn the_published_contract_is_the_one_that_was_versioned() {
         doc.contains(&format!("signal-map-version: {MAP_VERSION}")),
         "COMPATIBILITY.md does not document signal map version {MAP_VERSION}"
     );
+}
+
+/// A name's unit suffix, the `unit` column, and what MQTT publishes all
+/// agree. MQTT sends the extracted value beside `unit`, so a point that
+/// extracted watts under a `kW` label published numbers a thousand times
+/// too large; the suffix table catches a mislabel, the values below catch
+/// an extract in the wrong unit.
+#[test]
+fn every_point_publishes_in_the_unit_it_names() {
+    let cfg = PlantConfig::gw01();
+    let points = build_points(&cfg);
+    // Longest suffix first, so `_kwh` is not read as `_wh`.
+    let suffixes = [
+        ("_kwh", "kWh"),
+        ("_wm2", "W/m2"),
+        ("_var", "var"),
+        ("_pct", "%"),
+        ("_kw", "kW"),
+        ("_kv", "kV"),
+        ("_hz", "Hz"),
+        ("_mv", "mV"),
+        ("_w", "W"),
+        ("_c", "degC"),
+        ("_s", "s"),
+    ];
+    for p in &points {
+        if let Some((_, unit)) = suffixes.iter().find(|(sfx, _)| p.name.ends_with(sfx)) {
+            assert_eq!(p.unit, *unit, "{} is labeled {}", p.name, p.unit);
+        }
+    }
+
+    let mut state = SiteState::new(&cfg, 1, 0);
+    state.blocks[0].pcs.p_ac_w = 1_234_567.0;
+    state.ems.available_discharge_w = 12_345_678.0;
+    state.substation.export_wh = 9_876_543.0;
+    state.blocks[0].containers[0].racks[0].cell_dv_v = 0.0314;
+    let input = input_bank(&points, &state);
+    for (name, published, addr, register) in [
+        ("block00.pcs.p_ac_kw", 1_234.567, 1000, 1_235),
+        ("site.available_discharge_kw", 12_345.678, 8, 12_346),
+        ("site.meter.export_kwh", 9_876.543, 12, 9_877),
+        ("block00.cell_dv_mv", 31.4, 2002, 31),
+    ] {
+        let p = points.iter().find(|p| p.name == name).unwrap();
+        let value = (p.extract)(&state);
+        assert!(
+            (value - published).abs() < 1.0e-9,
+            "{name} publishes {value} {}",
+            p.unit
+        );
+        // The wire is unchanged: the same counts as when the scale carried
+        // the prefix.
+        let read = if p.encoding.words() == 2 {
+            read_u32(&input, addr)
+        } else {
+            u32::from(input[addr])
+        };
+        assert_eq!(read, register, "{name} register");
+    }
 }

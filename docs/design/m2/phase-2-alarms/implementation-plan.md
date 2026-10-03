@@ -96,6 +96,32 @@ As built:
   accident. Shared test plants live in `fixtures.rs`.
 - **Not in this PR.** The WASM viewer's alarm panel stays with the next
   view iteration, as the open question below leans.
+- **Review findings, fixed in the PR.** Each was confirmed by running it
+  before it was fixed; a suspected MQTT test race was tried with the window
+  forced open, did not fail, and was dropped.
+  - *Units on MQTT.* The `_kw` and `_kwh` points extracted watts under kW
+    labels, and the new `cell_dv_mv` volts under mV, so payloads read 1000
+    times off, a bug as old as the map that MQTT's silence had hidden.
+    Every extract now returns its value in the point's own unit, the scale
+    column changed with it, the registers did not, and a test holds name
+    suffix, label and value together.
+  - *The Modbus acceptance test under load.* At full speed its first poll
+    landed after the derate and 35 ms before the miss; 16 busy processes
+    on 8 cores failed it 2 runs in 10. At 600x it passed 5 of 5 under 32.
+  - *The reset read bodies loosely.* A rack reset sent with the block tag
+    reset the whole block, and a body axum rejected came back 422, the
+    status meant for an unknown node. Unknown fields are now refused, and
+    a body the endpoint cannot use is a 400 with a JSON reason.
+  - *One name, two words.* The summary called the block's word
+    `alarm_bits`, the name of the rack fold everywhere else; it is
+    `block_alarm_bits` now, and the reset's answer says `node`, not
+    `scope`, which the request uses for its tag.
+  - *Retained words after a broker restart.* They were sent only on
+    change, so a broker without persistence lost them for good. Every
+    reconnect now sends them all again, with a test that hangs up on the
+    client and fails without the fix.
+  - *Lost events* were logged at debug; they are counted and logged as
+    warnings now.
 
 ## Open questions
 
