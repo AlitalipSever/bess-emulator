@@ -47,10 +47,10 @@ cargo run --release -p bess-emulator
 | Surface | Where | What |
 |---|---|---|
 | Modbus TCP | `127.0.0.1:1502` | Input registers: telemetry. Holding registers: control (site setpoint, EMS mode). |
-| MQTT | broker at `127.0.0.1:1883` | Topics under `bess/gw01/`, JSON payloads, decimated per publication class. |
-| REST | `http://127.0.0.1:8080/api/v1/` | `state`, `summary`, `setpoint`, `speed`. |
-| WebSocket | `ws://127.0.0.1:8080/api/v1/stream` | Tick summaries, 4 per second. |
-| Prometheus | `http://127.0.0.1:8080/metrics` | Site KPIs, temperatures, HVAC staging, house load by item, cumulative losses by category. |
+| MQTT | broker at `127.0.0.1:1883` | Topics under `bess/gw01/`, JSON payloads, decimated per publication class; alarm words retained and published on change; every alarm raise, clear and PCS transition under `bess/gw01/events/`. |
+| REST | `http://127.0.0.1:8080/api/v1/` | `state`, `summary`, `setpoint`, `speed`, `alarms/reset`. |
+| WebSocket | `ws://127.0.0.1:8080/api/v1/stream` | Tick summaries, 4 per second, with the events since the last one. |
+| Prometheus | `http://127.0.0.1:8080/metrics` | Site KPIs, temperatures, HVAC staging, house load by item, cumulative losses by category, cell spread, active alarms and the event count. |
 | Health | `http://127.0.0.1:8080/health` | Liveness + kernel version. |
 
 The full register and topic reference is
@@ -71,6 +71,10 @@ curl -X POST localhost:8080/api/v1/setpoint \
 # Run a day in 24 seconds:
 curl -X POST localhost:8080/api/v1/speed \
      -H 'content-type: application/json' -d '{"factor": 3600}'
+
+# Reset latched alarms on block 2 (the answer lists what is still present):
+curl -X POST localhost:8080/api/v1/alarms/reset \
+     -H 'content-type: application/json' -d '{"scope": "block", "block": 2}'
 ```
 
 Complete clients (connect, read, write a setpoint) live in

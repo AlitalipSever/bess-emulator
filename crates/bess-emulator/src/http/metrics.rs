@@ -4,6 +4,8 @@
 //! architecture's Prometheus rule: these families are operator views, not
 //! register contracts, and they carry no map version.
 
+mod alarms;
+
 use std::fmt::Write as _;
 
 use bess_core::state::HvacMode;
@@ -45,6 +47,7 @@ pub(super) fn metrics_body(snap: &Snapshot) -> String {
     thermal_metrics(&mut out, &snap.state);
     house_load_metrics(&mut out, &snap.state);
     bms_metrics(&mut out, &snap.state);
+    alarms::alarm_metrics(&mut out, &snap.state);
     out
 }
 

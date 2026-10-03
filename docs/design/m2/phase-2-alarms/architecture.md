@@ -56,12 +56,20 @@ Events are facts about a tick, emitted by the kernel exactly once; the
 surfaces fan them out:
 
 - **MQTT:** report by exception under an `events/` subtree, immediate,
-  regardless of the owning signal's decimation class.
+  regardless of the owning signal's decimation class; the alarm words
+  themselves publish retained, on change.
 - **Modbus:** the three alarm words at their addresses, plus a wrapping
   u16 event counter so a poller can detect that something happened between
   polls even if it also missed what.
 - **WebSocket:** events join the summary stream.
-- **Prometheus:** an events-total counter by severity.
+- **Prometheus:** an events-total counter, the kernel's own count, and
+  active-alarm gauges by alarm and severity. (Planned as a counter by
+  severity; a second tally in the shell would disagree with the log after
+  any restart, so severity went on the gauges, where the state carries it.)
+
+The surfaces read events off a channel the simulation task fills every
+tick, not off the latest snapshot: at full speed a surface wakes once for
+thousands of ticks, and a snapshot holds one.
 
 The state tree remains the single truth: alarm words are state, events are
 the kernel's log of state transitions, and no surface invents either.

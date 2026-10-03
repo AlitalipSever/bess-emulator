@@ -1,12 +1,14 @@
 //! The exposition held to the state it reads and to the dashboard that reads it.
 
+use bess_core::alarms::layout::{block, rack, site};
 use bess_core::state::AuxPower;
 use bess_core::{PlantConfig, SiteState};
 
 use super::*;
 
-/// A snapshot with a plausible house load and one container in each
-/// cooling stage, so the exposition has something to say.
+/// A snapshot with a plausible house load, one container in each cooling
+/// stage, some spread and some alarms, so the exposition has something to
+/// say.
 fn snapshot() -> Snapshot {
     let cfg = PlantConfig::gw01();
     let mut state = SiteState::new(&cfg, 1, 0);
@@ -24,7 +26,13 @@ fn snapshot() -> Snapshot {
     for (i, rack) in state.blocks[2].containers[0].racks.iter_mut().enumerate() {
         rack.cell_dv_v = 0.004 + 0.001 * i as f64;
         rack.balancing_active = i < 3;
+        if i < 3 {
+            rack.alarm_bits = 1 << rack::DERATE_ACTIVE;
+        }
     }
+    state.blocks[5].alarm_bits = (1 << block::HVAC_FAILURE) | (1 << block::CONTAINER_OVER_TEMP);
+    state.alarm_bits = 1 << site::POWER_LIMITED;
+    state.event_log.count = 1234;
     Snapshot {
         state,
         input_regs: Vec::new(),
@@ -129,6 +137,7 @@ fn every_dashboard_query_names_a_metric_we_publish() {
         .iter()
         .collect();
     let mut checked = 0;
+    let mut queried = std::collections::BTreeSet::new();
     while let Some(panel) = queue.pop() {
         queue.extend(panel["panels"].as_array().into_iter().flatten());
         for target in panel["targets"].as_array().into_iter().flatten() {
@@ -142,6 +151,7 @@ fn every_dashboard_query_names_a_metric_we_publish() {
                     "panel {} queries {name}, which /metrics does not publish",
                     panel["title"]
                 );
+                queried.insert(name.to_owned());
                 checked += 1;
             }
         }
@@ -150,6 +160,11 @@ fn every_dashboard_query_names_a_metric_we_publish() {
         checked >= 4,
         "the dashboard scan found only {checked} queries, so it is proving nothing"
     );
+    // And the alarm tree is on it: a dashboard that never shows an alarm
+    // would pass the check above forever.
+    for family in ["bess_alarms_active", "bess_events_total"] {
+        assert!(queried.contains(family), "no panel queries {family}");
+    }
 }
 
 /// The spread gauges read the racks, not a stale copy: the widest rack
@@ -167,4 +182,37 @@ fn the_bms_gauges_read_the_racks() {
     assert!((value_of(&body, "bess_rack_cell_dv_volts{stat=\"max\"}") - widest).abs() < 1.0e-12);
     assert!(value_of(&body, "bess_rack_cell_dv_volts{stat=\"min\"}").abs() < 1.0e-12);
     assert!((value_of(&body, "bess_racks_balancing") - 3.0).abs() < f64::EPSILON);
+}
+
+/// Each laid-out alarm has one gauge, counting the nodes it is active on,
+/// and the event counter is the kernel's log count.
+#[test]
+fn the_alarm_gauges_count_nodes_per_alarm() {
+    let body = metrics_body(&snapshot());
+    let active = |alarm: &str, severity: &str| {
+        value_of(
+            &body,
+            &format!("bess_alarms_active{{alarm=\"{alarm}\",severity=\"{severity}\"}}"),
+        )
+    };
+    for (alarm, severity, nodes) in [
+        ("rack.derate_active", "warning", 3.0),
+        ("rack.over_temp_trip", "trip", 0.0),
+        ("block.hvac_failure", "warning", 1.0),
+        ("block.container_over_temp", "warning", 1.0),
+        ("block.pcs_fault", "trip", 0.0),
+        ("site.power_limited", "warning", 1.0),
+    ] {
+        let read = active(alarm, severity);
+        assert!((read - nodes).abs() < f64::EPSILON, "{alarm} reads {read}");
+    }
+    let samples = body
+        .lines()
+        .filter(|l| l.starts_with("bess_alarms_active{"))
+        .count();
+    assert_eq!(
+        samples,
+        rack::NAMES.len() + block::NAMES.len() + site::NAMES.len()
+    );
+    assert!((value_of(&body, "bess_events_total") - 1234.0).abs() < f64::EPSILON);
 }

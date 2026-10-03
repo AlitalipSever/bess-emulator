@@ -1,6 +1,7 @@
-//! HTTP surface: health, Prometheus metrics, REST state and control, and a
-//! WebSocket stream of tick summaries.
+//! HTTP surface: health, Prometheus metrics, REST state and control, the
+//! operator alarm reset, and a WebSocket stream of tick summaries and events.
 
+mod alarms;
 mod metrics;
 
 use std::net::SocketAddr;
@@ -14,10 +15,12 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
+use tokio::sync::broadcast::error::TryRecvError;
 use tracing::{error, info};
 
-use crate::sim::{Command, SimHandle, Snapshot, MAX_SPEED};
+use crate::events;
+use crate::sim::{Command, SimHandle, Snapshot, TickEvents, MAX_SPEED};
 
 /// Run the HTTP server until the task is aborted.
 pub async fn serve(addr: SocketAddr, handle: SimHandle) {
@@ -28,6 +31,7 @@ pub async fn serve(addr: SocketAddr, handle: SimHandle) {
         .route("/api/v1/summary", get(summary))
         .route("/api/v1/setpoint", post(set_setpoint))
         .route("/api/v1/speed", post(set_speed))
+        .route("/api/v1/alarms/reset", post(alarms::reset))
         .route("/api/v1/stream", get(stream))
         .with_state(handle);
     let listener = match tokio::net::TcpListener::bind(addr).await {
@@ -59,11 +63,33 @@ fn summary_value(snap: &Snapshot) -> serde_json::Value {
         "export_kwh": state.substation.export_wh / 1000.0,
         "available_discharge_w": state.ems.available_discharge_w,
         "available_charge_w": state.ems.available_charge_w,
+        "alarm_bits": state.alarm_bits,
+        "event_count": state.event_log.count,
         "blocks": state.blocks.iter().map(|b| json!({
             "p_ac_w": b.pcs.p_ac_w,
             "soc": b.average_soc(),
+            "alarm_bits": b.alarm_bits,
         })).collect::<Vec<_>>(),
     })
+}
+
+/// One WebSocket message: the latest summary, plus every event since the
+/// previous message, and how many ticks of events were lost if the stream
+/// fell further behind than the event channel holds.
+fn stream_message(snap: &Snapshot, batches: &[Arc<TickEvents>], lost: u64) -> Value {
+    let mut message = summary_value(snap);
+    message["events"] = batches
+        .iter()
+        .flat_map(|batch| {
+            batch
+                .numbered()
+                .map(|(seq, event)| events::payload(event, seq, batch.unix_time_s))
+        })
+        .collect();
+    if lost > 0 {
+        message["events_lost_ticks"] = json!(lost);
+    }
+    message
 }
 
 async fn health(State(handle): State<SimHandle>) -> impl IntoResponse {
@@ -156,15 +182,29 @@ async fn stream(ws: WebSocketUpgrade, State(handle): State<SimHandle>) -> impl I
     ws.on_upgrade(move |socket| push_summaries(socket, handle))
 }
 
-/// Push the latest tick summary four times per wall second.
+/// Push the latest tick summary four times per wall second, with every
+/// event emitted since the previous push.
 async fn push_summaries(mut socket: WebSocket, handle: SimHandle) {
+    let mut events_rx = handle.events.subscribe();
     let mut ticker = tokio::time::interval(Duration::from_millis(250));
     loop {
         ticker.tick().await;
+        let mut batches = Vec::new();
+        let mut lost = 0;
+        loop {
+            match events_rx.try_recv() {
+                Ok(batch) => batches.push(batch),
+                Err(TryRecvError::Lagged(n)) => lost += n,
+                Err(TryRecvError::Empty | TryRecvError::Closed) => break,
+            }
+        }
         let snap: Arc<Snapshot> = handle.snapshot.borrow().clone();
-        let text = summary_value(&snap).to_string();
+        let text = stream_message(&snap, &batches, lost).to_string();
         if socket.send(Message::Text(text.into())).await.is_err() {
             return;
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

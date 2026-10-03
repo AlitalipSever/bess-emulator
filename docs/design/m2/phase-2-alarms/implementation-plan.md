@@ -48,6 +48,55 @@ Accept: a Modbus poller sees base+6 go nonzero during the chain test
 scenario, the event counter advances, and an MQTT subscriber receives the
 raise and clear messages with the documented payload.
 
+As built:
+
+- **Acceptance, over real sockets.** `modbus::tests` runs the chain plant
+  at full speed and polls it: base+6 of the hot block is nonzero from the
+  first read, the block word shows the failed HVAC, derate, setpoint miss
+  and power limited appear on their three words in that order and at least
+  a minute apart, and the event counter moves. It takes about a second.
+  `mqtt::tests` runs the same plant against a broker, waits for the hot
+  block's `setpoint_not_met` raise, drops the setpoint to zero, and checks
+  the raise and the clear against the documented payload, field for field.
+  There is no broker in CI and adding one would mean a new dependency, so
+  the test carries a minimal MQTT 3.1.1 server of its own: connect, publish
+  with QoS 1 acknowledgement, ping. The real client talks to it over TCP.
+- **A bug the MQTT test found.** The publisher marked "never published"
+  with `i64::MIN` and subtracted it from the clock. That overflows: debug
+  builds panic, release builds wrap to a negative age, so no cadence point
+  was ever due and **MQTT has published no telemetry since M0**. Nothing
+  had exercised the publisher against a broker before this PR. "Never" is
+  now `None`.
+- **Events reach the surfaces on a channel.** The simulation task
+  broadcasts each tick's events, numbered by their place in the log, after
+  the snapshot that shows their effect. The snapshot only ever holds one
+  tick, and at full speed a surface wakes once per thousands of them, so
+  reading events off it would lose most. A surface that falls more than
+  4096 eventful ticks behind is told how many it lost; the sequence numbers
+  show the gap to its consumers too.
+- **One projection of an event.** `events.rs` names nodes, alarms, topics
+  and payloads once; MQTT, the WebSocket stream and the REST reset all use
+  it, so the three surfaces cannot spell a node two ways.
+- **Reset over REST.** `POST /api/v1/alarms/reset` sends the kernel a
+  command with a reply channel and answers when the reset has run between
+  two ticks: 200 with the bits still present, 422 for a node the site does
+  not have (the body is wrong, not the path, so not 404). A Modbus reset
+  register was considered and left until someone asks; the holding bank is
+  the control surface and one write there is easy to add.
+- **Prometheus and Grafana.** `bess_events_total` and
+  `bess_alarms_active{alarm, severity}` in `http/metrics/alarms.rs`; the
+  dashboard (version 3) gains active alarms by severity, events per minute
+  and active alarms by name, and its test now also fails if no panel
+  queries the alarm families.
+- **Code layout.** `map.rs` (946 lines, on AGENTS.md's over-limit list)
+  gained a new concern and was split: `map/site.rs`, `map/control.rs`,
+  `map/block.rs`, `map/alarms.rs`, `map/encode.rs`, `map/csv.rs`, contract
+  tests in `map/tests.rs`. The table is sorted by address after it is
+  built, so the parts can be cut by subject without reordering the CSV by
+  accident. Shared test plants live in `fixtures.rs`.
+- **Not in this PR.** The WASM viewer's alarm panel stays with the next
+  view iteration, as the open question below leans.
+
 ## Open questions
 
 - ~~Whether `pcs.setpoint not met` needs a deadband time.~~ Yes, 10 s.
