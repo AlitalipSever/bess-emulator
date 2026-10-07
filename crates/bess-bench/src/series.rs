@@ -392,7 +392,7 @@ mod tests {
     fn the_trace_is_an_even_walk_through_one_week() {
         let series = committed();
         let trace = &series.hot_week;
-        assert!(!trace.label.is_empty());
+        assert_ne!(trace.label, "");
         assert!(
             trace.samples.len() > 600,
             "only {} samples in the week",

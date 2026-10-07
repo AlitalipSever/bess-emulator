@@ -115,11 +115,14 @@ pub async fn serve(addr: SocketAddr, handle: SimHandle) {
 mod tests {
     use std::time::Duration;
 
-    use tokio_modbus::client::{tcp, Reader, Writer};
+    use bess_core::alarms::has_bit;
+    use bess_core::alarms::layout::{block, rack, site};
+    use tokio_modbus::client::{tcp, Context, Reader, Writer};
     use tokio_modbus::slave::Slave;
 
     use super::serve;
     use crate::cli::Args;
+    use crate::fixtures::{self, HOT_BLOCK};
     use crate::map::{HOLDING_MODE_ADDR, HOLDING_SETPOINT_ADDR};
     use crate::sim;
 
@@ -192,5 +195,77 @@ mod tests {
         // Out-of-map access is rejected, not silently served.
         let err = ctx.read_input_registers(60_000, 2).await.unwrap();
         assert!(err.is_err());
+    }
+
+    async fn read(ctx: &mut Context, addr: u16) -> u16 {
+        ctx.read_input_registers(addr, 1).await.unwrap().unwrap()[0]
+    }
+
+    /// The phase's acceptance check on Modbus: a poller watching the chain
+    /// plant sees the hot block's rack fold (base+6) go nonzero and the event
+    /// counter advance, and the chain's three links appear on their own
+    /// words in causal order and minutes apart: derate on the racks, the
+    /// setpoint miss on the block, power limited on the site.
+    ///
+    /// The poller records when it first *saw* each bit, so it has to start
+    /// before the first one raises (tick 471). At 600x the 300 ms start-up
+    /// wait is about 180 ticks, a 5 ms poll about 3, and the links stay
+    /// seconds apart in wall time even on a loaded machine. At full speed
+    /// the first poll landed after the derate and a few dozen milliseconds
+    /// before the miss, and load pushed them into the same poll.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_poller_sees_the_chain_on_the_alarm_registers() {
+        let addr = "127.0.0.1:15503".parse().unwrap();
+        let (handle, _sim_task) = sim::start(fixtures::hot_plant(), 600.0);
+        tokio::spawn(serve(addr, handle));
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        let mut ctx = tcp::connect_slave(addr, Slave(1)).await.unwrap();
+
+        let rack_fold = 1000 + 10 * HOT_BLOCK as u16 + 6;
+        let block_word = 2000 + 10 * HOT_BLOCK as u16;
+        let first_counter = read(&mut ctx, 43).await;
+        assert_ne!(read(&mut ctx, rack_fold).await, 0, "hot racks warn at once");
+        assert!(
+            has_bit(
+                u32::from(read(&mut ctx, block_word).await),
+                block::HVAC_FAILURE
+            ),
+            "the failed units show on the block word"
+        );
+
+        // Simulated tick at which each link first showed.
+        let (mut derate, mut miss, mut limited) = (None, None, None);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(120);
+        while limited.is_none() {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "chain incomplete: derate {derate:?}, miss {miss:?}"
+            );
+            let t = ctx.read_input_registers(26, 2).await.unwrap().unwrap();
+            let tick = (u32::from(t[0]) << 16) | u32::from(t[1]);
+            let fold = u32::from(read(&mut ctx, rack_fold).await);
+            let word = u32::from(read(&mut ctx, block_word).await);
+            let site_word = u32::from(read(&mut ctx, 42).await);
+            if derate.is_none() && has_bit(fold, rack::DERATE_ACTIVE) {
+                derate = Some(tick);
+            }
+            if miss.is_none() && has_bit(word, block::SETPOINT_NOT_MET) {
+                miss = Some(tick);
+            }
+            if has_bit(site_word, site::POWER_LIMITED) {
+                limited = Some(tick);
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        let (derate, miss, limited) = (derate.unwrap(), miss.unwrap(), limited.unwrap());
+        assert!(
+            derate + 60 <= miss && miss + 60 <= limited,
+            "order and spacing: derate {derate}, miss {miss}, limited {limited}"
+        );
+        assert_ne!(
+            read(&mut ctx, 43).await.wrapping_sub(first_counter),
+            0,
+            "the event counter advanced"
+        );
     }
 }

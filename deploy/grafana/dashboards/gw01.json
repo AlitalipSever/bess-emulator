@@ -4,7 +4,7 @@
   "tags": ["bess-emulator"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "5s",
   "time": { "from": "now-15m", "to": "now" },
   "panels": [
@@ -272,6 +272,95 @@
           "refId": "A",
           "expr": "bess_loss_watthours_total",
           "legendFormat": "{{category}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Active alarms by severity",
+      "description": "Alarm bits set anywhere on site, rack, block and site words together. Warnings clear themselves; trips stay until an operator resets them (POST /api/v1/alarms/reset).",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 41 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "stacking": { "mode": "normal", "group": "A" }
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "warning" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "trip" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (severity) (bess_alarms_active)",
+          "legendFormat": "{{severity}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Alarm events per minute",
+      "description": "Raises, clears and PCS state changes the kernel emitted, per wall-clock minute. At an accelerated speed one wall minute holds many simulated ones.",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 41 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": { "drawStyle": "bars", "fillOpacity": 60 },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "increase(bess_events_total[1m])",
+          "legendFormat": "events"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Active alarms by name",
+      "description": "How many nodes each alarm is active on: up to 480 racks, 20 blocks, one site. Empty while the plant is healthy; the MQTT events subtree names the exact nodes.",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 49 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "decimals": 0,
+          "custom": { "lineInterpolation": "stepAfter", "lineWidth": 2 },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "bess_alarms_active > 0",
+          "legendFormat": "{{alarm}}"
         }
       ]
     }

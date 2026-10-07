@@ -83,6 +83,9 @@ Each decision is proposed here and confirmed or revised in its PR.
   incremented per event emitted. A SCADA poller diffing it knows how many
   events it missed between polls. Per-block counters were considered and
   dropped: the register budget is better spent when someone asks.
+  **Confirmed in PR2** as `site.event_counter` at input 43. It equals the
+  `seq` of the latest event modulo 65536, so a poller and an MQTT
+  subscriber count the same thing.
 - **D6, map 0.2.0 to 0.3.0 lands at the release, this phase writes the
   delta.** The meaning change (rack alarm bits documented, base+6 fold now
   nonzero) is the breaking half; additions are the block word, site word,
@@ -94,6 +97,16 @@ Each decision is proposed here and confirmed or revised in its PR.
   additions open a second per-block address range, the mechanism M1
   section 6 already reserved for this case. Exact addresses are pinned in
   PR2 against the live map.
+  **Confirmed in PR2**, with one revision: the version moved to 0.3.0 in
+  this PR, the one that changed the map, as M1's moved in its PR6. The map
+  digest test exists to force exactly that, and a binary serving 0.3.0
+  points while `/health` says 0.2.0 would be the drift the version is there
+  to prevent. "One bump at release" stands in the sense that matters: v0.5.0
+  publishes 0.3.0, no 0.2.x ships in between, and phase 3's additions join
+  the same unreleased version. The second range opened at 2000 with the
+  original stride of 10, so a block's two ranges read alike and phase 3's
+  block mode has room beside them. The alarm points also got a publication
+  class of their own, `event` (below).
 - **D7, checkpoint format 5.** **Landed in PR1**, with the HVAC failure
   flag and the setpoint-miss timer in the same bump. Latched bits and hysteresis side are state
   (a resumed run must not re-raise or silently clear). Block and site
@@ -105,6 +118,37 @@ The milestone's one breaking change plus the phase's additions, per D6.
 `site.alarm_count` (input 31) keeps address and meaning and finally counts
 nonzero bits. The delta table, with final addresses, is written into this
 file by PR2.
+
+**As built (PR2), map 0.2.0 to 0.3.0:**
+
+| Address | Point | Encoding | Class | Change |
+|---|---|---|---|---|
+| input 31 | `site.alarm_count` | u16 | event (was medium) | meaning: set bits of all three words, no longer racks only |
+| input 42 | `site.alarm_bits` | u16 bitfield | event | new: the site word |
+| input 43 | `site.event_counter` | u16, wrapping | event | new (D5) |
+| base+6 | `blockNN.alarm_bits` | u16 bitfield | event (was medium) | meaning: the rack layout; name kept, it is published |
+| 2000 + 10b | `blockNN.block_alarm_bits` | u16 bitfield | event | new: the block word |
+| 2000 + 10b + 1 | `blockNN.racks_derated` | u16 count | event | new: the derate status, racks with `derate_active` set |
+| 2000 + 10b + 2 | `blockNN.cell_dv_mv` | u16, 1 mV | medium | new: the block's widest rack spread |
+| 8, 10, 12, 14; base, base+1 | the `_kw` and `_kwh` points | unchanged | unchanged | scale column 0.001 to 1: it was relative to watts under a kW label; registers unchanged |
+
+Three choices made against the live map:
+
+- **The block word's name.** `blockNN.alarm_bits` was taken by the rack
+  fold in M0, and renaming a published topic is a major change of its own.
+  The block's word is `block_alarm_bits`, and COMPATIBILITY.md says in one
+  line which register is which.
+- **Derate status as a count.** The fold at base+6 already says whether
+  some rack derates. What it cannot say is how much of the block does, and
+  the state holds no per-block capability to publish without a checkpoint
+  change, so the status is the number of racks with the bit set.
+- **A publication class for alarm points.** ARCHITECTURE.md has always
+  listed an `event` class (report by exception); the map had no way to say
+  it. `Class::Event` points publish on MQTT when their value changes, QoS 1
+  and retained, and never on a cadence; Modbus refreshes them every tick
+  like everything else. Every point derived from alarm words or the event
+  log is in it, including the two published points that move from medium,
+  and a test keeps the class confined to the map's `alarms` module.
 
 ## Checkpoint impact
 

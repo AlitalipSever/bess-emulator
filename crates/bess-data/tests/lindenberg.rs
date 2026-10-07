@@ -11,7 +11,7 @@ use bess_data::{lindenberg_2024, PrecipForm, HOURS_2024};
 fn loads_with_expected_shape() {
     let year = lindenberg_2024();
     assert_eq!(year.len(), HOURS_2024);
-    assert!(!year.is_empty());
+    assert!(!year.is_empty(), "a year of hours reports itself empty");
     assert_eq!(year.year(), 2024);
     assert_eq!(year.station_id(), 3015);
 }
