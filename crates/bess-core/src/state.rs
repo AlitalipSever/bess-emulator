@@ -15,7 +15,9 @@ mod init;
 mod plant;
 
 pub use energy::{AuxEnergy, AuxPower, EnergyAccounting};
-pub use plant::{BlockState, ContainerState, HvacMode, HvacState, PcsOpState, PcsState, RackState};
+pub use plant::{
+    BlockMode, BlockState, ContainerState, HvacMode, HvacState, PcsOpState, PcsState, RackState,
+};
 
 /// Root of the state tree.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -88,6 +90,12 @@ pub struct EmsState {
     pub available_discharge_w: f64,
     /// Chargeable AC power available right now, W.
     pub available_charge_w: f64,
+    /// How many blocks, counted from block 0, the plant controller has
+    /// cleared to run. Every block outside a staggered return; zero right
+    /// after a protection trip.
+    pub blocks_released: usize,
+    /// Seconds until the return releases the next block.
+    pub next_release_s: f64,
 }
 
 /// High-voltage breaker position.
@@ -120,6 +128,10 @@ pub struct SubstationState {
     pub import_wh: f64,
     /// Monotonic export meter at the POI, Wh.
     pub export_wh: f64,
+    /// Monotonic meter on the station-service feed, Wh: the house load the
+    /// site draws through its own supply while the HV breaker is open. Does
+    /// not move while the breaker is closed.
+    pub station_service_wh: f64,
 }
 
 impl SiteState {

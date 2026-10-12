@@ -1,8 +1,9 @@
 //! The tree at tick 0: a pure function of configuration, seed and start.
 
 use super::{
-    AuxPower, BlockState, BreakerState, ContainerState, EmsMode, EmsState, EnergyAccounting,
-    HvacMode, HvacState, PcsOpState, PcsState, RackState, SiteMeta, SiteState, SubstationState,
+    AuxPower, BlockMode, BlockState, BreakerState, ContainerState, EmsMode, EmsState,
+    EnergyAccounting, HvacMode, HvacState, PcsOpState, PcsState, RackState, SiteMeta, SiteState,
+    SubstationState,
 };
 use crate::alarms::EventLog;
 use crate::config::PlantConfig;
@@ -29,6 +30,7 @@ impl SiteState {
         let ambient_c = 12.0;
         let blocks = (0..cfg.blocks)
             .map(|_| BlockState {
+                mode: BlockMode::InService,
                 pcs: PcsState {
                     op_state: PcsOpState::Standby,
                     p_ac_setpoint_w: 0.0,
@@ -89,6 +91,8 @@ impl SiteState {
                 external_setpoint_w: 0.0,
                 available_discharge_w: 0.0,
                 available_charge_w: 0.0,
+                blocks_released: cfg.blocks,
+                next_release_s: 0.0,
             },
             substation: SubstationState {
                 hv_breaker: BreakerState::Closed,
@@ -100,6 +104,7 @@ impl SiteState {
                 aux_power_w: 0.0,
                 import_wh: 0.0,
                 export_wh: 0.0,
+                station_service_wh: 0.0,
             },
             aux: AuxPower::default(),
             energy: EnergyAccounting::default(),

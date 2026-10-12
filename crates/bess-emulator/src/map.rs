@@ -27,6 +27,7 @@ mod site;
 use bess_core::config::PlantConfig;
 use bess_core::state::SiteState;
 
+pub(crate) use block::block_mode_code;
 pub use control::{HOLDING_MODE_ADDR, HOLDING_SETPOINT_ADDR};
 pub use csv::dump_signal_map_csv;
 pub use encode::write_banks;

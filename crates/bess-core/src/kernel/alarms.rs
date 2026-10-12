@@ -11,7 +11,7 @@ use crate::alarms::{
     TRIP_MASK,
 };
 use crate::config::PlantConfig;
-use crate::state::{BlockState, BreakerState, PcsOpState, SiteState};
+use crate::state::{BlockMode, BlockState, BreakerState, PcsOpState, SiteState};
 
 use super::{Event, Simulation};
 
@@ -76,11 +76,13 @@ pub(super) fn evaluate_block(
     );
     let hvac_failed = block.containers.iter().any(|c| c.hvac.failed);
     let pcs_fault = block.pcs.op_state == PcsOpState::Fault;
+    let maintenance = block.mode == BlockMode::Maintenance;
 
     let mut next = word;
     next = with_bit(next, b::SETPOINT_NOT_MET, not_met);
     next = with_bit(next, b::CONTAINER_OVER_TEMP, hot);
     next = with_bit(next, b::HVAC_FAILURE, hvac_failed);
+    next = with_bit(next, b::MAINTENANCE, maintenance);
     next = with_bit(next, b::PCS_FAULT, pcs_fault);
     (next, miss_s)
 }
@@ -109,7 +111,7 @@ fn evaluate_site(state: &SiteState, cfg: &PlantConfig, th: &BlockSiteThresholds)
     let partial = state
         .blocks
         .iter()
-        .any(|blk| blk.pcs.op_state == PcsOpState::Fault)
+        .any(|blk| blk.pcs.op_state == PcsOpState::Fault || blk.mode == BlockMode::Maintenance)
         || state.racks().any(|r| !r.in_service);
     let breaker_open = state.substation.hv_breaker == BreakerState::Open;
 
@@ -143,6 +145,13 @@ impl Simulation {
     /// take any PCS in scope out of fault. The clears and the PCS leaving
     /// fault are events; they wait in the tree (`SiteState::pending_events`,
     /// so a checkpoint taken now keeps them) and go out with the next tick.
+    ///
+    /// A site reset on a tripped site is also "close": the breaker closes
+    /// and the staggered return starts, block 0 on the next tick and each
+    /// further block one `ReturnPolicy::spacing_s` later. M3's breaker
+    /// state machine is where those become two commands. A block reset
+    /// during a trip takes that PCS out of fault and nothing more: the
+    /// breaker stays open and the block unreleased.
     ///
     /// Returns the bits whose cause is still present. They re-raise on the
     /// next tick, as a real plant does to an impatient operator. A scope
@@ -195,6 +204,11 @@ impl Simulation {
             let old = self.state.alarm_bits;
             self.state.alarm_bits &= !TRIP_MASK;
             push_changes(&mut events, AlarmNode::Site, old, self.state.alarm_bits);
+            if self.state.substation.hv_breaker == BreakerState::Open {
+                self.state.substation.hv_breaker = BreakerState::Closed;
+                self.state.ems.blocks_released = 0;
+                self.state.ems.next_release_s = 0.0;
+            }
         }
 
         self.state.pending_events.extend(events);

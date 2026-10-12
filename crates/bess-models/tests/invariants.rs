@@ -52,15 +52,17 @@ fn one_simulated_day_conserves_energy_and_respects_bounds() {
         }
     }
 
-    // Energy balance: everything that crossed the POI is stored or lost.
+    // Energy balance: everything that crossed the POI or came in on the
+    // station-service feed is stored or lost.
     let state = sim.state();
     let delta_stored_wh = sim.stored_energy_wh() - stored_start_wh;
     let losses_wh = state.energy.battery_loss_wh
         + state.energy.pcs_loss_wh
         + state.energy.transformer_loss_wh
         + state.energy.aux_wh;
-    let net_poi_wh = state.substation.import_wh - state.substation.export_wh;
-    let residual_wh = net_poi_wh - delta_stored_wh - losses_wh;
+    let net_in_wh = state.substation.import_wh + state.substation.station_service_wh
+        - state.substation.export_wh;
+    let residual_wh = net_in_wh - delta_stored_wh - losses_wh;
     let throughput_wh = state.substation.import_wh + state.substation.export_wh;
     let relative = residual_wh.abs() / throughput_wh.max(1.0);
     assert!(

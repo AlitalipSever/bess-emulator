@@ -3,7 +3,7 @@
 
 use crate::alarms::{AlarmNode, BlockSiteThresholds};
 use crate::config::PlantConfig;
-use crate::state::{BlockState, ContainerState, PcsOpState};
+use crate::state::{BlockState, ContainerState};
 use crate::traits::{Models, PowerLimits};
 
 use super::alarms::{evaluate_block, push_changes};
@@ -27,7 +27,8 @@ pub(super) struct BlockOutcome {
     pub(super) hvac_w: f64,
     /// Battery heat released (cell losses and balancing bleed), W.
     pub(super) battery_heat_w: f64,
-    /// AC-side capability given current BMS limits.
+    /// AC-side capability given current BMS limits; zero for a block
+    /// outside the dispatchable set, whatever its racks could do.
     pub(super) ac_capability: PowerLimits,
 }
 
@@ -48,11 +49,17 @@ pub(super) struct Scratch {
 /// the electrical and thermal models, evaluate the rack words, finalize the
 /// PCS, and evaluate the block word. Events go out in that order: racks,
 /// the PCS transition, the block.
+///
+/// A block outside the dispatchable set (`in_set` false: maintained,
+/// faulted, not yet released, or the site disconnected) is asked for
+/// nothing and reports no capability, but its BMS, racks and containers
+/// step as always.
 pub(super) fn step_block(
     ctx: &TickContext,
     scratch: &mut Scratch,
     block: &mut BlockState,
     block_idx: usize,
+    in_set: bool,
     events: &mut Vec<Event>,
 ) -> BlockOutcome {
     let TickContext {
@@ -87,10 +94,13 @@ pub(super) fn step_block(
             }
         }
     }
-    let ac_capability = models.pcs.ac_capability_w(&block_limits);
+    let ac_capability = if in_set {
+        models.pcs.ac_capability_w(&block_limits)
+    } else {
+        PowerLimits::default()
+    };
 
-    let faulted = block.pcs.op_state == PcsOpState::Fault;
-    let block_target_w = if faulted { 0.0 } else { share_w };
+    let block_target_w = if in_set { share_w } else { 0.0 };
     block.pcs.p_ac_setpoint_w = block_target_w;
     let dc_request_w = models.pcs.dc_request_w(block_target_w, &block_limits);
 

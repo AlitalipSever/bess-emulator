@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 /// One power block: a PCS and its containers.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BlockState {
+    /// Operating mode: in service, or out of the plant for maintenance.
+    pub mode: BlockMode,
     /// Power conversion system of this block.
     pub pcs: PcsState,
     /// Battery containers, index 0..containers_per_block.
@@ -15,6 +17,18 @@ pub struct BlockState {
     /// raise threshold, s. State because the deadband has to survive a
     /// checkpoint mid-miss.
     pub setpoint_miss_s: f64,
+}
+
+/// What the operator has made of a block. Room for more modes later: the M3
+/// electrical work will want at least a local/remote notion, which is why
+/// this is an enum and its register a value, not a bit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BlockMode {
+    /// Part of the plant.
+    InService,
+    /// Locked out for service: asked for nothing, its converter switched
+    /// off, its containers still cooled.
+    Maintenance,
 }
 
 /// PCS operating state (full state machine arrives in M3).

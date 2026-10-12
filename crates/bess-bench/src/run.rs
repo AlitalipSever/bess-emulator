@@ -398,12 +398,16 @@ fn losses_of(state: &bess_core::SiteState) -> LossKpis {
 fn energy_of(state: &SiteState, stored_delta_wh: f64, nominal_energy_wh: f64) -> EnergyKpis {
     let import_wh = state.substation.import_wh;
     let export_wh = state.substation.export_wh;
+    // Zero on a year without a trip; a scenario that opens the breaker
+    // feeds the house load through here, and the balance has to see it.
+    let station_service_wh = state.substation.station_service_wh;
     let aux_wh = state.energy.aux_wh;
     let metered_losses_wh = state.energy.battery_loss_wh
         + state.energy.pcs_loss_wh
         + state.energy.transformer_loss_wh
         + aux_wh;
-    let residual_wh = (import_wh - export_wh) - stored_delta_wh - metered_losses_wh;
+    let residual_wh =
+        (import_wh + station_service_wh - export_wh) - stored_delta_wh - metered_losses_wh;
     let throughput_wh = (import_wh + export_wh).max(1.0);
 
     EnergyKpis {

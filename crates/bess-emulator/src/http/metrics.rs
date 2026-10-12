@@ -97,6 +97,13 @@ fn site_metrics(out: &mut String, s: &SiteState, speed: f64) {
     );
     metric(
         out,
+        "bess_station_service_watthours_total",
+        "counter",
+        "Station-service meter: the house load drawn while the HV breaker is open.",
+        s.substation.station_service_wh,
+    );
+    metric(
+        out,
         "bess_sim_tick",
         "counter",
         "Simulation tick counter.",

@@ -483,6 +483,29 @@ itself. Its racks derate, the block delivers less and makes less heat, and
 it settles near 59 C, about 1.6 MW short. That is under the 2 MW site
 threshold, so the site bit stays down.
 
+## M2 (v0.5.0): trip, return and station service
+
+Phase 3 lets the plant be partly there: a rack isolated, a block in
+maintenance, one PCS tripped, or the whole site tripped by protection and
+brought back. Two figures stand behind it; neither moves the annual
+record, because the replayed year never trips.
+
+| Figure | Value | Basis | Status |
+|---|---|---|---|
+| Return spacing (`ReturnPolicy::spacing_s`) | 30 s per block, block 19 at 570 s | One GW-01 block is 5 % of the site, so a block every 30 s averages 10 % of rated power per minute, the reconnection gradient the German connection codes ask of a plant coming back after a protective disconnection. VDE-AR-N 4105 states it for the low-voltage case in published summaries; the 110 kV text (VDE-AR-N 4120) is not freely available | estimate anchored to that gradient; the per-block spacing itself has no public source |
+| Station service while the breaker is open | the full house load, on its own meter | No current crosses an open breaker, so the POI reads zero and its meters stand still. HV-connected plants keep cooling, protection, controls and fire detection supplied through a separate station-service feed with its own meter, backed by UPS | modeled as a third substation meter, `site.meter.station_service_kwh`; losing that supply too is an M3 fault |
+
+The release is a 5 MW step per block, not a ramp: the M0 PCS has no
+ramp, and the default matches the average gradient, not its shape. A
+maintained converter stops paying its 339.8 W standby tare (it is locked
+out with its disconnects open); a tripped one keeps paying it.
+
+`tests/trip_return.rs` holds the observable story: a trip at full
+discharge on the replayed July afternoon takes the POI from about
+100 MW to zero in one tick while the station-service meter takes over
+the house load, and after the site reset block k first runs k x 30 s
+later, the POI climbing in twenty steps.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

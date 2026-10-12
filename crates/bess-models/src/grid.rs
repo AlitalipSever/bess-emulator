@@ -6,7 +6,9 @@ use bess_core::traits::GridInterface;
 
 /// M0 grid coupling: transformer losses as no-load plus load-proportional
 /// (quadratic in loading) terms lumped over the MV and HV stages, and
-/// monotonic import/export meters at the POI. Breaker interlocks, OLTC
+/// monotonic import/export meters at the POI, with a third meter on the
+/// station-service feed that carries the house load while the breaker is
+/// open (M2). Breaker interlocks, OLTC
 /// behavior, transformer thermals, and the revenue meter series arrive in
 /// M3.
 ///
@@ -52,11 +54,15 @@ impl GridInterface for SimpleGrid {
         substation.poi_reactive_power_var = 0.0;
 
         if substation.hv_breaker == BreakerState::Open {
-            // Site dark: no POI flow, no metering. (M0 never opens the
-            // breaker; the state machine with interlocks arrives in M3.)
+            // No current crosses an open breaker: the POI reads zero, its
+            // meters stand still, and the de-energized transformer loses
+            // nothing. The house load carries on through the
+            // station-service feed and is metered there. (The breaker state
+            // machine with interlocks arrives in M3.)
             substation.poi_active_power_w = 0.0;
             substation.transformer_loss_w = 0.0;
-            substation.aux_power_w = 0.0;
+            substation.aux_power_w = aux_w;
+            substation.station_service_wh += aux_w * dt_s / 3600.0;
             return;
         }
 
@@ -93,6 +99,7 @@ mod tests {
             aux_power_w: 0.0,
             import_wh: 0.0,
             export_wh: 0.0,
+            station_service_wh: 0.0,
         }
     }
 
@@ -138,6 +145,27 @@ mod tests {
         assert!((grid.no_load_loss_w - 100.0e3).abs() < 1.0);
         let over_a_year_mwh = grid.no_load_loss_w * 8_760.0 / 1.0e6;
         assert!((over_a_year_mwh - 876.0).abs() < 1.0);
+    }
+
+    /// An open breaker: nothing at the POI, the POI meters frozen, the house
+    /// load on the station-service meter. Closing it again stops that meter.
+    #[test]
+    fn an_open_breaker_moves_the_house_load_to_station_service() {
+        let grid = SimpleGrid::new(100.0e6);
+        let mut sub = substation();
+        sub.hv_breaker = BreakerState::Open;
+        grid.step(&mut sub, 0.0, 66.0e3, 50.0, 3600.0);
+        assert!(sub.poi_active_power_w.abs() < f64::EPSILON);
+        assert!(sub.transformer_loss_w.abs() < f64::EPSILON);
+        assert!(sub.import_wh.abs() < f64::EPSILON);
+        assert!(sub.export_wh.abs() < f64::EPSILON);
+        assert!((sub.aux_power_w - 66.0e3).abs() < 1.0e-9);
+        assert!((sub.station_service_wh - 66.0e3).abs() < 1.0e-9);
+
+        sub.hv_breaker = BreakerState::Closed;
+        grid.step(&mut sub, 0.0, 66.0e3, 50.0, 3600.0);
+        assert!((sub.station_service_wh - 66.0e3).abs() < 1.0e-9);
+        assert!(sub.import_wh > 0.0);
     }
 
     #[test]

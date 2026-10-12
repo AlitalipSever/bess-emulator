@@ -151,8 +151,11 @@ fn map_digest(points: &[Point]) -> u64 {
     h
 }
 
-/// Digest of the map at [`MAP_VERSION`] 0.3.0.
-const MAP_DIGEST: u64 = 0x1828_8f29_0804_2bf5;
+/// Digest of the map at [`MAP_VERSION`] 0.3.0. 0.3.0 is still unreleased,
+/// so phase 3's additions at unused addresses (`blockNN.mode`,
+/// `site.meter.station_service_kwh`) fold into it rather than moving the
+/// version; the phase 2 digest was 0x1828_8f29_0804_2bf5.
+const MAP_DIGEST: u64 = 0x8b88_5b58_55d7_88b7;
 
 /// A version number nobody is forced to move is decoration.
 ///
