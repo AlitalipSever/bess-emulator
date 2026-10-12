@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use bess_core::config::PlantConfig;
-use bess_core::state::{AuxPower, SiteState};
+use bess_core::state::{AuxPower, BlockMode, SiteState};
 
 use super::*;
 
@@ -246,4 +246,27 @@ fn every_point_publishes_in_the_unit_it_names() {
         };
         assert_eq!(read, register, "{name} register");
     }
+}
+
+/// The phase 3 points read the state they name: a maintained block's mode
+/// register, its neighbours', and the station-service meter, which sits
+/// apart from the two POI meters a wiring error could confuse it with.
+#[test]
+fn the_mode_and_station_service_points_read_their_state() {
+    let cfg = PlantConfig::gw01();
+    let points = build_points(&cfg);
+    let mut state = SiteState::new(&cfg, 1, 0);
+    state.blocks[7].mode = BlockMode::Maintenance;
+    state.substation.station_service_wh = 4_321_000.0;
+    state.substation.import_wh = 1_000.0;
+    let input = input_bank(&points, &state);
+    assert_eq!(input[2073], 1, "block07.mode");
+    assert_eq!(input[2003], 0, "block00.mode");
+    assert_eq!(input[2083], 0, "block08.mode");
+    assert_eq!(
+        read_u32(&input, 44),
+        4_321,
+        "site.meter.station_service_kwh"
+    );
+    assert_eq!(read_u32(&input, 14), 1, "site.meter.import_kwh");
 }

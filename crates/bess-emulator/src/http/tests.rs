@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use bess_core::alarms::{AlarmNode, Severity};
 use bess_core::kernel::Event;
+use bess_core::state::BlockMode;
 use bess_core::{PlantConfig, SiteState};
 
 use super::*;
@@ -67,4 +68,20 @@ fn the_stream_carries_every_event_since_the_last_push() {
     let quiet = stream_message(&snapshot(), &[], 3);
     assert_eq!(quiet["events"], json!([]));
     assert_eq!(quiet["events_lost_ticks"], 3);
+}
+
+/// Each block's mode carries the register's value, and the station-service
+/// meter sits beside the two POI meters, in kWh like them.
+#[test]
+fn the_summary_carries_block_mode_and_station_service() {
+    let mut snap = snapshot();
+    snap.state.blocks[4].mode = BlockMode::Maintenance;
+    snap.state.substation.station_service_wh = 2_500.0;
+    let summary = summary_value(&snap);
+    assert_eq!(summary["blocks"][4]["mode"], 1);
+    assert_eq!(summary["blocks"][3]["mode"], 0);
+    assert_eq!(summary["station_service_kwh"], 2.5);
+    let message = stream_message(&snap, &[], 0);
+    assert_eq!(message["blocks"][4]["mode"], 1);
+    assert_eq!(message["station_service_kwh"], 2.5);
 }
