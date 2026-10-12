@@ -68,7 +68,7 @@ fn a_block_reset_during_a_trip_clears_the_block_and_nothing_else() {
     let still = sim
         .reset_alarms(ResetScope::Block(BLK))
         .expect("block scope");
-    assert!(still.is_empty());
+    assert_eq!(still, Vec::new(), "a block reset left a cause behind");
     let events = step(&mut sim);
     assert!(events.contains(&Event::PcsStateChanged {
         block: BLK,
