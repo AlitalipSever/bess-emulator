@@ -138,6 +138,7 @@ struct Return {
     first_run: [Option<u64>; BLOCKS],
     limited_raised: Option<u64>,
     limited_cleared: Option<u64>,
+    partial_cleared: Option<u64>,
     climbs: usize,
 }
 
@@ -147,6 +148,7 @@ fn watch_return(sim: &mut Simulation, ticks: u64) -> Return {
         first_run: [None; BLOCKS],
         limited_raised: None,
         limited_cleared: None,
+        partial_cleared: None,
         climbs: 0,
     };
     let mut last_poi = f64::NEG_INFINITY;
@@ -167,6 +169,9 @@ fn watch_return(sim: &mut Simulation, ticks: u64) -> Return {
         }
         if cleared(&events, AlarmNode::Site, s::POWER_LIMITED) {
             seen.limited_cleared = Some(tick);
+        }
+        if cleared(&events, AlarmNode::Site, s::PARTIAL_AVAILABILITY) {
+            seen.partial_cleared.get_or_insert(tick);
         }
         if st.substation.poi_active_power_w > last_poi + 1.0e6 {
             seen.climbs += 1;
@@ -219,6 +224,13 @@ fn a_site_reset_brings_the_blocks_back_one_at_a_time() {
     assert!(
         (19 * SPACING_TICKS..19 * SPACING_TICKS + 30).contains(&cleared_at),
         "limited cleared at {cleared_at}, not with the last block"
+    );
+    // Partly there for exactly as long as some block is still out: the
+    // bit the trip raised clears with the last release, not with the reset.
+    assert_eq!(
+        seen.partial_cleared,
+        Some((BLOCKS as u64 - 1) * SPACING_TICKS),
+        "partial availability did not clear with the last block"
     );
     let st = sim.state();
     assert!(st.blocks.iter().all(|b| b.pcs.op_state == PcsOpState::Run));

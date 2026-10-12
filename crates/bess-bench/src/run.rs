@@ -408,16 +408,23 @@ fn energy_of(state: &SiteState, stored_delta_wh: f64, nominal_energy_wh: f64) ->
         + aux_wh;
     let residual_wh =
         (import_wh + station_service_wh - export_wh) - stored_delta_wh - metered_losses_wh;
+    // The import-side ratios read only the house load that came in through
+    // the POI: what the station-service feed carried never crossed the
+    // import meter, so subtracting it from the import would count it twice.
+    let aux_via_poi_wh = aux_wh - station_service_wh;
     let throughput_wh = (import_wh + export_wh).max(1.0);
 
     EnergyKpis {
         import_mwh: mwh(import_wh),
         export_mwh: mwh(export_wh),
         round_trip_efficiency: round(export_wh / import_wh.max(1.0), 4),
-        round_trip_efficiency_excluding_aux: round(export_wh / (import_wh - aux_wh).max(1.0), 4),
+        round_trip_efficiency_excluding_aux: round(
+            export_wh / (import_wh - aux_via_poi_wh).max(1.0),
+            4,
+        ),
         equivalent_full_cycles: round(export_wh / nominal_energy_wh, 1),
         stored_delta_mwh: mwh(stored_delta_wh),
-        aux_share_of_import: round(aux_wh / import_wh.max(1.0), 5),
+        aux_share_of_import: round(aux_via_poi_wh / import_wh.max(1.0), 5),
         aux_share_of_export: round(aux_wh / export_wh.max(1.0), 5),
         balance_residual_share: round(residual_wh.abs() / throughput_wh, 7),
     }
@@ -460,6 +467,25 @@ mod tests {
         let listed: f64 = losses.waterfall().iter().map(|(_, mwh)| mwh).sum();
         assert!((listed - losses.total_mwh()).abs() < 1.0e-9);
         assert!((losses.aux_total_mwh() - 248.0).abs() < 1.0e-9);
+    }
+
+    /// A year with a trip: part of the house load came in on the
+    /// station-service feed and never crossed the import meter, so the
+    /// import-side ratios leave it out while the balance takes it in.
+    #[test]
+    fn the_import_ratios_leave_out_what_station_service_carried() {
+        let cfg = bess_core::PlantConfig::gw01();
+        let mut state = SiteState::new(&cfg, 1, 0);
+        state.substation.import_wh = 1_000.0e6;
+        state.substation.export_wh = 800.0e6;
+        state.substation.station_service_wh = 30.0e6;
+        state.energy.aux_wh = 100.0e6;
+        state.energy.battery_loss_wh = 130.0e6;
+        let e = energy_of(&state, 0.0, 200.0e6);
+        assert!((e.round_trip_efficiency_excluding_aux - round(800.0 / 930.0, 4)).abs() < 1.0e-12);
+        assert!((e.aux_share_of_import - 0.07).abs() < 1.0e-12);
+        assert!((e.aux_share_of_export - 0.125).abs() < 1.0e-12);
+        assert!(e.balance_residual_share.abs() < 1.0e-12);
     }
 
     #[test]

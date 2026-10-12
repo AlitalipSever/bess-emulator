@@ -77,7 +77,8 @@ pub mod site {
     /// The blocks together deliver less than the site setpoint. Hysteresis.
     pub const POWER_LIMITED: u8 = 0;
     /// Some block or rack is out of the plant: a PCS in fault, a block in
-    /// maintenance, or a rack isolated. Mirrors state.
+    /// maintenance, a block not yet back from a protection trip, the site
+    /// disconnected, or a rack isolated. Mirrors state.
     pub const PARTIAL_AVAILABILITY: u8 = 1;
     /// The HV breaker is open. Mirrors `SubstationState::hv_breaker`.
     pub const HV_BREAKER_OPEN: u8 = 2;

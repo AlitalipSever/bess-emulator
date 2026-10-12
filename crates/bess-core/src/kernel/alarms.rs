@@ -13,6 +13,7 @@ use crate::alarms::{
 use crate::config::PlantConfig;
 use crate::state::{BlockMode, BlockState, BreakerState, PcsOpState, SiteState};
 
+use super::restart::{self, dispatchable};
 use super::{Event, Simulation};
 
 /// Push one raise or clear event per bit that differs between two words,
@@ -108,12 +109,18 @@ fn evaluate_site(state: &SiteState, cfg: &PlantConfig, th: &BlockSiteThresholds)
         shortfall,
         th.site_shortfall,
     );
+    // Out of the plant is outside the dispatchable set, the same predicate
+    // allocation and availability use: a PCS in fault, a block in
+    // maintenance, a block not yet back from a trip, or no connection at
+    // all. An isolated rack is out of the plant too, inside a block that is
+    // otherwise in it.
+    let breaker_open = state.substation.hv_breaker == BreakerState::Open;
     let partial = state
         .blocks
         .iter()
-        .any(|blk| blk.pcs.op_state == PcsOpState::Fault || blk.mode == BlockMode::Maintenance)
+        .enumerate()
+        .any(|(k, blk)| !dispatchable(blk, k, &state.ems, !breaker_open))
         || state.racks().any(|r| !r.in_service);
-    let breaker_open = state.substation.hv_breaker == BreakerState::Open;
 
     let mut next = word;
     next = with_bit(next, s::POWER_LIMITED, limited);
@@ -206,8 +213,7 @@ impl Simulation {
             push_changes(&mut events, AlarmNode::Site, old, self.state.alarm_bits);
             if self.state.substation.hv_breaker == BreakerState::Open {
                 self.state.substation.hv_breaker = BreakerState::Closed;
-                self.state.ems.blocks_released = 0;
-                self.state.ems.next_release_s = 0.0;
+                restart::start_over(&mut self.state.ems);
             }
         }
 

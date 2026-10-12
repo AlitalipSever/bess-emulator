@@ -108,7 +108,7 @@ change, and a bit is never reused; free positions are headroom.
 | block | 3 | `maintenance` | mirrors `blockNN.mode` |
 | block | 8 | `pcs_fault` | mirrors the PCS fault state, which only a reset leaves |
 | site | 0 | `power_limited` | hysteresis |
-| site | 1 | `partial_availability` | mirrors state: a PCS in fault, a block in maintenance, or a rack isolated |
+| site | 1 | `partial_availability` | mirrors state: a PCS in fault, a block in maintenance, a block not yet back after a trip, the breaker open, or a rack isolated |
 | site | 2 | `hv_breaker_open` | mirrors state |
 | site | 8 | `protection_trip` | latched; a site reset clears it, closes the breaker and starts the staggered return |
 

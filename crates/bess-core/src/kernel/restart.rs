@@ -27,21 +27,41 @@ impl Default for ReturnPolicy {
 }
 
 /// Whether block `index` takes a share of the site target and counts
-/// towards availability: in service, not in fault, and already released.
-/// Whether the site is connected at all is the caller's second question.
-pub(super) fn dispatchable(block: &BlockState, index: usize, ems: &EmsState) -> bool {
-    block.mode == BlockMode::InService
+/// towards availability: the site is connected, and the block is in
+/// service, not in fault, and already released. Allocation, availability
+/// and the site's partial-availability bit all ask this one question.
+pub(super) fn dispatchable(
+    block: &BlockState,
+    index: usize,
+    ems: &EmsState,
+    connected: bool,
+) -> bool {
+    connected
+        && block.mode == BlockMode::InService
         && block.pcs.op_state != PcsOpState::Fault
         && index < ems.blocks_released
 }
 
+/// Start the return over: no block released, the first one due on the
+/// next tick of a connected site. A protection trip and the site reset
+/// that ends it both begin here.
+pub(super) fn start_over(ems: &mut EmsState) {
+    ems.blocks_released = 0;
+    ems.next_release_s = 0.0;
+}
+
 /// Each dispatchable block's even share of the site target, W; zero when
 /// no block is dispatchable.
-pub(super) fn share_w(blocks: &[BlockState], ems: &EmsState, target_w: f64) -> f64 {
+pub(super) fn share_w(
+    blocks: &[BlockState],
+    ems: &EmsState,
+    connected: bool,
+    target_w: f64,
+) -> f64 {
     let active = blocks
         .iter()
         .enumerate()
-        .filter(|(k, b)| dispatchable(b, *k, ems))
+        .filter(|(k, b)| dispatchable(b, *k, ems, connected))
         .count();
     if active == 0 {
         0.0

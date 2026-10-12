@@ -155,15 +155,19 @@ v0.4.0 can trip over.
   (inputs 8 and 10) used to sum every block, a PCS in fault included, and
   never asked about the breaker. They now sum the dispatchable blocks
   only: in service, not in fault, and released after a trip; zero while
-  the breaker is open. The site target is split over the same set.
+  the breaker is open. The site target is split over the same set, and
+  `site.partial_availability` reads it too, so the bit stays up through
+  a staggered return until the last block is back.
 - **Checkpoint format 6** (phase 3 PR1): `BlockState::mode`,
   `EmsState::blocks_released` and `next_release_s`,
   `SubstationState::station_service_wh`. Format 5 files are rejected by
   version.
 - **Kernel commands** (phase 3 PR1): `set_rack_in_service`,
   `set_block_mode`, `trip_pcs` and `trip_protection`, returning a
-  `CommandError` for a node the site does not have; `set_hvac_failed`
-  moved into the same module, unchanged. A site reset on a tripped site
+  `CommandError` for a node the site does not have. `set_hvac_failed`
+  moved into the same module and now returns `Result<(), CommandError>`
+  too, instead of panicking on an unknown container: callers add an
+  `expect` or handle the error. A site reset on a tripped site
   now also closes the breaker and starts the staggered return, block k
   released k x 30 s later. No REST, Modbus or CLI door yet: phase 4's
   scenario player is that door.

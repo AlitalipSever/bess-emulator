@@ -42,8 +42,10 @@ pub fn hot_plant() -> Simulation {
             }
         }
     });
-    sim.set_hvac_failed(HOT_BLOCK, 0, true);
-    sim.set_hvac_failed(HOT_BLOCK, 1, true);
+    sim.set_hvac_failed(HOT_BLOCK, 0, true)
+        .expect("container exists");
+    sim.set_hvac_failed(HOT_BLOCK, 1, true)
+        .expect("container exists");
     sim.set_external_setpoint_w(Some(100.0e6));
     sim
 }

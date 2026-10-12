@@ -12,22 +12,44 @@ use crate::alarms::layout::site as s;
 use crate::alarms::{has_bit, with_bit, AlarmNode, Severity};
 use crate::state::{BlockMode, BreakerState, PcsOpState};
 
-use super::{Event, Simulation};
+use super::{restart, Event, Simulation};
 
 /// Why a command was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum CommandError {
-    /// The command names a block, container or rack the site does not have.
+    /// The command names a block or rack the site does not have.
     #[error("no such node on this site: {0:?}")]
     NoSuchNode(AlarmNode),
+    /// The command names a container the site does not have. Containers
+    /// carry no alarm word, so they get a variant of their own.
+    #[error("no such container on this site: block {block}, container {container}")]
+    NoSuchContainer {
+        /// Block index.
+        block: usize,
+        /// Container index within the block.
+        container: usize,
+    },
 }
 
 impl Simulation {
     /// Fail (`true`) or repair (`false`) one container's HVAC unit, from
     /// the next tick on. The first physical fault the kernel accepts; the
     /// phase 4 scenario player reaches it through its fault actions.
-    pub fn set_hvac_failed(&mut self, block: usize, container: usize, failed: bool) {
-        self.state.blocks[block].containers[container].hvac.failed = failed;
+    /// `block.hvac_failure` mirrors it on the next tick.
+    pub fn set_hvac_failed(
+        &mut self,
+        block: usize,
+        container: usize,
+        failed: bool,
+    ) -> Result<(), CommandError> {
+        let c = self
+            .state
+            .blocks
+            .get_mut(block)
+            .and_then(|b| b.containers.get_mut(container))
+            .ok_or(CommandError::NoSuchContainer { block, container })?;
+        c.hvac.failed = failed;
+        Ok(())
     }
 
     /// Close (`true`) or open (`false`) one rack's DC contactor, from the
@@ -117,8 +139,7 @@ impl Simulation {
             severity: Severity::of_bit(s::PROTECTION_TRIP),
         });
         state.substation.hv_breaker = BreakerState::Open;
-        state.ems.blocks_released = 0;
-        state.ems.next_release_s = 0.0;
+        restart::start_over(&mut state.ems);
         for (block, b) in state.blocks.iter_mut().enumerate() {
             let from = b.pcs.op_state;
             if from != PcsOpState::Fault {

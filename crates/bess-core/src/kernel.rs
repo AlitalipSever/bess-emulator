@@ -193,7 +193,7 @@ impl Simulation {
                 dt_s,
             );
         }
-        let share_w = restart::share_w(&self.state.blocks, &self.state.ems, target_w);
+        let share_w = restart::share_w(&self.state.blocks, &self.state.ems, connected, target_w);
 
         // 3. Per block: BMS limits -> PCS conversion -> racks -> thermal.
         let mut p_ac_site_w = 0.0;
@@ -208,7 +208,7 @@ impl Simulation {
             dt_s,
         };
         for (block_idx, block) in self.state.blocks.iter_mut().enumerate() {
-            let in_set = connected && dispatchable(block, block_idx, &self.state.ems);
+            let in_set = dispatchable(block, block_idx, &self.state.ems, connected);
             let outcome = step_block(
                 &ctx,
                 &mut self.scratch,

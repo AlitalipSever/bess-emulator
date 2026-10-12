@@ -92,6 +92,13 @@ fn an_isolated_rack_stops_at_once_and_its_neighbours_carry_its_share() {
         }))
     );
     assert!(sim.set_rack_in_service(99, 0, 0, false).is_err());
+    assert_eq!(
+        sim.set_hvac_failed(0, 9, true),
+        Err(CommandError::NoSuchContainer {
+            block: 0,
+            container: 9
+        })
+    );
     assert_eq!(sim.state(), &before, "a refused command changed the plant");
 }
 
