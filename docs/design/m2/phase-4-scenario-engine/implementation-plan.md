@@ -8,6 +8,9 @@ Two PRs, each landing green.
   line-carrying errors (design D1 to D4).
 - `bess-core`: `FaultAction` enum and `Simulation::apply` (the kernel
   door), scenario actions entering the event log.
+- `rack: self_discharge`: the per-rack excess rate and its term in the
+  spread law (`bess-models/src/bms/balance.rs`), the one fault this
+  phase builds rather than reaches (design D3).
 - The player: load-time resolution to tick indices, load-time parameter
   draws, deterministic cursor.
 - Checkpoint format 7 to 8 (D8).

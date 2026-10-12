@@ -41,8 +41,17 @@ events:
 - **D3, physical fault set v1** (the `FaultAction` enum): `hvac: failure`
   and `repair`, `pcs: trip`, `protection: trip`, `rack: self_discharge`
   with a rate, `rack: isolate` and `restore`, `block: maintenance_enter`
-  and `exit`, `alarms: reset`. Each is an observable operation phase 2 or
-  3 built; the engine adds none of its own physics. Frequencies and
+  and `exit`, `alarms: reset`. All but one are operations phase 2 or 3
+  built; the engine adds none of its own physics. The exception is
+  `rack: self_discharge`, which neither phase built (phase 3's plan
+  records why: it is a cell fault, not an availability one), so this
+  phase owns it. It is a per-rack excess self-discharge rate in the
+  rack state, added to the time term of the phase 1 spread law (the
+  growth of `cell_dsoc`), so one cell leaking faster than its neighbours
+  widens the rack's spread over days, outruns the bleed at the top of
+  the window, and surfaces through the phase 2 imbalance bits; the
+  fault's state change is that rate, the consequences stay the BMS
+  model's. Its field joins the format 8 checkpoint (D8). Frequencies and
   combinations are library material (phase 5), not engine material.
 - **D4, data fault set v1 in the schema now, executed in phase 5:**
   `dropout`, `freeze`, `unit_error` and `chatter` on `surface: mqtt` or
