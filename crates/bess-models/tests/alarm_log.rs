@@ -73,8 +73,8 @@ fn the_log_rebuilds_every_word_every_tick() {
         }
     }
     let mut sim = sim_from(state);
-    sim.set_hvac_failed(2, 0, true);
-    sim.set_hvac_failed(2, 1, true);
+    sim.set_hvac_failed(2, 0, true).expect("container exists");
+    sim.set_hvac_failed(2, 1, true).expect("container exists");
     sim.set_external_setpoint_w(Some(100.0e6));
     let weather = gw01_weather();
 

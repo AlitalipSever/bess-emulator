@@ -9,14 +9,19 @@ use serde::{Deserialize, Serialize};
 
 use crate::alarms::{AlarmNode, BlockSiteThresholds, Severity};
 use crate::config::PlantConfig;
-use crate::state::{AuxPower, BreakerState, EmsMode, PcsOpState, SiteState};
+use crate::state::{BlockMode, BreakerState, EmsMode, PcsOpState, SiteState};
 use crate::traits::{AuxDemand, Models, PowerLimits};
 use crate::TICK_SECONDS;
 
 mod alarms;
 mod block;
+mod commands;
+mod restart;
 
 use block::{step_block, Scratch, TickContext};
+pub use commands::CommandError;
+use restart::dispatchable;
+pub use restart::ReturnPolicy;
 
 /// The weather one tick applies.
 ///
@@ -81,6 +86,7 @@ pub struct Simulation {
     state: SiteState,
     events: Vec<Event>,
     thresholds: BlockSiteThresholds,
+    return_policy: ReturnPolicy,
     scratch: Scratch,
 }
 
@@ -101,6 +107,7 @@ impl Simulation {
             state,
             events: Vec::with_capacity(16),
             thresholds: BlockSiteThresholds::default(),
+            return_policy: ReturnPolicy::default(),
             scratch: Scratch {
                 rack_limits: vec![PowerLimits::default(); racks_per_block],
                 bms_heat: vec![0.0; racks_per_block],
@@ -117,13 +124,6 @@ impl Simulation {
     /// Plant configuration.
     pub fn config(&self) -> &PlantConfig {
         &self.cfg
-    }
-
-    /// Fail (`true`) or repair (`false`) one container's HVAC unit, from
-    /// the next tick on. The first physical fault the kernel accepts; the
-    /// phase 4 scenario player reaches it through its fault actions.
-    pub fn set_hvac_failed(&mut self, block: usize, container: usize, failed: bool) {
-        self.state.blocks[block].containers[container].hvac.failed = failed;
     }
 
     /// Unix timestamp (UTC seconds) of the current tick.
@@ -181,18 +181,19 @@ impl Simulation {
         let target_w = raw_target.clamp(-rated, rated);
         self.state.ems.site_setpoint_w = target_w;
 
-        // 2. Allocate the target evenly over non-faulted blocks.
-        let active_blocks = self
-            .state
-            .blocks
-            .iter()
-            .filter(|b| b.pcs.op_state != PcsOpState::Fault)
-            .count();
-        let share_w = if active_blocks == 0 {
-            0.0
-        } else {
-            target_w / active_blocks as f64
-        };
+        // 2. Allocate the target evenly over the dispatchable blocks: in
+        //    service, not in fault, released by the return sequencer. The
+        //    same predicate decides availability below, so what the plant
+        //    is asked and what it reports can never disagree.
+        if connected {
+            restart::release(
+                &mut self.state.ems,
+                self.state.blocks.len(),
+                &self.return_policy,
+                dt_s,
+            );
+        }
+        let share_w = restart::share_w(&self.state.blocks, &self.state.ems, connected, target_w);
 
         // 3. Per block: BMS limits -> PCS conversion -> racks -> thermal.
         let mut p_ac_site_w = 0.0;
@@ -207,7 +208,15 @@ impl Simulation {
             dt_s,
         };
         for (block_idx, block) in self.state.blocks.iter_mut().enumerate() {
-            let outcome = step_block(&ctx, &mut self.scratch, block, block_idx, &mut self.events);
+            let in_set = dispatchable(block, block_idx, &self.state.ems, connected);
+            let outcome = step_block(
+                &ctx,
+                &mut self.scratch,
+                block,
+                block_idx,
+                in_set,
+                &mut self.events,
+            );
             p_ac_site_w += outcome.p_ac_w;
             hvac_aux_w += outcome.hvac_w;
             avail.max_discharge_w += outcome.ac_capability.max_discharge_w;
@@ -218,28 +227,25 @@ impl Simulation {
         self.state.ems.available_discharge_w = avail.max_discharge_w;
         self.state.ems.available_charge_w = avail.max_charge_w;
 
-        // 4. Auxiliary inventory: what the site consumes to run itself. A
-        //    dark site draws nothing at the POI, which is what the substation
-        //    meters too, so the itemized and metered totals agree by
-        //    construction. What losing supply does to a container that still
+        // 4. Auxiliary inventory: what the site consumes to run itself,
+        //    breaker open or closed. A tripped site keeps its house load on
+        //    the station-service feed, and the substation meters it there.
+        //    What losing that supply as well does to a container that still
         //    has heat in it is an M3 question, arriving with the breaker
-        //    state machine; M0 never opens the breaker.
-        let aux = if connected {
-            self.models.aux.step_site(AuxDemand {
-                hvac_w: hvac_aux_w,
-                racks: self.cfg.total_racks(),
-                // Standby and Fault both mean energized and not converting;
-                // see AuxDemand for why a tripped unit still pays.
-                pcs_not_converting: self
-                    .state
-                    .blocks
-                    .iter()
-                    .filter(|b| b.pcs.op_state != PcsOpState::Run)
-                    .count(),
-            })
-        } else {
-            AuxPower::default()
-        };
+        //    state machine.
+        let aux = self.models.aux.step_site(AuxDemand {
+            hvac_w: hvac_aux_w,
+            racks: self.cfg.total_racks(),
+            // Standby and Fault both mean energized and not converting; see
+            // AuxDemand for why a tripped unit still pays. A maintained unit
+            // is locked out and switched off, so it does not.
+            pcs_not_converting: self
+                .state
+                .blocks
+                .iter()
+                .filter(|b| b.pcs.op_state != PcsOpState::Run && b.mode == BlockMode::InService)
+                .count(),
+        });
         self.state.aux = aux;
         self.state.energy.aux_items.accumulate(&aux, wh);
 

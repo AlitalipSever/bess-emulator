@@ -58,8 +58,9 @@ fn run_wide_day() -> Day {
         + s.energy.pcs_loss_wh
         + s.energy.transformer_loss_wh
         + s.energy.aux_wh;
-    let net_poi_wh = s.substation.import_wh - s.substation.export_wh;
-    let residual_wh = net_poi_wh - (sim.stored_energy_wh() - stored_start_wh) - losses_wh;
+    let net_in_wh =
+        s.substation.import_wh + s.substation.station_service_wh - s.substation.export_wh;
+    let residual_wh = net_in_wh - (sim.stored_energy_wh() - stored_start_wh) - losses_wh;
     day.residual_share =
         residual_wh.abs() / (s.substation.import_wh + s.substation.export_wh).max(1.0);
     day

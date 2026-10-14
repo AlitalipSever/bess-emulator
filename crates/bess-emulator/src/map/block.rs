@@ -5,7 +5,7 @@
 //! quantity, so every aggregate here says which container or rack it speaks
 //! for, and the answer is always the one nearest a limit.
 
-use bess_core::state::{BlockState, HvacMode, PcsOpState, SiteState};
+use bess_core::state::{BlockMode, BlockState, HvacMode, PcsOpState, SiteState};
 
 use super::{block_base, block_ext_base, block_prefix, point, Class, Encoding, Point, Space};
 
@@ -53,6 +53,16 @@ fn hvac_mode_code(mode: HvacMode) -> f64 {
         HvacMode::Cool1 => 1.0,
         HvacMode::Cool2 => 2.0,
         HvacMode::Heat => 3.0,
+    }
+}
+
+/// Register encoding of a block's operating mode, also what the summary
+/// and the stream carry. Published values, fixed like the HVAC codes; M3's
+/// modes take the next numbers.
+pub(crate) fn block_mode_code(mode: BlockMode) -> u16 {
+    match mode {
+        BlockMode::InService => 0,
+        BlockMode::Maintenance => 1,
     }
 }
 
@@ -182,6 +192,19 @@ pub(super) fn points(b: usize) -> Vec<Point> {
             base + 9,
             Input,
             move |s: &SiteState| hvac_mode_code(block_hvac_mode(&s.blocks[b]))
+        ),
+        // What the operator has made of the block. Medium, not event: the
+        // event class is the alarm points', and entering or leaving
+        // maintenance is already an event through `block.maintenance`.
+        point!(
+            format!("{prefix}.mode"),
+            "enum",
+            Medium,
+            U16,
+            1.0,
+            ext + 3,
+            Input,
+            move |s: &SiteState| f64::from(block_mode_code(s.blocks[b].mode))
         ),
         // The spread, in millivolts so a u16 covers it at 1 mV. The state
         // keeps volts like every other voltage in the tree; the unit change

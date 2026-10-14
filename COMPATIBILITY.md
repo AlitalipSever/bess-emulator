@@ -53,7 +53,7 @@ check which contract it is talking to without fetching this file.
 |---|---|---|
 | 0.1.0 | crate v0.2.0 | The first published map. It carried no version number; it is recorded here as 0.1.0 so the sequence has a beginning. |
 | 0.2.0 | crate v0.3.0 | Additions only: the five itemized house-load points at site 32 to 41, and per block `container.air_temp_c` and `hvac.state` in the two slots each block had free. Nothing moved, nothing was renamed. The file gained its version comment line. |
-| 0.3.0 | crate v0.5.0 (unreleased) | **Breaking:** `blockNN.alarm_bits` (base+6) and `site.alarm_count` (input 31) stop reading zero. The rack words behind the first now have a layout (see Alarm words below), and the second counts every set bit on site, rack, block and site words alike. Both, being alarm points, move from class `medium` to the new class `event`. **Additions:** `site.alarm_bits` (42), `site.event_counter` (43), and a second per-block range at 2000 + 10 x block carrying `block_alarm_bits`, `racks_derated` and `cell_dv_mv`. **Corrected:** the scale column of `site.available_discharge_kw`, `site.available_charge_kw`, `site.meter.export_kwh`, `site.meter.import_kwh` and `blockNN.pcs.p_ac_kw` / `p_dc_kw` read 0.001, relative to watts, while the unit column said kW or kWh; it now reads 1, relative to the named unit. The registers carry the same counts as before. The reference file now lists rows in address order, holding registers last. Drafted in M2 phase 2; later M2 additions join this row until the release. |
+| 0.3.0 | crate v0.5.0 (unreleased) | **Breaking:** `blockNN.alarm_bits` (base+6) and `site.alarm_count` (input 31) stop reading zero. The rack words behind the first now have a layout (see Alarm words below), and the second counts every set bit on site, rack, block and site words alike. Both, being alarm points, move from class `medium` to the new class `event`. **Additions:** `site.alarm_bits` (42), `site.event_counter` (43), and a second per-block range at 2000 + 10 x block carrying `block_alarm_bits`, `racks_derated`, `cell_dv_mv` and `mode` (M2 phase 3); `site.meter.station_service_kwh` (44, M2 phase 3). **Changed values, same points:** `site.available_discharge_kw` and `site.available_charge_kw` (8, 10) now exclude blocks in maintenance, in fault or not yet returned after a trip, and read zero while the HV breaker is open; `site.poi.active_power_w` and the two POI meters read zero and stand still while the breaker is open, the house load moving to `site.meter.station_service_kwh`. **Corrected:** the scale column of `site.available_discharge_kw`, `site.available_charge_kw`, `site.meter.export_kwh`, `site.meter.import_kwh` and `blockNN.pcs.p_ac_kw` / `p_dc_kw` read 0.001, relative to watts, while the unit column said kW or kWh; it now reads 1, relative to the named unit. The registers carry the same counts as before. The reference file now lists rows in address order, holding registers last. Drafted in M2 phase 2; later M2 additions join this row until the release. |
 
 ## Deprecation process (from map 1.0)
 
@@ -78,6 +78,7 @@ Changing any of these values is a major change.
 | `site.ems.mode`, `control.ems_mode` | 0 follow the internal dispatch plan, 1 follow an external setpoint |
 | `blockNN.pcs.state` | 0 standby, 1 running, 2 tripped |
 | `blockNN.hvac.state` | 0 off, 1 one cooling unit, 2 both cooling units, 3 electric heating |
+| `blockNN.mode` | 0 in service, 1 maintenance |
 
 ### Alarm words
 
@@ -104,11 +105,12 @@ change, and a bit is never reused; free positions are headroom.
 | block | 0 | `setpoint_not_met` | hysteresis, after a 10 s deadband |
 | block | 1 | `container_over_temp` | hysteresis |
 | block | 2 | `hvac_failure` | mirrors state |
+| block | 3 | `maintenance` | mirrors `blockNN.mode` |
 | block | 8 | `pcs_fault` | mirrors the PCS fault state, which only a reset leaves |
 | site | 0 | `power_limited` | hysteresis |
-| site | 1 | `partial_availability` | mirrors state |
+| site | 1 | `partial_availability` | mirrors state: a PCS in fault, a block in maintenance, a block not yet back after a trip, the breaker open, or a rack isolated |
 | site | 2 | `hv_breaker_open` | mirrors state |
-| site | 8 | `protection_trip` | latched (laid out; raised from M2 phase 3) |
+| site | 8 | `protection_trip` | latched; a site reset clears it, closes the breaker and starts the staggered return |
 
 The names are the ones events and metrics publish, prefixed with the word:
 `rack.derate_active`. The thresholds behind them are documented in
@@ -174,7 +176,9 @@ so each such point states which container it speaks for:
   or a field no scope has; 422 for a node the site does not have.
 - **REST summary (`/api/v1/summary`) and the stream:** the site's word is
   `alarm_bits` and each block's own word `block_alarm_bits`, the names the
-  same words have on Modbus and MQTT.
+  same words have on Modbus and MQTT. Each block's `mode` carries the
+  `blockNN.mode` values, and `station_service_kwh` sits beside
+  `import_kwh` and `export_kwh`.
 - **WebSocket (`/api/v1/stream`):** each message is the summary plus
   `events`, every event since the previous message in the MQTT payload
   shape, and `events_lost_ticks` when the stream fell further behind than the

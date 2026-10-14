@@ -156,7 +156,8 @@ pub struct AuxDemand {
     pub racks: usize,
     /// PCS units energized but not converting. A tripped unit counts: a trip
     /// opens the AC side and leaves the controls, cooling and communications
-    /// alive, which is what the tare pays for.
+    /// alive, which is what the tare pays for. A unit in a block under
+    /// maintenance does not: it is locked out with its disconnects open.
     pub pcs_not_converting: usize,
 }
 

@@ -45,6 +45,7 @@ struct DayEnergy {
     stored_delta_wh: f64,
     import_wh: f64,
     export_wh: f64,
+    station_service_wh: f64,
 }
 
 impl DayEnergy {
@@ -59,6 +60,7 @@ impl DayEnergy {
             stored_delta_wh,
             import_wh: state.substation.import_wh,
             export_wh: state.substation.export_wh,
+            station_service_wh: state.substation.station_service_wh,
         }
     }
 
@@ -133,8 +135,8 @@ fn every_watt_has_an_address() {
         + items.pcs_standby_wh
         + items.controls_wh
         + items.lighting_and_safety_wh;
-    let net_poi_wh = day.import_wh - day.export_wh;
-    let residual_wh = net_poi_wh - day.stored_delta_wh - accounted_wh;
+    let net_in_wh = day.import_wh + day.station_service_wh - day.export_wh;
+    let residual_wh = net_in_wh - day.stored_delta_wh - accounted_wh;
     let throughput_wh = day.import_wh + day.export_wh;
     assert!(
         residual_wh.abs() / throughput_wh.max(1.0) < 2.0e-3,

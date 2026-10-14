@@ -61,6 +61,7 @@ fn summary_value(snap: &Snapshot) -> serde_json::Value {
         "ambient_c": state.weather.ambient_c,
         "import_kwh": state.substation.import_wh / 1000.0,
         "export_kwh": state.substation.export_wh / 1000.0,
+        "station_service_kwh": state.substation.station_service_wh / 1000.0,
         "available_discharge_w": state.ems.available_discharge_w,
         "available_charge_w": state.ems.available_charge_w,
         "alarm_bits": state.alarm_bits,
@@ -68,6 +69,7 @@ fn summary_value(snap: &Snapshot) -> serde_json::Value {
         "blocks": state.blocks.iter().map(|b| json!({
             "p_ac_w": b.pcs.p_ac_w,
             "soc": b.average_soc(),
+            "mode": crate::map::block_mode_code(b.mode),
             // Named as on Modbus and MQTT, where `blockNN.alarm_bits` is
             // the rack fold and this word is `block_alarm_bits`.
             "block_alarm_bits": b.alarm_bits,

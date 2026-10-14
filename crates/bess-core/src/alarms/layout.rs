@@ -53,6 +53,11 @@ pub mod block {
     /// One of the block's container HVAC units has failed. Mirrors
     /// `HvacState::failed`.
     pub const HVAC_FAILURE: u8 = 2;
+    /// The block is in maintenance. Mirrors `BlockState::mode`; a status
+    /// carried in the alarm word so that entering and leaving maintenance
+    /// is an event on every surface, as SCADA alarm lists carry it as an
+    /// informational entry. The mode register is the primary record.
+    pub const MAINTENANCE: u8 = 3;
     /// The PCS is in fault. Mirrors `PcsOpState::Fault`, a state that
     /// itself only leaves through an operator reset, hence the trip byte.
     pub const PCS_FAULT: u8 = 8;
@@ -62,6 +67,7 @@ pub mod block {
         (SETPOINT_NOT_MET, "setpoint_not_met"),
         (CONTAINER_OVER_TEMP, "container_over_temp"),
         (HVAC_FAILURE, "hvac_failure"),
+        (MAINTENANCE, "maintenance"),
         (PCS_FAULT, "pcs_fault"),
     ];
 }
@@ -70,13 +76,15 @@ pub mod block {
 pub mod site {
     /// The blocks together deliver less than the site setpoint. Hysteresis.
     pub const POWER_LIMITED: u8 = 0;
-    /// Some block or rack is out of the plant: a PCS in fault or a rack
-    /// isolated. Mirrors state.
+    /// Some block or rack is out of the plant: a PCS in fault, a block in
+    /// maintenance, a block not yet back from a protection trip, the site
+    /// disconnected, or a rack isolated. Mirrors state.
     pub const PARTIAL_AVAILABILITY: u8 = 1;
     /// The HV breaker is open. Mirrors `SubstationState::hv_breaker`.
     pub const HV_BREAKER_OPEN: u8 = 2;
-    /// Protection has tripped the site. Latched. Laid out now so the word
-    /// is frozen whole; raised from phase 3, which builds the trip.
+    /// Protection has tripped the site. Latched: raised by
+    /// `Simulation::trip_protection`, cleared by a site reset, which also
+    /// closes the breaker and starts the staggered return.
     pub const PROTECTION_TRIP: u8 = 8;
 
     /// Every laid-out bit and the name the surfaces publish it under.

@@ -138,6 +138,7 @@ struct Meters {
     export_wh: f64,
     aux_wh: f64,
     hvac_wh: f64,
+    station_service_wh: f64,
 }
 
 #[derive(Default)]
@@ -175,6 +176,7 @@ impl Collector {
             export_wh: state.substation.export_wh,
             aux_wh: state.energy.aux_wh,
             hvac_wh: state.energy.aux_items.hvac_wh,
+            station_service_wh: state.substation.station_service_wh,
         };
         if self.months.last().map(|m| m.month) != Some(index) {
             // A month begins: bank what the meters read, and close the one
@@ -217,6 +219,7 @@ impl Collector {
                 export_wh: state.substation.export_wh,
                 aux_wh: state.energy.aux_wh,
                 hvac_wh: state.energy.aux_items.hvac_wh,
+                station_service_wh: state.substation.station_service_wh,
             };
             last.closed = difference(now, self.opened_at);
         }
@@ -239,8 +242,11 @@ impl Collector {
                         4,
                     ),
                     aux_mwh: round(acc.closed.aux_wh / 1.0e6, 1),
+                    // The house load that came in through the POI, as in
+                    // the annual figure.
                     aux_share_of_import: round(
-                        acc.closed.aux_wh / acc.closed.import_wh.max(1.0),
+                        (acc.closed.aux_wh - acc.closed.station_service_wh)
+                            / acc.closed.import_wh.max(1.0),
                         5,
                     ),
                     hvac_mwh: round(acc.closed.hvac_wh / 1.0e6, 1),
@@ -269,6 +275,7 @@ fn difference(now: Meters, then: Meters) -> Meters {
         export_wh: now.export_wh - then.export_wh,
         aux_wh: now.aux_wh - then.aux_wh,
         hvac_wh: now.hvac_wh - then.hvac_wh,
+        station_service_wh: now.station_service_wh - then.station_service_wh,
     }
 }
 

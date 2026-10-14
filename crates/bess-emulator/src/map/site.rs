@@ -105,6 +105,21 @@ pub(super) fn points() -> Vec<Point> {
             Input,
             |s: &SiteState| s.substation.import_wh / 1000.0
         ),
+        // The house load's own meter while the HV breaker is open: no
+        // current crosses an open breaker, so the two POI meters above stand
+        // still and the station-service feed carries the site. It sits after
+        // the alarm points at 42 and 43 because the meters' neighbourhood was
+        // taken in M0; the map trades adjacency for stability.
+        point!(
+            "site.meter.station_service_kwh",
+            "kWh",
+            Slow,
+            U32,
+            1.0,
+            44,
+            Input,
+            |s: &SiteState| s.substation.station_service_wh / 1000.0
+        ),
         point!(
             "site.substation.hv_breaker_closed",
             "bool",

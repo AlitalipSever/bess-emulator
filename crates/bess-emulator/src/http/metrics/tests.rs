@@ -216,3 +216,18 @@ fn the_alarm_gauges_count_nodes_per_alarm() {
     );
     assert!((value_of(&body, "bess_events_total") - 1234.0).abs() < f64::EPSILON);
 }
+
+/// The station-service counter reads its own meter, not one of the two POI
+/// meters it is published beside.
+#[test]
+fn the_station_service_counter_reads_its_meter() {
+    let mut snap = snapshot();
+    snap.state.substation.import_wh = 111.0;
+    snap.state.substation.export_wh = 222.0;
+    snap.state.substation.station_service_wh = 333.0;
+    let body = metrics_body(&snap);
+    let read = |name: &str| value_of(&body, name);
+    assert!((read("bess_import_watthours_total") - 111.0).abs() < 1.0e-9);
+    assert!((read("bess_export_watthours_total") - 222.0).abs() < 1.0e-9);
+    assert!((read("bess_station_service_watthours_total") - 333.0).abs() < 1.0e-9);
+}

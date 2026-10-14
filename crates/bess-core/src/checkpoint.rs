@@ -18,6 +18,9 @@ use crate::state::SiteState;
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
 ///
+/// v6 (M2): blocks gained an operating mode, the plant controller the
+/// return sequencer's count and countdown, and the substation a
+/// station-service meter.
 /// v5 (M2): alarm words on blocks and site, the setpoint-miss timer, the
 /// HVAC failure flag, the event log's count and digest, and the events a
 /// reset left to go out with the next tick. Latched bits and the hysteresis
@@ -30,7 +33,7 @@ pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Pre-1.0 checkpoints are not migrated; an older file is rejected with its
 /// version named rather than half-restored, since a missing item would
 /// otherwise restore as a plant whose auxiliary meters silently read zero.
-pub const FORMAT_VERSION: u32 = 5;
+pub const FORMAT_VERSION: u32 = 6;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {
