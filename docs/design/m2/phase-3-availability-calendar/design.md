@@ -4,7 +4,8 @@ Each decision is proposed here and confirmed or revised in its PR. D1 to
 D3 and D7 to D12 are PR1's and are pinned below against the tree as phase
 2 left it (map 0.3.0, checkpoint format 5, `kernel/alarms.rs`); D1, D3
 and D10 were confirmed on 2026-10-12, D3 and D10 in revised form. D4 to
-D6 are PR2's and stay as the milestone design proposed them.
+D6 are PR2's, pinned on 2026-10-14 against the tree as PR1 left it; the
+pin is marked in each.
 
 ## Decisions
 
@@ -69,6 +70,17 @@ D6 are PR2's and stay as the milestone design proposed them.
   but with reuse conditions that likely mean fetch-script-only per
   DATA-LICENSES.md policy). Decided by license text in PR2, recorded in
   DATA-LICENSES.md either way; hash pinned like the weather artifact.
+  **Pinned for PR2:** SMARD, chart-data filter `4169` (day-ahead
+  wholesale price, DE-LU), hourly, region `DE`, weekly block files
+  `4169_DE_hour_<ms>.json` of `[ms, EUR/MWh]` pairs. The download
+  centre states "Under the CC BY 4.0 licence, data from SMARD can be
+  downloaded, stored and used free of charge" (read 2026-10-14); the
+  attribution wording is taken from SMARD's data-use page in the PR.
+  Artifact `crates/bess-data/data/dayahead-de-lu-2024.bin`, pin
+  `DAYAHEAD_DE_LU_2024_FNV1A`, prices as `i32` in 0.01 EUR/MWh (2024
+  has negative hours and peaks past what `i16` holds at that scale).
+  Gaps are errors, not fills: a price has no continuity to interpolate
+  along.
 - **D5, timezone handling is a table, not a dependency.** The plan builder
   needs Europe/Berlin midnights and quarter-hours for one pinned year.
   Proposal: derive them from the price series itself (the 2024 series is
@@ -76,12 +88,40 @@ D6 are PR2's and stay as the milestone design proposed them.
   artifact carries the local-day boundaries computed offline by
   `bess-data`). This keeps chrono-tz out of the kernel and keeps the
   kernel pure UTC. Revisit when a second year ships.
+  **Pinned for PR2:** the table lives inside the artifact (367 `u16`
+  day starts, the last an end sentinel), derived by the compiler from
+  the SMARD timestamps, not typed in. The series is the Europe/Berlin
+  year, 2023-12-31 23:00 UTC to 2024-12-31 22:00 UTC, 8784 hours like
+  the UTC year (23 + 25 = 48), and the header records the +1 h start
+  offset. The replay already wraps the year by month and day, so the
+  local-year series wraps with it: UTC reference hour `h` reads index
+  `(h + 1) mod 8784`, and sim 2026-12-31 23:00 UTC reads the first
+  hour of local 2024-01-01. Two consequences, both deliberate: the
+  emulator's DST days are 2024's (03-31 and 10-27) whatever year the
+  simulated clock shows, as its weather is 2024's; and the revenue
+  meter needs no table at all, because Europe/Berlin is a whole-hour
+  offset and local quarter-hours are UTC quarter-hours (a `bess-data`
+  test pins every day start to a whole hour so this stays true).
+  Labeling a quarter-hour with its local day is the bench's job.
 - **D6, revenue meter granularity.** Site level, import and export Wh,
   closed on local quarter-hours, `slow` class on the map plus a full
   series in Parquet and bench output. Not per block: revenue metering
   happens at the POI, and per-block meters would be an invented signal.
   It is a second meter beside `site.meter.*`, not a rename: the SCADA
   accumulators keep their addresses and their meaning.
+  **Pinned for PR2:** `RevenueMeter` in `state/revenue.rs`, a field of
+  `SubstationState`, fed by the kernel right after `grid.step` with the
+  same POI power the SCADA meters see (so the two agree to rounding
+  until M2.5 gives them accuracy classes). Running fiscal totals, the
+  open period (start, import, export), the closed-period count and the
+  last closed period's two energies. Closes when the tick's end instant
+  is a multiple of 900 s. The map publishes the last closed period and
+  the count (inputs 45, 47, 49), not the running totals, which would
+  read as inputs 12 and 14 do; the running totals go to Prometheus and
+  the bench. "Parquet" in the milestone text means the bench's series
+  output: the bench writes the quarter-hour series as CSV on request
+  (`--periods <path>`), not into `calibration/`. Revenue in EUR is
+  computed nowhere until M4 sources its band.
 - **D7, two checkpoint bumps, one per schema-changing PR.** Block mode
   and return-sequencer state land in PR1 (format 6), the revenue meter
   accumulators and current-period state in PR2 (format 7). The M1 rule
@@ -91,7 +131,10 @@ D6 are PR2's and stay as the milestone design proposed them.
   `EmsState::blocks_released` and `EmsState::next_release_s`. Nothing
   else the trip touches is new to the tree: the breaker position, the
   latched site bit and the PCS states have been in it since M0 and
-  phase 2.
+  phase 2. **Pinned for PR2:** format 7 carries
+  `SubstationState::revenue` (the `RevenueMeter` fields of D6); the
+  open period's running state is in the tree precisely so a resume
+  closes the period on the same tick as an uninterrupted run.
 - **D8, the protection trip is a command, applied between ticks.**
   `Simulation::trip_protection()`: the breaker opens, every PCS goes to
   `Fault`, `site.protection_trip` is set, `blocks_released` goes to zero,
@@ -185,17 +228,41 @@ Prometheus gains `bess_station_service_watthours_total`.
 COMPATIBILITY.md gets the enum row, the alarm-word row and the meter
 row.
 
-PR2's points (revenue meter period energy and period index) are pinned
-in PR2.
+**Proposed for PR2**, additions only, class `slow`, input space, right
+after PR1's 44:
+
+| Address | Point | Encoding | Class | Change |
+|---|---|---|---|---|
+| 45 | `site.revenue.period_import_kwh` | u32, kWh, scale 1 | slow | new (D6): the last closed quarter-hour's import |
+| 47 | `site.revenue.period_export_kwh` | u32, kWh, scale 1 | slow | new (D6): the last closed quarter-hour's export |
+| 49 | `site.revenue.periods_closed` | u32, count | slow | new (D6): quarter-hours closed since the run began |
+
+The price is not a map point: no public BESS register model (SunSpec
+802, IEC 61850-7-420) carries a market price, and the map is the
+plant's interface, not the EMS's input. It is published where inputs
+are: `bess_day_ahead_price_eur_per_mwh` on Prometheus and
+`day_ahead_price_eur_mwh` in the summary and the stream. The summary
+also gains `revenue_import_kwh`, `revenue_export_kwh` and
+`revenue_periods_closed`; Prometheus gains the three matching counters
+(`bess_revenue_import_watthours_total`,
+`bess_revenue_export_watthours_total`,
+`bess_revenue_periods_closed_total`). The Grafana dashboard moves to
+version 4 with one panel: the price and the site setpoint on two axes.
+COMPATIBILITY.md's 0.3.0 row gains the three points.
 
 ## Checkpoint impact
 
 Format 5 to 6 in PR1 (`BlockState::mode`, `EmsState::blocks_released`,
 `EmsState::next_release_s`, `SubstationState::station_service_wh`), 6 to
-7 in PR2 (D7). The golden snapshot
+7 in PR2 (`SubstationState::revenue`, D7). The golden snapshot
 digest moves in PR1 because the tree gained fields, not because any
 value did: the clean year never isolates, maintains or trips, and the
-PR shows the annual record unchanged to the last digit.
+PR shows the annual record unchanged to the last digit. In PR2 it moves
+twice and for both reasons: once when the planner switches to real
+prices (every day's dispatch changes; the first trajectory move since
+M1 PR2's weather switch) and once when the meter joins the tree. Both
+are named in the constant's comment and the PR body, and the annual
+record moves with the first.
 
 ## Test plan
 
@@ -241,8 +308,23 @@ PR1:
 PR2:
 
 - **Unit: DST days.** The 2024-03-31 plan has 23 hours, 2024-10-27 has
-  25; the revenue meter closes 92 and 100 periods on those days; total
-  annual periods equal 35,136.
+  25; the revenue meter closes 92 and 100 periods on those days. Two
+  totals, both pinned: the reference year's table sums to 35,136
+  quarter-hours (366 local days, a `bess-data` fact), and the bench's
+  365-day run closes 35,040 (Feb 29 is not replayed; a `bess-bench`
+  exact check beside the 92 and 100).
+- **Unit: the wrap.** Sim 2026-12-31 23:00 UTC reads the first price of
+  local 2024-01-01; the day table's starts are all whole hours.
+- **Unit: the meter.** Closes at every multiple of 900 s and not
+  between; routes by sign; never decreases over 64 seeded random power
+  profiles from the kernel's own PRNG (no property-testing crate);
+  closed periods sum to the running total minus the open period.
+- **Integration: the meter against the plant** (`tests/revenue_meter.rs`).
+  One replayed day closes 96 periods; fiscal and SCADA totals agree to
+  1e-9 relative every tick; the fiscal meter stands still exactly while
+  the breaker is open in the PR1 trip fixture; a checkpoint taken
+  mid-period resumes and closes on the same tick as the uninterrupted
+  run.
 - **Determinism:** dataset hash pinned; golden snapshot regenerated for
   the price switch (the dispatch plan changes on every day of the year),
   called out loudly in the PR since it is the largest trajectory change of
