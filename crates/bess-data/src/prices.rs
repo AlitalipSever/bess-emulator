@@ -85,6 +85,15 @@ impl PriceYear {
         self.day_starts.len() - 1
     }
 
+    /// The series index that UTC reference hour `utc_hour` reads (hour 0 is
+    /// 00:00 UTC on January 1st): `(utc_hour + offset) mod len`. For the
+    /// local year the last UTC hour wraps to the first local hour, which is
+    /// where the replay's own wrap takes it next anyway.
+    pub fn index_at_utc_hour(&self, utc_hour: usize) -> usize {
+        let len = self.len() as i64;
+        (utc_hour as i64 + i64::from(self.start_offset_h)).rem_euclid(len) as usize
+    }
+
     /// Price of hour `idx`, EUR/MWh.
     pub fn price_eur_mwh(&self, idx: usize) -> f64 {
         self.eur_mwh[idx]

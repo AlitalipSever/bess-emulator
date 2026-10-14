@@ -83,3 +83,13 @@ fn spot_prices_match_the_raw_blocks() {
     let negative = year.prices_eur_mwh().iter().filter(|&&p| p < 0.0).count();
     assert_eq!(negative, 457);
 }
+
+/// UTC reference hour `h` reads index `h + 1`, and the last UTC hour of the
+/// year (2024-12-31 23:00 UTC, local midnight of 2025) wraps to index 0.
+#[test]
+fn utc_hours_map_one_hour_ahead_and_wrap() {
+    let year = dayahead_de_lu_2024();
+    assert_eq!(year.index_at_utc_hour(0), 1);
+    assert_eq!(year.index_at_utc_hour(8782), 8783);
+    assert_eq!(year.index_at_utc_hour(8783), 0);
+}

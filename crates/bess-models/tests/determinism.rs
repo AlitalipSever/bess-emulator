@@ -14,14 +14,20 @@ use bess_models::{gw01_models, gw01_weather};
 /// 2026-01-01 00:00:00 UTC.
 const START_UNIX_S: i64 = 1_767_225_600;
 
-/// Four hours: covers idle and the night charge window of the default plan.
+/// Four hours: covers idle and the first hour of the night charge, which
+/// starts at 03:00 UTC under the replayed 2024-01-01 prices as it did under
+/// the M0 synthetic curve.
 const TICKS: u64 = 4 * 3600;
 
 /// Golden digest of the state tree after `TICKS` ticks with seed 42.
 ///
 /// If a deliberate model or state-schema change moves this value, update it
 /// from the number printed by the failing assertion. Any other change that
-/// moves it is a broken determinism contract. Last regenerated in M2
+/// moves it is a broken determinism contract. The switch to replayed
+/// day-ahead prices (M2 phase 3 PR2) did not move it on its own: in these
+/// four hours both price curves charge in the same hour, so the trajectory
+/// is identical; the annual record is where the switch shows. Last
+/// regenerated in M2
 /// phase 3 PR1, for schema alone: the block mode, the return sequencer's
 /// count and countdown, and the station-service meter joined the tree, and
 /// with them removed the tree is identical to phase 2's, value for value.

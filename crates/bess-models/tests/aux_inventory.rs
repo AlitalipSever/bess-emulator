@@ -90,8 +90,12 @@ fn the_itemized_aux_matches_the_metered_total() {
         let itemized_wh = day.items().total_wh();
         let residual_wh = energy.aux_wh - itemized_wh;
         let relative = residual_wh.abs() / energy.aux_wh.max(1.0);
+        // The two paths sum the day's 86,400 ticks in different orders, so
+        // they may differ by accumulated rounding, bounded by about
+        // n * f64::EPSILON = 2e-11 relative. The smallest real item, rack
+        // electronics, would leave a residual near 1e-3 if forgotten.
         assert!(
-            relative < 1.0e-12,
+            relative < 1.0e-10,
             "{label}: metered aux {:.3} Wh, itemized {itemized_wh:.3} Wh, \
              residual {residual_wh:.6} Wh",
             energy.aux_wh
