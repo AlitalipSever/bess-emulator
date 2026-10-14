@@ -496,6 +496,7 @@ name = "bess-bench"
 version = "0.4.0"
 dependencies = [
  "bess-core",
+ "bess-data",
  "bess-models",
  "clap",
  "serde",

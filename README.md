@@ -50,7 +50,7 @@ cargo run --release -p bess-emulator
 | MQTT | broker at `127.0.0.1:1883` | Topics under `bess/gw01/`, JSON payloads, decimated per publication class; alarm words retained and published on change; every alarm raise, clear and PCS transition under `bess/gw01/events/`. |
 | REST | `http://127.0.0.1:8080/api/v1/` | `state`, `summary`, `setpoint`, `speed`, `alarms/reset`. |
 | WebSocket | `ws://127.0.0.1:8080/api/v1/stream` | Tick summaries, 4 per second, with the events since the last one. |
-| Prometheus | `http://127.0.0.1:8080/metrics` | Site KPIs, temperatures, HVAC staging, house load by item, cumulative losses by category, cell spread, active alarms and the event count. |
+| Prometheus | `http://127.0.0.1:8080/metrics` | Site KPIs, temperatures, HVAC staging, house load by item, cumulative losses by category, cell spread, active alarms and the event count, the fiscal (revenue) meter, and the day-ahead price the planner acts on. |
 | Health | `http://127.0.0.1:8080/health` | Liveness + kernel version. |
 
 The full register and topic reference is
@@ -137,8 +137,10 @@ replayed hour had them. The clock can jump to any day of the year, either
 restarting there or running the plant forward to it tick by tick.
 
 Still at its simplest useful depth: a 1-RC cell model, constant transformer
-parameters, a placeholder daily price curve, synthetic grid frequency, no
-degradation and no faults. Those are M2 through M5.
+parameters, synthetic grid frequency, no degradation and no faults. Those are
+M2 through M5. The placeholder price curve is already gone on the way to M2:
+the planner ranks the real 2024 German day-ahead prices (SMARD) one local
+day at a time, DST days included.
 
 CI enforces the physics invariants (energy conservation, SoC bounds, meter
 monotonicity), byte-identical determinism, the curve-fit and single-cycle

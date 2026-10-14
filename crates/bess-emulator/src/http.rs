@@ -62,6 +62,11 @@ fn summary_value(snap: &Snapshot) -> serde_json::Value {
         "import_kwh": state.substation.import_wh / 1000.0,
         "export_kwh": state.substation.export_wh / 1000.0,
         "station_service_kwh": state.substation.station_service_wh / 1000.0,
+        // The fiscal meter's last closed quarter-hour, as on Modbus.
+        "revenue_period_import_kwh": state.substation.revenue.last_import_wh / 1000.0,
+        "revenue_period_export_kwh": state.substation.revenue.last_export_wh / 1000.0,
+        "revenue_periods_closed": state.substation.revenue.periods_closed,
+        "day_ahead_price_eur_mwh": bess_models::gw01_day_ahead_price_eur_mwh(state.unix_time_s()),
         "available_discharge_w": state.ems.available_discharge_w,
         "available_charge_w": state.ems.available_charge_w,
         "alarm_bits": state.alarm_bits,

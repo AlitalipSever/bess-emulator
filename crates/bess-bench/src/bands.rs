@@ -93,6 +93,16 @@ pub const AUX_SHARE_OF_IMPORT: Band = Band { lo: 0.01, hi: 0.08 };
 /// millions of ticks, not for unmodeled physics.
 pub const BALANCE_RESIDUAL_MAX: f64 = 2.0e-3;
 
+/// Quarter-hours the fiscal meter closes over the annual run: 365 days of
+/// 96. Arithmetic, not calibration, so an exact value rather than a band:
+/// the reference year has 366 local days and 35,136 quarter-hours, but the
+/// run replays a common year and February 29th is not visited.
+pub const PERIODS_IN_THE_RUN: u64 = 35_040;
+/// Quarter-hours on the 23-hour local day, 2024-03-31.
+pub const PERIODS_ON_SHORT_DST_DAY: u64 = 92;
+/// Quarter-hours on the 25-hour local day, 2024-10-27.
+pub const PERIODS_ON_LONG_DST_DAY: u64 = 100;
+
 /// The gates CI enforces.
 pub const GATES: &[Gate] = &[
     Gate {
@@ -132,6 +142,19 @@ pub fn check(kpis: &Kpis) -> Vec<String> {
         failures.push(format!(
             "energy balance residual {residual:.7} of throughput, above {BALANCE_RESIDUAL_MAX:.1e}: \
              the loss accounts do not explain what crossed the POI"
+        ));
+    }
+    let p = &kpis.periods;
+    let counted = (p.closed, p.on_short_dst_day, p.on_long_dst_day);
+    let expected = (
+        PERIODS_IN_THE_RUN,
+        PERIODS_ON_SHORT_DST_DAY,
+        PERIODS_ON_LONG_DST_DAY,
+    );
+    if counted != expected {
+        failures.push(format!(
+            "fiscal periods closed / on the short DST day / on the long one: \
+             {counted:?}, expected {expected:?}"
         ));
     }
     if kpis.alarms.trips_raised > 0 {
@@ -208,6 +231,17 @@ mod tests {
         assert!(
             failures.iter().any(|line| line.contains("trips raised")),
             "a tripping year passed: {failures:?}"
+        );
+    }
+
+    #[test]
+    fn a_miscounted_dst_day_is_reported() {
+        let mut kpis = passing();
+        kpis.periods.on_long_dst_day = 96;
+        let failures = check(&kpis);
+        assert!(
+            failures.iter().any(|line| line.contains("fiscal periods")),
+            "a 24-hour autumn day passed: {failures:?}"
         );
     }
 }

@@ -2,8 +2,8 @@
 
 use super::{
     AuxPower, BlockMode, BlockState, BreakerState, ContainerState, EmsMode, EmsState,
-    EnergyAccounting, HvacMode, HvacState, PcsOpState, PcsState, RackState, SiteMeta, SiteState,
-    SubstationState,
+    EnergyAccounting, HvacMode, HvacState, PcsOpState, PcsState, RackState, RevenueMeter, SiteMeta,
+    SiteState, SubstationState,
 };
 use crate::alarms::EventLog;
 use crate::config::PlantConfig;
@@ -105,6 +105,7 @@ impl SiteState {
                 import_wh: 0.0,
                 export_wh: 0.0,
                 station_service_wh: 0.0,
+                revenue: RevenueMeter::new(start_unix_s),
             },
             aux: AuxPower::default(),
             energy: EnergyAccounting::default(),

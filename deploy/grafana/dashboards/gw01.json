@@ -4,7 +4,7 @@
   "tags": ["bess-emulator"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "refresh": "5s",
   "time": { "from": "now-15m", "to": "now" },
   "panels": [
@@ -361,6 +361,42 @@
           "refId": "A",
           "expr": "bess_alarms_active > 0",
           "legendFormat": "{{alarm}}"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Day-ahead price (DE-LU 2024, replayed) and site setpoint",
+      "description": "The price the planner is acting on this hour, from the bundled SMARD year (Bundesnetzagentur | SMARD.de, CC BY 4.0), against the setpoint it chose: charging in each local day's three cheapest hours, discharging in its two dearest.",
+      "datasource": { "type": "prometheus", "uid": "bess-prom" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 57 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: EUR/MWh",
+          "custom": { "lineInterpolation": "stepAfter", "lineWidth": 2 },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byFrameRefID", "options": "B" },
+            "properties": [
+              { "id": "unit", "value": "watt" },
+              { "id": "custom.axisPlacement", "value": "right" }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "bess_day_ahead_price_eur_per_mwh",
+          "legendFormat": "day-ahead price"
+        },
+        {
+          "refId": "B",
+          "expr": "bess_site_setpoint_watts",
+          "legendFormat": "setpoint (positive = discharge)"
         }
       ]
     }

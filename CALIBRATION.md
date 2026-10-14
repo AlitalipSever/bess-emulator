@@ -71,21 +71,21 @@ fails if this block is stale.
 
 | Gate | Band | Measured | Verdict | Band drawn from |
 |---|---|---|---|---|
-| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 84.17% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
-| Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.60% | inside | no public dataset publishes this at plant scale; see the note below |
+| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 83.66% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
+| Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.71% | inside | no public dataset publishes this at plant scale; see the note below |
 
 Energy at the point of interconnection over the run:
 
 | Quantity | Value |
 |---|---|
-| Imported | 74 406.4 MWh |
-| Exported | 62 629.7 MWh |
-| Round-trip efficiency | 0.8417 |
-| Round-trip efficiency, house load removed from import | 0.8642 |
-| Equivalent full cycles, exported energy over nameplate energy | 312.2 |
-| Stored energy, end minus start | -91.6 MWh |
-| Auxiliary share of import / of export | 2.60% / 3.08% |
-| Unexplained residual | 0.00069% of throughput, gate below 0.2% |
+| Imported | 66 484.8 MWh |
+| Exported | 55 622.2 MWh |
+| Round-trip efficiency | 0.8366 |
+| Round-trip efficiency, house load removed from import | 0.8599 |
+| Equivalent full cycles, exported energy over nameplate energy | 277.2 |
+| Stored energy, end minus start | 93.8 MWh |
+| Auxiliary share of import / of export | 2.71% / 3.24% |
+| Unexplained residual | 0.00067% of throughput, gate below 0.2% |
 
 Three definitions the figures above depend on. The round-trip ratio is
 uncorrected for the stored-energy endpoints, matching how the fleet figure
@@ -100,15 +100,15 @@ Where the energy went, each category on its own meter:
 
 | Category | MWh | Share of import |
 |---|---|---|
-| Battery | 5 129.9 | 6.89% |
-| PCS conversion | 3 128.1 | 4.20% |
-| Transformer | 1 679.9 | 2.26% |
-| Auxiliary: HVAC | 1 363.4 | 1.83% |
-| Auxiliary: rack electronics | 301.9 | 0.41% |
-| Auxiliary: PCS standby | 47.1 | 0.06% |
-| Auxiliary: controls and protection | 131.4 | 0.18% |
-| Auxiliary: lighting and safety | 87.6 | 0.12% |
-| **Total** | **11 869.3** | **15.95%** |
+| Battery | 4 562.7 | 6.86% |
+| PCS conversion | 2 812.4 | 4.23% |
+| Transformer | 1 591.3 | 2.39% |
+| Auxiliary: HVAC | 1 235.1 | 1.86% |
+| Auxiliary: rack electronics | 301.9 | 0.45% |
+| Auxiliary: PCS standby | 47.1 | 0.07% |
+| Auxiliary: controls and protection | 131.4 | 0.20% |
+| Auxiliary: lighting and safety | 87.6 | 0.13% |
+| **Total** | **10 769.5** | **16.20%** |
 
 Temperatures and HVAC over the run:
 
@@ -116,17 +116,19 @@ Temperatures and HVAC over the run:
 |---|---|
 | Ambient, coldest to warmest | -12.1 to 33.3 C |
 | Container air, coldest to warmest | 10.0 to 29.0 C |
-| Cells, coldest to warmest | 9.1 to 38.0 C |
-| Duty, one unit / both units / heating | 17.89% / 0.33% / 0.03% |
-| Cooling starts per container | 6 819.5 |
+| Cells, coldest to warmest | 8.7 to 38.1 C |
+| Duty, one unit / both units / heating | 15.66% / 0.45% / 0.26% |
+| Cooling starts per container | 4 847.9 |
 
-Alarms raised over the run: 0 trips (gate: none), 33 037 warnings.
+Alarms raised over the run: 0 trips (gate: none), 40 449 warnings.
 
 | Alarm | Raised |
 |---|---|
-| `block.setpoint_not_met` | 14 600 |
-| `rack.derate_active` | 17 707 |
-| `site.power_limited` | 730 |
+| `block.setpoint_not_met` | 15 300 |
+| `rack.derate_active` | 24 384 |
+| `site.power_limited` | 765 |
+
+Fiscal quarter-hours closed: 35 040 (gate: exactly 35 040), 92 on the 23-hour day and 100 on the 25-hour day (gates: 92 and 100).
 
 <!-- bess-bench:end m1-annual -->
 
@@ -505,6 +507,68 @@ discharge on the replayed July afternoon takes the POI from about
 100 MW to zero in one tick while the station-service meter takes over
 the house load, and after the site reset block k first runs k x 30 s
 later, the POI climbing in twenty steps.
+
+## M2 (v0.5.0): real prices and the revenue meter
+
+Phase 3 PR2 replaces the M0 placeholder curve with real prices. The
+planner keeps its rule (each day's three cheapest hours charge at full
+power, its two dearest discharge) and now ranks the hours of each
+Europe/Berlin day of the replayed price year.
+
+| Dataset | Value | Source | Status |
+|---|---|---|---|
+| Day-ahead price, DE-LU, 2024 | 8784 hourly prices, the local year 2023-12-31 23:00 UTC to 2024-12-31 22:00 UTC; mean 78.51 EUR/MWh, minimum -135.45, maximum 936.28, 457 negative hours | Bundesnetzagentur \| SMARD.de, CC BY 4.0 (see DATA-LICENSES.md) | bundled, hash pinned; no hour filled |
+| Local days | 366, of which 2024-03-31 has 23 hours and 2024-10-27 has 25 | derived from SMARD's weekly block stamps by `compile-prices` | the emulator's DST days are the reference year's, as its weather is |
+
+The annual record before and after the switch, same plant, same seed,
+same weather; reported, not tuned:
+
+| Figure | Placeholder curve | Replayed 2024 prices |
+|---|---|---|
+| Round-trip efficiency at the POI | 0.8417 | 0.8366 |
+| Auxiliary share of import | 2.60 % | 2.71 % |
+| Import | 74,406.4 MWh | 66,484.8 MWh |
+| Export | 62,629.7 MWh | 55,622.2 MWh |
+| Equivalent full cycles | 312.2 | 277.2 |
+| Compressor starts per container | 6,819.5 | 4,847.9 |
+| Warnings raised | 33,037 | 40,449 |
+
+Both gates still hold. The fall in throughput is a finding about the
+rule, not about the prices. The rule ranks hours without ordering them,
+and the placeholder curve always put its trough (03:00 to 05:00) before
+its peak (18:00 and 19:00). Real days do not: on 65 of the 366 local
+days the first discharge hour comes before the first charge hour,
+typically a 07:00 or 08:00 morning peak ahead of a 12:00 to 13:00 solar
+trough. Discharging a plant that the day before already emptied moves
+nothing, so 28 local days export nothing at all and 58 export less than
+half of the best day's 197.6 MWh; `block.setpoint_not_met` and
+`site.power_limited` raise more often for the same reason. Charging moves
+from the night into the warm midday, which is why derating raises grow
+(17,707 to 24,384) and the cooling pattern changes. A planner that orders
+charge before discharge, or looks at state of charge, is market
+behaviour, and that is M4's; this phase gives the plan real days, not a
+better strategy.
+
+The same unordered plan breaks the monthly figures of the study series.
+Month-end state of charge now swings by up to a full plant (about
+185 MWh in September, November and December), and a month's plain export
+over import reads that as loss in the month that ends full and as gain
+in the one that empties it: September 0.802, November 0.875. The season
+was still there, hidden. The series therefore also publishes each month's
+change in stored energy and an endpoint-corrected round trip, export plus
+that change over import. Corrected, January reads 0.848 against August's
+0.830, the 1.8-point seasonal spread the series test holds; the
+correction is first order (the stored change counted as if returned
+without the discharge path's losses) and is good to a few tenths of a
+point. The plain ratio stays in the series, as it was.
+
+The fiscal meter closes 35,040 quarter-hours over the run (365 days; the
+common simulated year skips the reference leap day), 92 of them on the
+23-hour day and 100 on the 25-hour day. The bench gates the three counts
+as exact values, since they are arithmetic. The reference year itself has
+35,136 quarter-hours, pinned in `bess-data`. Energy is metered and the
+price is known, but no EUR figure is computed or published anywhere until
+M4 sources the band it would be held against.
 
 ## Planned gates (from ROADMAP.md)
 

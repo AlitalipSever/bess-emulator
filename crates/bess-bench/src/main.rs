@@ -12,10 +12,12 @@
 //! cargo run --release -p bess-bench -- --write      # update the record and the document
 //! cargo run --release -p bess-bench -- --check      # what CI runs
 //! cargo run --release -p bess-bench -- --check-docs # document matches the record, no simulation
+//! cargo run --release -p bess-bench -- --periods p.csv # every closed quarter-hour, as CSV
 //! ```
 
 mod alarms;
 mod bands;
+mod periods;
 mod report;
 mod run;
 mod series;
@@ -77,6 +79,11 @@ struct Cli {
     /// measurement would produce the same record it already has.
     #[arg(long)]
     render: bool,
+
+    /// Write every closed quarter-hour of the fiscal meter to this path as
+    /// CSV (about a megabyte for the year; never committed).
+    #[arg(long, value_name = "PATH")]
+    periods: Option<PathBuf>,
 
     /// Do not print per-week progress.
     #[arg(long)]
@@ -142,7 +149,7 @@ fn main() -> ExitCode {
     }
 
     let started = Instant::now();
-    let (kpis, series) = measure(spec, cli.quiet);
+    let (kpis, series, period_rows) = measure(spec, cli.quiet);
     let elapsed = started.elapsed().as_secs_f64();
     print_report(&kpis, elapsed);
 
@@ -151,6 +158,13 @@ fn main() -> ExitCode {
             return fail(&message);
         }
         println!("wrote {}", path.display());
+    }
+
+    if let Some(path) = &cli.periods {
+        if let Err(message) = write_file(path, &periods::to_csv(&period_rows)) {
+            return fail(&message);
+        }
+        println!("wrote {} periods to {}", period_rows.len(), path.display());
     }
 
     if cli.write {
@@ -182,7 +196,7 @@ fn main() -> ExitCode {
 
 /// Run the plant, reporting progress on stderr so a redirected stdout stays
 /// machine-readable.
-fn measure(spec: RunSpec, quiet: bool) -> (Kpis, series::StudySeries) {
+fn measure(spec: RunSpec, quiet: bool) -> run::Measured {
     let started = Instant::now();
     run::run(spec, |day, days| {
         if quiet || day % 7 != 0 {

@@ -173,7 +173,9 @@ point-of-interconnection measurements with replayed real grid frequency,
 transformer losses (a component of field round-trip efficiency), breaker and
 disconnector state machines with interlocks (a protection trip takes the whole
 site offline and it returns in a staggered sequence), and a separate 15-minute
-revenue meter series alongside SCADA telemetry.
+revenue meter alongside the SCADA meters: since M2 a fiscal meter in the
+state tree closes quarter-hour periods on the POI power the SCADA meters
+see, and publishes energy only, no EUR until M4 sources the band.
 
 ### Power electronics, at the seconds scale
 

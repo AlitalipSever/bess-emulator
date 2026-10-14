@@ -257,6 +257,16 @@ impl Simulation {
             inputs.grid_frequency_hz,
             dt_s,
         );
+        // The fiscal meter reads the same POI power the SCADA meters just
+        // booked, and closes a period when this tick ends on a quarter-hour.
+        // An open breaker leaves the POI at zero, so it stands still through
+        // a trip without a special case.
+        let tick_end_s = self.state.unix_time_s() + TICK_SECONDS as i64;
+        let poi_w = self.state.substation.poi_active_power_w;
+        self.state
+            .substation
+            .revenue
+            .observe(poi_w, dt_s, tick_end_s);
         self.state.energy.transformer_loss_wh += self.state.substation.transformer_loss_w * wh;
         self.state.energy.aux_wh += self.state.substation.aux_power_w * wh;
 

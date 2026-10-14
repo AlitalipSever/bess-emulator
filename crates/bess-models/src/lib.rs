@@ -7,6 +7,7 @@
 
 pub mod aux;
 pub mod bms;
+pub mod calendar;
 pub mod cell;
 pub mod ems;
 pub mod grid;
@@ -26,7 +27,7 @@ pub use weather::{
 };
 // Re-exported because `HistoricalWeather::hour_at` returns them: a caller
 // should not have to depend on `bess-data` to name what this crate hands it.
-pub use bess_data::{HourSample, PrecipForm, WeatherYear};
+pub use bess_data::{HourSample, PrecipForm, PriceYear, WeatherYear};
 
 use bess_core::config::PlantConfig;
 use bess_core::traits::Models;
@@ -43,7 +44,12 @@ pub fn gw01_models(cfg: &PlantConfig) -> Models {
         bms: Box::new(BasicBms::default()),
         thermal: Box::new(LumpedThermal::default()),
         pcs: Box::new(CurvePcs::cec_utility_reference(cfg.pcs_rated_w)),
-        ems: Box::new(DayAheadEms::default_profile(cfg.grid.site_rated_w)),
+        ems: Box::new(DayAheadEms::from_price_year(
+            bess_data::dayahead_de_lu_2024(),
+            cfg.grid.site_rated_w,
+            3,
+            2,
+        )),
         aux: Box::new(InventoryAux::gw01()),
         grid: Box::new(SimpleGrid::new(cfg.grid.site_rated_w)),
     }
@@ -58,4 +64,17 @@ pub fn gw01_models(cfg: &PlantConfig) -> Models {
 /// driver themselves, so every surface replays the same year.
 pub fn gw01_weather() -> HistoricalWeather {
     HistoricalWeather::lindenberg_2024()
+}
+
+/// The day-ahead price the GW-01 planner is acting on at a UTC timestamp,
+/// EUR/MWh: the replayed DE-LU 2024 hour that instant maps onto.
+///
+/// The one function the shell and the bench call for "the price now", so
+/// neither can disagree with the planner about which hour it is. It
+/// composes the shared calendar with the artifact lookup and has no other
+/// logic.
+pub fn gw01_day_ahead_price_eur_mwh(unix_time_s: i64) -> f64 {
+    let year = bess_data::dayahead_de_lu_2024();
+    let hour = calendar::reference_hour(unix_time_s, year.year());
+    year.price_eur_mwh(year.index_at_utc_hour(hour))
 }

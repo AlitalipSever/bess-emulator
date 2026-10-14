@@ -17,6 +17,7 @@ pub fn render(kpis: &Kpis) -> String {
     write_waterfall(&mut out, kpis);
     write_thermal(&mut out, kpis);
     write_alarms(&mut out, kpis);
+    write_periods(&mut out, kpis);
     out.push_str(END);
     out
 }
@@ -208,6 +209,21 @@ fn write_alarms(out: &mut String, kpis: &Kpis) {
         let _ = writeln!(out, "| `{name}` | {} |", thousands_int(*count));
     }
     out.push('\n');
+}
+
+fn write_periods(out: &mut String, kpis: &Kpis) {
+    let p = &kpis.periods;
+    let _ = write!(
+        out,
+        "Fiscal quarter-hours closed: {} (gate: exactly {}), {} on the 23-hour \
+         day and {} on the 25-hour day (gates: {} and {}).\n\n",
+        thousands_int(p.closed),
+        thousands_int(bands::PERIODS_IN_THE_RUN),
+        p.on_short_dst_day,
+        p.on_long_dst_day,
+        bands::PERIODS_ON_SHORT_DST_DAY,
+        bands::PERIODS_ON_LONG_DST_DAY
+    );
 }
 
 /// A count with thousands separated.

@@ -18,6 +18,9 @@ use crate::state::SiteState;
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
 ///
+/// v7 (M2): the substation gained the fiscal revenue meter: running totals,
+/// the open quarter-hour period and the last closed one, so a resumed run
+/// continues the open period and closes it on the same tick.
 /// v6 (M2): blocks gained an operating mode, the plant controller the
 /// return sequencer's count and countdown, and the substation a
 /// station-service meter.
@@ -33,7 +36,7 @@ pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Pre-1.0 checkpoints are not migrated; an older file is rejected with its
 /// version named rather than half-restored, since a missing item would
 /// otherwise restore as a plant whose auxiliary meters silently read zero.
-pub const FORMAT_VERSION: u32 = 6;
+pub const FORMAT_VERSION: u32 = 7;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {

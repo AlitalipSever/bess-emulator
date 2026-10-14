@@ -16,6 +16,10 @@ use std::fmt;
 use bess_core::kernel::{Inputs, Weather};
 use bess_data::{HourSample, WeatherYear};
 
+use crate::calendar::reference_position_h;
+// Re-exported where it always lived, so callers do not notice the move.
+pub use crate::calendar::month_day_from_unix_days;
+
 /// Grid frequency at a UTC timestamp: 50 Hz plus a +/- 10 mHz wander on a
 /// 10 minute period. Deterministic and shared by both drivers.
 pub fn synthetic_grid_frequency_hz(unix_time_s: i64) -> f64 {
@@ -150,48 +154,8 @@ impl HistoricalWeather {
     /// Position of a timestamp inside the reference year, in fractional
     /// hours since its first hour.
     fn position_h(self, unix_time_s: i64) -> f64 {
-        let (month, day) = month_day_from_unix_days(unix_time_s.div_euclid(86_400));
-        let second_of_day = unix_time_s.rem_euclid(86_400) as f64;
-        let mut day_of_year = DAYS_BEFORE_MONTH[month - 1] + day - 1;
-        if month > 2 && is_leap_year(self.year.year()) {
-            day_of_year += 1;
-        }
-        f64::from(day_of_year * 24) + second_of_day / 3600.0
+        reference_position_h(unix_time_s, self.year.year())
     }
-}
-
-/// Days elapsed before the first of each month in a common year.
-const DAYS_BEFORE_MONTH: [u32; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-
-fn is_leap_year(year: u16) -> bool {
-    year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400))
-}
-
-/// Civil month (1-12) and day of month from days since the Unix epoch.
-/// Howard Hinnant's `civil_from_days`, with the year dropped: the reference
-/// year supplies the year, the timestamp supplies the position within it.
-/// Calendar month and day of a count of days since the Unix epoch, UTC.
-///
-/// Public because the calendar is not the weather driver's private business:
-/// `bess-bench` needs the same answer to break a year into months, and a
-/// second copy of Howard Hinnant's algorithm in this workspace would be one
-/// copy too many.
-pub fn month_day_from_unix_days(days: i64) -> (usize, u32) {
-    // Shift the epoch to 0000-03-01 so leap days land at the end of the era.
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let day_of_era = z - era * 146_097; // [0, 146096]
-    let year_of_era =
-        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365; // [0, 399]
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let month_shifted = (5 * day_of_year + 2) / 153; // [0, 11], 0 = March
-    let day = (day_of_year - (153 * month_shifted + 2) / 5 + 1) as u32;
-    let month = if month_shifted < 10 {
-        month_shifted + 3
-    } else {
-        month_shifted - 9
-    };
-    (month as usize, day)
 }
 
 /// Linear interpolation over an hourly series, wrapping at the year end.

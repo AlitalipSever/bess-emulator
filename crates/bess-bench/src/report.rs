@@ -197,6 +197,11 @@ pub(crate) fn fixture() -> Kpis {
             warnings_raised: 1_460,
             raised_by_alarm,
         },
+        periods: crate::periods::PeriodKpis {
+            closed: 35_040,
+            on_short_dst_day: 92,
+            on_long_dst_day: 100,
+        },
     }
 }
 
@@ -237,9 +242,9 @@ mod tests {
             }
         }
         // Every field of every section: 6 run, 9 energy, 8 loss, 6 thermal,
-        // 4 HVAC, 3 alarms. Pinned so a field added without a thought about
+        // 4 HVAC, 3 alarms, 3 periods. Pinned so a field added without a thought about
         // whether it belongs in the published record fails here.
-        assert_eq!(checked, 36, "the record changed shape");
+        assert_eq!(checked, 39, "the record changed shape");
     }
 
     /// Move a value far enough to be drift, without changing its JSON type:
