@@ -38,6 +38,21 @@ pub struct Month {
     pub export_mwh: f64,
     /// Export over import for the month alone.
     pub round_trip_efficiency: f64,
+    /// Stored energy at the month's end minus at its start, MWh.
+    pub stored_delta_mwh: f64,
+    /// The month's round trip with its endpoints stated: export plus the
+    /// change in stored energy, over import.
+    ///
+    /// A month that ends fuller than it began imported energy it has not
+    /// yet returned, and the plain ratio reads that as loss; the next month
+    /// returns it and reads too high. Under a plan that always charges
+    /// before it discharges the swing is small, but the day-ahead plan over
+    /// real prices does not order its hours, so month-end state of charge
+    /// moves by up to a full plant and swamps the season in the plain
+    /// ratio. First order: the stored change is counted as if returned at
+    /// the POI, without the discharge path's losses, which overstates a
+    /// month that ends fuller by a few tenths of a point at most.
+    pub round_trip_efficiency_endpoint_corrected: f64,
     /// Auxiliary energy, MWh.
     pub aux_mwh: f64,
     /// Auxiliary energy over energy imported.
@@ -139,6 +154,9 @@ struct Meters {
     aux_wh: f64,
     hvac_wh: f64,
     station_service_wh: f64,
+    /// Read only at month boundaries: walking every rack each tick would
+    /// cost more than the rest of the collector together.
+    stored_wh: f64,
 }
 
 #[derive(Default)]
@@ -177,8 +195,13 @@ impl Collector {
             aux_wh: state.energy.aux_wh,
             hvac_wh: state.energy.aux_items.hvac_wh,
             station_service_wh: state.substation.station_service_wh,
+            stored_wh: 0.0,
         };
         if self.months.last().map(|m| m.month) != Some(index) {
+            let now = Meters {
+                stored_wh: sim.stored_energy_wh(),
+                ..now
+            };
             // A month begins: bank what the meters read, and close the one
             // before it against the same reading.
             if let Some(previous) = self.months.last_mut() {
@@ -220,6 +243,7 @@ impl Collector {
                 aux_wh: state.energy.aux_wh,
                 hvac_wh: state.energy.aux_items.hvac_wh,
                 station_service_wh: state.substation.station_service_wh,
+                stored_wh: sim.stored_energy_wh(),
             };
             last.closed = difference(now, self.opened_at);
         }
@@ -239,6 +263,12 @@ impl Collector {
                     export_mwh: round(acc.closed.export_wh / 1.0e6, 1),
                     round_trip_efficiency: round(
                         acc.closed.export_wh / acc.closed.import_wh.max(1.0),
+                        4,
+                    ),
+                    stored_delta_mwh: round(acc.closed.stored_wh / 1.0e6, 1),
+                    round_trip_efficiency_endpoint_corrected: round(
+                        (acc.closed.export_wh + acc.closed.stored_wh)
+                            / acc.closed.import_wh.max(1.0),
                         4,
                     ),
                     aux_mwh: round(acc.closed.aux_wh / 1.0e6, 1),
@@ -276,6 +306,7 @@ fn difference(now: Meters, then: Meters) -> Meters {
         aux_wh: now.aux_wh - then.aux_wh,
         hvac_wh: now.hvac_wh - then.hvac_wh,
         station_service_wh: now.station_service_wh - then.station_service_wh,
+        stored_wh: now.stored_wh - then.stored_wh,
     }
 }
 
@@ -377,11 +408,15 @@ mod tests {
         let august = &series.months[7];
         assert_eq!((january.month, august.month), (1, 8));
 
+        // Endpoint-corrected: the plain monthly ratio also carries how full
+        // the plant happened to be on the last day of the month, which under
+        // real prices moves more than the season does.
         assert!(
-            january.round_trip_efficiency > august.round_trip_efficiency + 0.015,
+            january.round_trip_efficiency_endpoint_corrected
+                > august.round_trip_efficiency_endpoint_corrected + 0.015,
             "January {:.4} against August {:.4}: the seasonal spread is gone",
-            january.round_trip_efficiency,
-            august.round_trip_efficiency
+            january.round_trip_efficiency_endpoint_corrected,
+            august.round_trip_efficiency_endpoint_corrected
         );
         assert!(
             august.hvac_mwh > january.hvac_mwh * 1.8,

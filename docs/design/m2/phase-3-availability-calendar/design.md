@@ -4,8 +4,9 @@ Each decision is proposed here and confirmed or revised in its PR. D1 to
 D3 and D7 to D12 are PR1's and are pinned below against the tree as phase
 2 left it (map 0.3.0, checkpoint format 5, `kernel/alarms.rs`); D1, D3
 and D10 were confirmed on 2026-10-12, D3 and D10 in revised form. D4 to
-D6 are PR2's, pinned on 2026-10-14 against the tree as PR1 left it; the
-pin is marked in each.
+D6 are PR2's, pinned on 2026-10-14 against the tree as PR1 left it and
+confirmed the same day in PR2, D5 with a corrected derivation and D6 in
+revised form; the pin and the outcome are marked in each.
 
 ## Decisions
 
@@ -81,6 +82,12 @@ pin is marked in each.
   has negative hours and peaks past what `i16` holds at that scale).
   Gaps are errors, not fills: a price has no continuity to interpolate
   along.
+  **Confirmed in PR2:** SMARD's data-use page licenses the market data
+  under CC BY 4.0 and asks for the attribution "Bundesnetzagentur |
+  SMARD.de"; nothing on it qualifies downloaded data, so the ENTSO-E
+  fallback was not needed. The compiled year has no gap: 8784 hours,
+  mean 78.51 EUR/MWh, minimum -135.45, maximum 936.28, 457 negative
+  hours.
 - **D5, timezone handling is a table, not a dependency.** The plan builder
   needs Europe/Berlin midnights and quarter-hours for one pinned year.
   Proposal: derive them from the price series itself (the 2024 series is
@@ -103,6 +110,13 @@ pin is marked in each.
   offset and local quarter-hours are UTC quarter-hours (a `bess-data`
   test pins every day start to a whole hour so this stays true).
   Labeling a quarter-hour with its local day is the bench's job.
+  **Confirmed in PR2, with the derivation corrected:** the hours inside a
+  SMARD block are plain consecutive UTC hours with no kink; what marks a
+  DST week is the block's length, 167 or 169 hours between two Monday
+  00:00 block starts. The compiler puts a local midnight every 24 hours
+  from each block start and lets the week's last day, the Sunday the EU
+  switches on, absorb the odd hour. The result is the table the pin
+  describes: day 90 (2024-03-31) of 23 hours, day 300 (2024-10-27) of 25.
 - **D6, revenue meter granularity.** Site level, import and export Wh,
   closed on local quarter-hours, `slow` class on the map plus a full
   series in Parquet and bench output. Not per block: revenue metering
@@ -122,6 +136,12 @@ pin is marked in each.
   output: the bench writes the quarter-hour series as CSV on request
   (`--periods <path>`), not into `calibration/`. Revenue in EUR is
   computed nowhere until M4 sources its band.
+  **Revised in PR2:** the three points sit at inputs 46, 48 and 50, not
+  45 to 49: the station-service meter at 44 is a u32 and holds 45 as
+  well. The summary carries the last closed period like the map, so its
+  fields are named after the map points (`revenue_period_import_kwh`,
+  `revenue_period_export_kwh`, `revenue_periods_closed`); the running
+  totals stay on Prometheus and in the bench.
 - **D7, two checkpoint bumps, one per schema-changing PR.** Block mode
   and return-sequencer state land in PR1 (format 6), the revenue meter
   accumulators and current-period state in PR2 (format 7). The M1 rule
@@ -228,21 +248,21 @@ Prometheus gains `bess_station_service_watthours_total`.
 COMPATIBILITY.md gets the enum row, the alarm-word row and the meter
 row.
 
-**Proposed for PR2**, additions only, class `slow`, input space, right
-after PR1's 44:
+**Built in PR2**, additions only, class `slow`, input space, right
+after the station-service meter (44 and 45):
 
 | Address | Point | Encoding | Class | Change |
 |---|---|---|---|---|
-| 45 | `site.revenue.period_import_kwh` | u32, kWh, scale 1 | slow | new (D6): the last closed quarter-hour's import |
-| 47 | `site.revenue.period_export_kwh` | u32, kWh, scale 1 | slow | new (D6): the last closed quarter-hour's export |
-| 49 | `site.revenue.periods_closed` | u32, count | slow | new (D6): quarter-hours closed since the run began |
+| 46 | `site.revenue.period_import_kwh` | u32, kWh, scale 1 | slow | new (D6): the last closed quarter-hour's import |
+| 48 | `site.revenue.period_export_kwh` | u32, kWh, scale 1 | slow | new (D6): the last closed quarter-hour's export |
+| 50 | `site.revenue.periods_closed` | u32, count | slow | new (D6): quarter-hours closed since the run began |
 
 The price is not a map point: no public BESS register model (SunSpec
 802, IEC 61850-7-420) carries a market price, and the map is the
 plant's interface, not the EMS's input. It is published where inputs
 are: `bess_day_ahead_price_eur_per_mwh` on Prometheus and
 `day_ahead_price_eur_mwh` in the summary and the stream. The summary
-also gains `revenue_import_kwh`, `revenue_export_kwh` and
+also gains `revenue_period_import_kwh`, `revenue_period_export_kwh` and
 `revenue_periods_closed`; Prometheus gains the three matching counters
 (`bess_revenue_import_watthours_total`,
 `bess_revenue_export_watthours_total`,
@@ -257,12 +277,14 @@ Format 5 to 6 in PR1 (`BlockState::mode`, `EmsState::blocks_released`,
 7 in PR2 (`SubstationState::revenue`, D7). The golden snapshot
 digest moves in PR1 because the tree gained fields, not because any
 value did: the clean year never isolates, maintains or trips, and the
-PR shows the annual record unchanged to the last digit. In PR2 it moves
-twice and for both reasons: once when the planner switches to real
-prices (every day's dispatch changes; the first trajectory move since
-M1 PR2's weather switch) and once when the meter joins the tree. Both
-are named in the constant's comment and the PR body, and the annual
-record moves with the first.
+PR shows the annual record unchanged to the last digit. PR2 expected it
+to move twice, once for the price switch and once for the meter. It
+moved once, for schema: in the digest's four hours (2026-01-01 00:00 to
+04:00 UTC) the replayed prices and the old synthetic curve both charge
+from 03:00 UTC, so the trajectory there is unchanged, and with the meter
+taken out the tree is identical to PR1's, value for value. The price
+switch shows where every day is replayed: the annual record, which
+moves with it and is set beside the old one in CALIBRATION.md.
 
 ## Test plan
 

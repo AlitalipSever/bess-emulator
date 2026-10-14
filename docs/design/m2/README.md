@@ -181,6 +181,37 @@ v0.4.0 can trip over.
   summary and the stream, and bit 3 of the block word,
   `block.maintenance`, mirroring it. A maintained block's PCS stops paying
   its standby tare.
+- **Real prices drive the plan** (phase 3 PR2), the largest trajectory
+  change of the milestone and the first since M1's weather switch. The
+  planner ranks the 2024 German day-ahead series (SMARD, DE-LU, CC BY
+  4.0, bundled as `dayahead-de-lu-2024.bin`) one local day at a time:
+  three cheapest hours charge, two dearest discharge, and the two DST
+  days are planned over 23 and 25 hours. Every day's dispatch changes,
+  so the annual record and every bench KPI move; CALIBRATION.md sets
+  them beside the old ones. `DayAheadEms::default_profile` is gone;
+  `DayAheadEms::from_price_year` replaces it.
+- **Checkpoint format 7** (phase 3 PR2): `SubstationState::revenue`, the
+  fiscal meter's totals, open period and last closed period. Format 6
+  files are rejected by version.
+- **The fiscal meter on every surface** (phase 3 PR2):
+  `site.revenue.period_import_kwh`, `period_export_kwh` and
+  `periods_closed` at inputs 46, 48 and 50 (the last closed
+  quarter-hour, not the totals); the counters
+  `bess_revenue_import_watthours_total`,
+  `bess_revenue_export_watthours_total` and
+  `bess_revenue_periods_closed_total` and the gauge
+  `bess_day_ahead_price_eur_per_mwh`; `revenue_period_import_kwh`,
+  `revenue_period_export_kwh`, `revenue_periods_closed` and
+  `day_ahead_price_eur_mwh` in the summary and the stream; the Grafana
+  dashboard moves to version 4 with one panel, the price against the
+  setpoint. No EUR anywhere until M4.
+- **Bench** (phase 3 PR2): the record gains `periods` (35,040 closed,
+  92 on the short DST day, 100 on the long one, gated as exact values);
+  `--periods <path>` writes every closed quarter-hour as CSV. The study
+  series' months gain `stored_delta_mwh` and
+  `round_trip_efficiency_endpoint_corrected`: under real prices the
+  plain monthly ratio carries month-end state of charge, and the season
+  shows only once that is taken out.
 
 ## Open questions
 
@@ -192,8 +223,9 @@ v0.4.0 can trip over.
   record, so it needs its own decision (see CALIBRATION.md, M2 derating).
 - ~~Final alarm bit layout of the three alarm words.~~ Frozen in phase 2
   PR1 (`bess_core::alarms::layout`), published in COMPATIBILITY.md by PR2.
-- Day-ahead price source and license for the 2024 reference year, SMARD
-  versus ENTSO-E transparency (phase 3 PR2).
+- ~~Day-ahead price source and license for the 2024 reference year, SMARD
+  versus ENTSO-E transparency.~~ Resolved in phase 3 PR2: SMARD, CC BY
+  4.0, bundled with attribution.
 - EPRI database snapshot: exact category shares and retrieval date
   (phase 5).
 - Whether the WASM shell gets scenario loading in M2 or later. This

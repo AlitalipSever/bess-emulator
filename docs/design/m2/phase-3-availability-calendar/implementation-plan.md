@@ -133,9 +133,12 @@ in M4.
   day `d` (0 = 2024-01-01), with `day_start[366] = 8784` as the end
   sentinel. Day lengths fall out as differences: 364 days of 24 hours,
   2024-03-31 of 23, 2024-10-27 of 25. The compiler derives the table
-  from the SMARD timestamps themselves (the block for a DST week has a
-  one-hour kink in its millisecond stamps), so nothing in the repository
-  hard-codes the two dates except the tests that pin them.
+  from the SMARD block stamps (as built: a block starts at Monday 00:00
+  local, so a DST week is 167 or 169 hours from one block start to the
+  next, and its last day, the switch Sunday, absorbs the odd hour; the
+  hours inside a block are plain consecutive UTC hours), so nothing in
+  the repository hard-codes the two dates except the tests that pin
+  them.
 - **Why the local year, not the UTC year.** The weather artifact holds
   the UTC year (8784 hours from 2024-01-01 00:00 UTC). The price
   artifact holds the local year, 2023-12-31 23:00 UTC to 2024-12-31
@@ -240,13 +243,14 @@ in M4.
 ### Surfaces
 
 - **Map** (0.3.0, additions, class `slow`, input space, right after
-  PR1's 44):
+  PR1's station-service meter, a u32 at 44 and 45; the draft had 45 to
+  49, which overlapped it):
 
   | Address | Point | Encoding | What it reads |
   |---|---|---|---|
-  | 45 | `site.revenue.period_import_kwh` | u32, kWh, scale 1 | `last_import_wh / 1000` |
-  | 47 | `site.revenue.period_export_kwh` | u32, kWh, scale 1 | `last_export_wh / 1000` |
-  | 49 | `site.revenue.periods_closed` | u32, count | `periods_closed` |
+  | 46 | `site.revenue.period_import_kwh` | u32, kWh, scale 1 | `last_import_wh / 1000` |
+  | 48 | `site.revenue.period_export_kwh` | u32, kWh, scale 1 | `last_export_wh / 1000` |
+  | 50 | `site.revenue.periods_closed` | u32, count | `periods_closed` |
 
   Period energies rather than the running fiscal totals, because the
   fiscal totals would duplicate inputs 12 and 14 to the last digit until
@@ -258,8 +262,9 @@ in M4.
   price is the EMS's input and is published as such below. `refmodel/
   gw01-signal-map.csv` regenerated (CI diffs it), the map digest test
   moves, COMPATIBILITY.md's 0.3.0 row gains the three points.
-- **REST summary and the stream:** `revenue_import_kwh`,
-  `revenue_export_kwh`, `revenue_periods_closed` and
+- **REST summary and the stream:** `revenue_period_import_kwh`,
+  `revenue_period_export_kwh`, `revenue_periods_closed` (the last closed
+  period, named as on the map) and
   `day_ahead_price_eur_mwh` (the price the planner is acting on this
   hour, from `gw01_day_ahead_price_eur_mwh`).
 - **Prometheus:** counters `bess_revenue_import_watthours_total`,
@@ -332,10 +337,16 @@ in M4.
   `bess-models/src/ems/plan.rs`.
 - `bess-core/src/state/revenue.rs`; `state.rs` gains the field;
   `kernel.rs` gains one call; `checkpoint.rs` gains the version line.
-- `bess-emulator/src/map/site.rs`, `http.rs`, `http/metrics.rs`;
+- `bess-emulator/src/map/revenue.rs` (as built: `map/site.rs` was at
+  284 lines, and the fiscal meter is its own subject, as the alarm
+  points are), `http.rs`, `http/metrics/market.rs` (the fiscal counters
+  and the price gauge, beside `metrics/alarms.rs`, for the same reason);
   `deploy/grafana/dashboards/gw01.json`.
 - `bess-bench/src/periods.rs`, `run.rs`, `bands.rs`, `main.rs` (the
-  flag).
+  flag). As built, `run.rs` (496 lines) is split first: the published
+  record types move to `run/record.rs`, the walk that fills them stays.
+- `compile-weather.rs` loses `days_from_civil` to `calendar.rs` and
+  drops under the hard limit; AGENTS.md's table loses its row.
 - Struct literals of `SubstationState` in test fixtures (`grid.rs`
   tests, `bess-emulator/src/fixtures.rs` if it builds one) gain the
   `revenue` field; `RevenueMeter` derives `Default` so that is one
@@ -363,7 +374,9 @@ in M4.
   seeded random power profiles drawn from the kernel's own
   `xoshiro256++` (no property-testing crate: the workspace has none and
   this needs none); the sum of closed-period energies equals the running
-  total minus the open period, exactly.
+  total minus the open period, exactly (as built, the profiles are whole
+  watt-hours per tick so the sums are exact in floating point and a
+  dropped or doubled tick cannot hide behind rounding).
 - `bess-models/tests/revenue_meter.rs`: one replayed day closes 96
   periods; the fiscal import and export totals equal the SCADA
   `import_wh` and `export_wh` to 1e-9 relative at every tick; through a
@@ -388,11 +401,12 @@ in M4.
 2. `bess-data`: script, compiler, artifact, pin, codec, calendar
    helper, DATA-LICENSES.md.
 3. `bess-models`: `calendar.rs`, the planner over real prices,
-   `gw01_day_ahead_price_eur_mwh`; the determinism digest moves here
-   for the first time (prices).
+   `gw01_day_ahead_price_eur_mwh`; the determinism digest was expected
+   to move here (prices). As built it did not: in its four hours both
+   price curves charge from 03:00 UTC.
 4. `bess-core` meter and checkpoint 7, the shell surfaces, the Grafana
-   panel; the digest moves a second time (schema). Both moves are
-   listed in the constant's comment and the PR body.
+   panel; the digest moves (schema), and the constant's comment says
+   why it moved once and not twice.
 5. Bench collector and counts, `--write` regeneration of the record and
    the series, CALIBRATION.md section, the README inventory, the two
    module docs, the ARCHITECTURE.md line.
@@ -410,10 +424,11 @@ bench reports 92 and 100 periods; `tests/revenue_meter.rs` is the code
 side of the acceptance. The compose run needs a machine with Docker,
 which the development machine is not; it is the reviewer's step.
 
-Called out in the PR: the golden digest moves twice, and for the first
-time since M1 PR2 for a trajectory reason (the price switch), not a
-schema one; the annual record and every bench KPI move with it, the
-before and after side by side in CALIBRATION.md.
+Called out in the PR: the price switch is the first trajectory change
+since M1 PR2's weather switch; the annual record and every bench KPI
+move with it, the before and after side by side in CALIBRATION.md. The
+golden digest moves once, for the meter's schema, because its four hours
+dispatch the same under both curves.
 
 Not in this PR: revenue in EUR (M4); a second reference year (D5
 says revisit then; the 15-minute day-ahead market since October 2025
@@ -438,21 +453,33 @@ PR1, settled on 2026-10-12:
   imbalance bits; phase 4's design now names it as the one fault action
   that brings its own state change (D3 there).
 
-PR2, proposed on 2026-10-14, confirmed or revised in the PR:
+PR2, settled on 2026-10-14:
 
-- **D4:** SMARD, CC BY 4.0, artifact bundled. The licence sentence on
-  the download centre is verified; the attribution wording is copied
-  from SMARD's data-use page into DATA-LICENSES.md in commit 2, and if
-  that page qualifies the licence the fallback is ENTSO-E as a
-  fetch-script-only source.
+- **D4:** SMARD, CC BY 4.0, artifact bundled. The data-use page asks
+  for "Bundesnetzagentur | SMARD.de" and does not qualify downloaded
+  data; DATA-LICENSES.md carries the row and a compilation record.
 - **D5:** the local-day table lives inside the price artifact; the
-  series is the local year and wraps with the replay. A consequence
-  written down because it is easy to miss: the emulator's DST days are
-  the reference year's (2024-03-31 and 2024-10-27), not the simulated
-  calendar's, exactly as its weather is the reference year's.
-- **Availability as percent:** no. Watts only; percent of nameplate is a
-  consumer's division, and the map already carries the nameplate.
-- **Quarter-hour series storage:** bench CSV on request, not a committed
-  file; the repository does not grow by a megabyte per regeneration.
+  series is the local year and wraps with the replay. The emulator's
+  DST days are the reference year's (2024-03-31 and 2024-10-27), not
+  the simulated calendar's, exactly as its weather is the reference
+  year's.
+- **D6, revised:** the map points sit at 46, 48 and 50; the summary
+  names follow the map.
+- **Availability as percent:** no. Watts only.
+- **Quarter-hour series storage:** bench CSV on `--periods`, not a
+  committed file.
 - **The price on the map:** no; Prometheus gauge and summary field only.
-  Open to revisit if an integrator asks, as an addition.
+- **The aux identity tolerance** (found while building): the January
+  day's itemized and metered house load differed by 1.4e-12 relative
+  after the dispatch changed, against a 1e-12 bound. Both sum the same
+  86,400 ticks in different orders; the bound is now 1e-10 with that
+  reasoning in the test, far below the 1e-3 a forgotten item would
+  leave.
+- **The monthly round trip** (found while building, Ali chose the
+  correction on 2026-10-14): under real prices the plain monthly ratio
+  carries month-end state of charge and lost the January-over-August
+  spread the series test holds (0.8319 against 0.8303). The series now
+  also publishes `stored_delta_mwh` and
+  `round_trip_efficiency_endpoint_corrected`; corrected, January reads
+  0.8481 against August's 0.8303, and the test reads the corrected
+  figure.
