@@ -29,6 +29,9 @@ input,40,2,u32,1,site.aux.lighting_and_safety_w,W,medium,ro
 input,42,1,u16,1,site.alarm_bits,bitfield,event,ro
 input,43,1,u16,1,site.event_counter,count,event,ro
 input,44,2,u32,1,site.meter.station_service_kwh,kWh,slow,ro
+input,46,2,u32,1,site.revenue.period_import_kwh,kWh,slow,ro
+input,48,2,u32,1,site.revenue.period_export_kwh,kWh,slow,ro
+input,50,2,u32,1,site.revenue.periods_closed,count,slow,ro
 input,1000,1,i16,1,block00.pcs.p_ac_kw,kW,fast,ro
 input,1001,1,i16,1,block00.pcs.p_dc_kw,kW,fast,ro
 input,1002,1,u16,1,block00.pcs.state,enum,fast,ro

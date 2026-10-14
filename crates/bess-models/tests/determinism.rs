@@ -23,15 +23,16 @@ const TICKS: u64 = 4 * 3600;
 ///
 /// If a deliberate model or state-schema change moves this value, update it
 /// from the number printed by the failing assertion. Any other change that
-/// moves it is a broken determinism contract. The switch to replayed
-/// day-ahead prices (M2 phase 3 PR2) did not move it on its own: in these
-/// four hours both price curves charge in the same hour, so the trajectory
-/// is identical; the annual record is where the switch shows. Last
-/// regenerated in M2
-/// phase 3 PR1, for schema alone: the block mode, the return sequencer's
-/// count and countdown, and the station-service meter joined the tree, and
-/// with them removed the tree is identical to phase 2's, value for value.
-/// Earlier values: 0x4795_fbb4_0c5e_a021 (M2 phase 2 PR1, the alarm words,
+/// moves it is a broken determinism contract. Last regenerated in M2
+/// phase 3 PR2, for schema alone: the substation gained the fiscal
+/// revenue meter, and with it removed the tree is identical to PR1's,
+/// value for value. The switch to replayed day-ahead prices in the same PR
+/// did not move it on its own: in these four hours both price curves
+/// charge in the same hour, so the trajectory is unchanged; the annual
+/// record is where the switch shows.
+/// Earlier values: 0x5c71_c797_1ee9_3f0c (M2 phase 3 PR1, the block
+/// mode, the return sequencer's count and countdown, and the
+/// station-service meter), 0x4795_fbb4_0c5e_a021 (M2 phase 2 PR1, the alarm words,
 /// the setpoint-miss timer, the HVAC failure flag, the event log, and the
 /// queue of events a reset leaves for the next tick),
 /// 0x449f_9d2c_d5ef_3461 (M0.5), 0xdb39_2afb_95e7_3220 (M1 PR2, the
@@ -39,7 +40,7 @@ const TICKS: u64 = 4 * 3600;
 /// two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC),
 /// 0x1446_6f26_c751_bc02 (M1 PR5, the auxiliary inventory),
 /// 0xcd26_9803_d062_e1ad (M2 phase 1 PR2, cell spread and balancing).
-const GOLDEN_DIGEST: u64 = 0x5c71_c797_1ee9_3f0c;
+const GOLDEN_DIGEST: u64 = 0xa24f_1646_1b6a_d90e;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();

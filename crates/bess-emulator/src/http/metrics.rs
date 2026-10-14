@@ -5,6 +5,7 @@
 //! register contracts, and they carry no map version.
 
 mod alarms;
+mod market;
 
 use std::fmt::Write as _;
 
@@ -48,6 +49,7 @@ pub(super) fn metrics_body(snap: &Snapshot) -> String {
     house_load_metrics(&mut out, &snap.state);
     bms_metrics(&mut out, &snap.state);
     alarms::alarm_metrics(&mut out, &snap.state);
+    market::market_metrics(&mut out, &snap.state);
     out
 }
 

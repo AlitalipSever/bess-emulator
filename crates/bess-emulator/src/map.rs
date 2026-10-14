@@ -14,7 +14,7 @@
 //! moving them is major.
 //!
 //! The table is cut by what a reader is asking about: the site's telemetry,
-//! the control surface, each block's telemetry, and the alarm points, which
+//! the fiscal meter, the control surface, each block's telemetry, and the alarm points, which
 //! sit at both site and block addresses but share one publication rule.
 
 mod alarms;
@@ -22,6 +22,7 @@ mod block;
 mod control;
 mod csv;
 mod encode;
+mod revenue;
 mod site;
 
 use bess_core::config::PlantConfig;
@@ -198,6 +199,7 @@ use point;
 /// input space first, then holding.
 pub fn build_points(cfg: &PlantConfig) -> Vec<Point> {
     let mut points = site::points();
+    points.extend(revenue::points());
     points.extend(control::points());
     points.extend(alarms::site_points());
     for b in 0..cfg.blocks {

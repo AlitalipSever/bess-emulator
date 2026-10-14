@@ -8,9 +8,10 @@ use bess_core::traits::GridInterface;
 /// (quadratic in loading) terms lumped over the MV and HV stages, and
 /// monotonic import/export meters at the POI, with a third meter on the
 /// station-service feed that carries the house load while the breaker is
-/// open (M2). Breaker interlocks, OLTC
-/// behavior, transformer thermals, and the revenue meter series arrive in
-/// M3.
+/// open (M2). These are the SCADA meters; the fiscal quarter-hour meter
+/// beside them is kernel state (`RevenueMeter`), fed the same POI power
+/// after this step. Breaker interlocks, OLTC behavior and transformer
+/// thermals arrive in M3.
 ///
 /// The station auxiliary load used to live here as a 150 kW constant. Since
 /// M1 it is an itemized inventory of its own (`aux.rs`); the substation
@@ -87,6 +88,7 @@ impl GridInterface for SimpleGrid {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bess_core::state::RevenueMeter;
 
     fn substation() -> SubstationState {
         SubstationState {
@@ -100,6 +102,7 @@ mod tests {
             import_wh: 0.0,
             export_wh: 0.0,
             station_service_wh: 0.0,
+            revenue: RevenueMeter::default(),
         }
     }
 

@@ -231,3 +231,22 @@ fn the_station_service_counter_reads_its_meter() {
     assert!((read("bess_export_watthours_total") - 222.0).abs() < 1.0e-9);
     assert!((read("bess_station_service_watthours_total") - 333.0).abs() < 1.0e-9);
 }
+
+/// The fiscal counters read the revenue meter, not the SCADA meters beside
+/// it, and the price gauge is the planner's price for the snapshot's hour.
+#[test]
+fn the_market_families_read_the_revenue_meter_and_the_plan_price() {
+    let mut snap = snapshot();
+    snap.state.substation.import_wh = 111.0;
+    snap.state.substation.export_wh = 222.0;
+    snap.state.substation.revenue.import_wh = 444.0;
+    snap.state.substation.revenue.export_wh = 555.0;
+    snap.state.substation.revenue.periods_closed = 96;
+    let body = metrics_body(&snap);
+    let read = |sample: &str| value_of(&body, sample);
+    assert!((read("bess_revenue_import_watthours_total") - 444.0).abs() < 1.0e-9);
+    assert!((read("bess_revenue_export_watthours_total") - 555.0).abs() < 1.0e-9);
+    assert!((read("bess_revenue_periods_closed_total") - 96.0).abs() < 1.0e-9);
+    let price = bess_models::gw01_day_ahead_price_eur_mwh(snap.state.unix_time_s());
+    assert!((read("bess_day_ahead_price_eur_per_mwh") - price).abs() < 1.0e-9);
+}

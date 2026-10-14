@@ -13,11 +13,13 @@ use crate::rng::Rng;
 mod energy;
 mod init;
 mod plant;
+mod revenue;
 
 pub use energy::{AuxEnergy, AuxPower, EnergyAccounting};
 pub use plant::{
     BlockMode, BlockState, ContainerState, HvacMode, HvacState, PcsOpState, PcsState, RackState,
 };
+pub use revenue::RevenueMeter;
 
 /// Root of the state tree.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -132,6 +134,8 @@ pub struct SubstationState {
     /// site draws through its own supply while the HV breaker is open. Does
     /// not move while the breaker is closed.
     pub station_service_wh: f64,
+    /// The fiscal meter: quarter-hour periods and their running totals.
+    pub revenue: RevenueMeter,
 }
 
 impl SiteState {

@@ -153,9 +153,11 @@ fn map_digest(points: &[Point]) -> u64 {
 
 /// Digest of the map at [`MAP_VERSION`] 0.3.0. 0.3.0 is still unreleased,
 /// so phase 3's additions at unused addresses (`blockNN.mode`,
-/// `site.meter.station_service_kwh`) fold into it rather than moving the
-/// version; the phase 2 digest was 0x1828_8f29_0804_2bf5.
-const MAP_DIGEST: u64 = 0x8b88_5b58_55d7_88b7;
+/// `site.meter.station_service_kwh`, and in PR2 the three
+/// `site.revenue.*` points) fold into it rather than moving the version;
+/// the phase 2 digest was 0x1828_8f29_0804_2bf5, phase 3 PR1's
+/// 0x8b88_5b58_55d7_88b7.
+const MAP_DIGEST: u64 = 0xf5b0_c5b7_b546_e059;
 
 /// A version number nobody is forced to move is decoration.
 ///
@@ -269,4 +271,33 @@ fn the_mode_and_station_service_points_read_their_state() {
         "site.meter.station_service_kwh"
     );
     assert_eq!(read_u32(&input, 14), 1, "site.meter.import_kwh");
+}
+
+/// The fiscal meter publishes the last closed quarter-hour, not the open
+/// one and not the running totals, and its first register sits right
+/// after the station-service meter's second.
+#[test]
+fn the_revenue_points_read_the_last_closed_period() {
+    let cfg = PlantConfig::gw01();
+    let points = build_points(&cfg);
+    let mut state = SiteState::new(&cfg, 1, 0);
+    let meter = &mut state.substation.revenue;
+    meter.last_import_wh = 12_400.0;
+    meter.last_export_wh = 25_000_600.0;
+    meter.periods_closed = 96;
+    meter.period_export_wh = 9_999_000.0;
+    meter.export_wh = 77_000_000.0;
+    let input = input_bank(&points, &state);
+    assert_eq!(read_u32(&input, 46), 12, "site.revenue.period_import_kwh");
+    assert_eq!(
+        read_u32(&input, 48),
+        25_001,
+        "site.revenue.period_export_kwh"
+    );
+    assert_eq!(read_u32(&input, 50), 96, "site.revenue.periods_closed");
+    assert_eq!(
+        read_u32(&input, 12),
+        0,
+        "the SCADA export meter is untouched"
+    );
 }

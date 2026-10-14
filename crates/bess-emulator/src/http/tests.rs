@@ -85,3 +85,20 @@ fn the_summary_carries_block_mode_and_station_service() {
     assert_eq!(message["blocks"][4]["mode"], 1);
     assert_eq!(message["station_service_kwh"], 2.5);
 }
+
+/// The fiscal meter's last closed period and the planner's price ride in
+/// the summary, so the stream carries them too.
+#[test]
+fn the_summary_carries_the_revenue_period_and_the_price() {
+    let mut snap = snapshot();
+    snap.state.substation.revenue.last_export_wh = 25_000_000.0;
+    snap.state.substation.revenue.periods_closed = 4;
+    let summary = summary_value(&snap);
+    assert_eq!(summary["revenue_period_export_kwh"], 25_000.0);
+    assert_eq!(summary["revenue_period_import_kwh"], 0.0);
+    assert_eq!(summary["revenue_periods_closed"], 4);
+    let price = bess_models::gw01_day_ahead_price_eur_mwh(snap.state.unix_time_s());
+    assert_eq!(summary["day_ahead_price_eur_mwh"], price);
+    let message = stream_message(&snap, &[], 0);
+    assert_eq!(message["revenue_periods_closed"], 4);
+}
