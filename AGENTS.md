@@ -63,7 +63,7 @@ for the same reason.
 
 ## Current state
 
-Four files predate this contract and exceed the hard limit. They are named here
+Three files predate this contract and exceed the hard limit. They are named here
 rather than allowlisted in a tool, because an allowlist in a tool is a place
 for debt to become invisible:
 
@@ -71,8 +71,7 @@ for debt to become invisible:
 |---|---|---|---|
 | `crates/bess-models/src/thermal.rs` | 683 | 342 | 341 |
 | `crates/bess-scene/src/instances.rs` | 680 | 635 | 45 |
-| `crates/bess-data/src/lib.rs` | 568 | 545 | 23 |
-| `crates/bess-data/src/bin/compile-weather.rs` | 501 | 501 | 0 |
+| `crates/bess-data/src/lib.rs` | 573 | 550 | 23 |
 
 No campaign to clear this table. A refactor whose only purpose is to satisfy a
 line count moves risk into files nobody was otherwise changing, and the point
@@ -108,3 +107,10 @@ with the Modbus encoding in `map/encode.rs`, the CSV writer in
 `map/csv.rs` and the contract tests in `map/tests.rs`; `map.rs` keeps the
 vocabulary (classes, encodings, the `Point` type, the address bases) and
 sorts the table by address.
+
+Cleared: `compile-weather.rs` (501 lines) in M2 phase 3 PR2, when the
+price compiler arrived and needed the same civil-date arithmetic. The
+helper moved to `bess-data/src/calendar.rs`, shared by both compilers,
+and the file fell under the limit as a side effect, not a goal.
+`lib.rs` gained only the module declarations and a re-export; the price
+artifact lives in `prices.rs` and `prices/codec.rs`.

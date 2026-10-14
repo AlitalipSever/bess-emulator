@@ -22,6 +22,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use bess_data::calendar::days_from_civil;
 use bess_data::codec::{encode, ArtifactData};
 use bess_data::{fnv1a_64, FillCounts, HOURS_2024, STATION_ID};
 
@@ -408,18 +409,6 @@ fn seconds_from_year_start(stamp: &str) -> Result<i64, String> {
     let minute: i64 = stamp[11..13].parse().map_err(|_| bad_stamp(stamp))?;
     let days = days_from_civil(year, month, day) - days_from_civil(2024, 1, 1);
     Ok(days * 86_400 + hour * 3600 + minute * 60)
-}
-
-/// Days since the civil epoch, after Howard Hinnant's algorithm (the same
-/// calendar arithmetic the view layer uses).
-fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
-    let y = if month <= 2 { year - 1 } else { year };
-    let era = y.div_euclid(400);
-    let yoe = y - era * 400;
-    let mp = (month + 9) % 12;
-    let doy = (153 * mp + 2) / 5 + day - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
 }
 
 fn quantize_x10(series: &[f64], min: i32, max: i32, name: &str) -> Result<Vec<i16>, String> {

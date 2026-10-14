@@ -26,6 +26,11 @@
 
 use std::sync::OnceLock;
 
+pub mod calendar;
+pub mod prices;
+
+pub use prices::{dayahead_de_lu_2024, PriceYear, DAYAHEAD_DE_LU_2024_FNV1A};
+
 /// Hours in the 2024 reference year (leap year: 366 days).
 pub const HOURS_2024: usize = 8784;
 
