@@ -137,6 +137,14 @@ fn durations_and_parameters() {
     let e = refuse_events("  - at: PT1H\n    surface: mqtt\n    fault: dropout\n");
     assert_eq!(e.reason, Reason::DurationRequired("dropout"));
 
+    for fault in ["dropout", "unit_error"] {
+        let e = refuse_events(&format!(
+            "  - at: PT1H\n    surface: mqtt\n    fault: {fault}\n    duration: PT0S\n"
+        ));
+        assert_eq!(e.reason, Reason::ZeroDuration(fault));
+        assert_eq!(e.position, event(0, "duration", 4));
+    }
+
     let e = refuse_events(
         "  - at: PT1H\n    target: site\n    fault: protection_trip\n    duration: PT1M\n",
     );

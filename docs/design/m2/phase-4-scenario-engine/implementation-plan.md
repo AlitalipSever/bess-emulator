@@ -337,6 +337,52 @@ Data-fault execution and the tap (phase 5 PR1); `scenarios/` and
 `--assert` (phase 5 PR2); scenario loading in the WASM viewer (not in
 M2); an unload endpoint; a "fire one action now" endpoint (D6).
 
+### As landed (2026-10-15)
+
+Four commits, each green, in a different order from the list below:
+the scenario crate's additions and CI first, then the task with the REST
+door and health in one commit (an unconstructed `LoadScenario` does not
+pass `-D warnings` on its own), then the command line, then the
+documents. Where the code parted from the plan:
+
+- **Two PR1 review findings landed here:** a `duration` of PT0S is
+  refused (`Reason::ZeroDuration`), and CI checks `bess-scenario` for
+  wasm32 beside the browser build, so the "WASM-clean" claim is measured
+  on every change rather than once by hand.
+- **`Target::of(&FaultAction)` and `Display for Target`:** the resolved
+  schedule carries actions, not paths, and the status spells targets as
+  the file does; the round trip is tested for every row of D2. The
+  parser's tests moved to `schema/target/tests.rs` for the room.
+- **The status has no tick of its own.** `Snapshot::scenario` is rebuilt
+  only when something fires, as planned, so `tick` cannot live in it;
+  `GET` adds the snapshot's tick, and the load's answer carries tick 0.
+- **The external setpoint does not survive a load** (D6, made explicit).
+- **`POST` validates against `PlantConfig::gw01()`,** as `spawn` builds
+  the plant; the handle carries no configuration. The day the site is
+  parametric, the configuration moves into the handle.
+- **The error body:** `error` is the whole line the CLI prints, position
+  and reason, and `position` the position alone, so a client reading one
+  field has everything and one pointing at an editor has the position.
+- **The task is a `Task`:** `sim.rs` grew from 193 to 276 lines because
+  the loop owns a third thing beside the kernel and the speed; a struct
+  with `command` and `tick` replaced an `apply` that would have taken
+  seven arguments. `sim/scenario.rs` is 125 lines, `http/scenario.rs`
+  113 with 182 of tests beside it, `cli/run_params.rs` 181 with its
+  tests inside.
+- **The acceptance command runs without `--speed 3600`:** the fixture
+  states `speed: 60`, and under D5 a flag that disagrees is an error,
+  which is the right outcome; the command above was written before D5
+  said so. Measured instead, on the dev build: a run under the fixture
+  narrates six events with the leak's 6,962 ppm/day visible; `POST` of
+  `hot-afternoon.yaml` with `curl --data-binary` answers tick 0 and
+  fires both failures on the first tick, 183 ticks in after three wall
+  seconds at 60x; `/health` names each file and its hash; 415, 400 and
+  422 carry their bodies; `--speed 3600` against the fixture and a
+  schema 2 file end the process before a socket is bound. The sockets
+  test in `http/scenario/tests.rs` holds the same story, 503 included.
+- **A data fault's `duration_s` is left out of its JSON where the fault
+  takes none,** so a backfill burst shows without a null.
+
 ## Code layout (AGENTS.md: one file, one concern)
 
 - `bess-core`: `kernel/event.rs`, `kernel/fault.rs`, `digest.rs` new;
@@ -427,6 +473,13 @@ Settled on 2026-10-15, in PR1:
 - **Spans on values:** the parser has them (`Spanned<T>`). Each event
   is read spanned, so a semantic rejection names `events[i].field` and
   the line the event starts on; per-value spans were not needed.
+
+Settled on 2026-10-15, in PR2:
+
+- **The three decisions the plan left silent** (the status and the
+  tick, the setpoint on a load, the configuration `POST` validates
+  against) are recorded under "As landed" above and in design.md D6 and
+  D7.
 
 Open for PR2 and phase 5:
 

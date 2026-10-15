@@ -6,7 +6,10 @@
 //! spelling (`block02.pcs.p_ac_kw`); a refusal says what the site has at
 //! the level that failed, which is what keeps the two from becoming a trap.
 
+use std::fmt;
+
 use bess_core::alarms::ResetScope;
+use bess_core::kernel::FaultAction;
 use bess_core::PlantConfig;
 
 /// A node a physical fault acts on.
@@ -156,6 +159,64 @@ impl Target {
             Self::Pcs { .. } | Self::Hvac { .. } => None,
         }
     }
+
+    /// The node an action acts on, so a resolved schedule can spell its
+    /// targets the way the file did.
+    pub fn of(action: &FaultAction) -> Self {
+        match *action {
+            FaultAction::HvacFailure { block, container }
+            | FaultAction::HvacRepair { block, container } => Self::Hvac { block, container },
+            FaultAction::PcsTrip { block } => Self::Pcs { block },
+            FaultAction::ProtectionTrip | FaultAction::AlarmReset(ResetScope::Site) => Self::Site,
+            FaultAction::BlockMaintenanceEnter { block }
+            | FaultAction::BlockMaintenanceExit { block }
+            | FaultAction::AlarmReset(ResetScope::Block(block)) => Self::Block { block },
+            FaultAction::RackSelfDischarge {
+                block,
+                container,
+                rack,
+                ..
+            }
+            | FaultAction::RackIsolate {
+                block,
+                container,
+                rack,
+            }
+            | FaultAction::RackRestore {
+                block,
+                container,
+                rack,
+            }
+            | FaultAction::AlarmReset(ResetScope::Rack {
+                block,
+                container,
+                rack,
+            }) => Self::Rack {
+                block,
+                container,
+                rack,
+            },
+        }
+    }
+}
+
+/// The path as a file writes it: what `parse` reads back.
+impl fmt::Display for Target {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::Site => f.write_str("site"),
+            Self::Block { block } => write!(f, "block[{block}]"),
+            Self::Pcs { block } => write!(f, "block[{block}].pcs"),
+            Self::Hvac { block, container } => {
+                write!(f, "block[{block}].container[{container}].hvac")
+            }
+            Self::Rack {
+                block,
+                container,
+                rack,
+            } => write!(f, "block[{block}].container[{container}].rack[{rack}]"),
+        }
+    }
 }
 
 fn kind_name(target: Target) -> &'static str {
@@ -190,76 +251,4 @@ fn indexed(part: &str, name: &str) -> Option<Result<usize, String>> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::Target;
-    use bess_core::PlantConfig;
-
-    fn parse(path: &str) -> Result<Target, String> {
-        Target::parse(path, &PlantConfig::gw01()).map_err(|e| e.to_string())
-    }
-
-    #[test]
-    fn every_row_of_the_table_resolves() {
-        assert_eq!(parse("site"), Ok(Target::Site));
-        assert_eq!(parse("block[19]"), Ok(Target::Block { block: 19 }));
-        assert_eq!(parse("block[0].pcs"), Ok(Target::Pcs { block: 0 }));
-        assert_eq!(
-            parse("block[2].container[1].hvac"),
-            Ok(Target::Hvac {
-                block: 2,
-                container: 1
-            })
-        );
-        assert_eq!(
-            parse("block[2].container[1].rack[11]"),
-            Ok(Target::Rack {
-                block: 2,
-                container: 1,
-                rack: 11
-            })
-        );
-    }
-
-    #[test]
-    fn refusals_say_what_the_site_has() {
-        let cases = [
-            ("block[25]", "block[25]: this site has block[0] to block[19]"),
-            (
-                "block[2].container[0].fan",
-                "block[2].container[0].fan: a container has `hvac` and `rack[0]` to `rack[11]`",
-            ),
-            (
-                "block[2].container[0].rack[12]",
-                "block[2].container[0].rack[12]: a container has `hvac` and `rack[0]` to `rack[11]`",
-            ),
-            (
-                "block[2].container[2].hvac",
-                "block[2].container[2]: a block has `pcs` and `container[0]` to `container[1]`",
-            ),
-            (
-                "block[2].container[0]",
-                "block[2].container[0]: a container is not a target; name its `hvac` or a `rack[R]`",
-            ),
-            (
-                "block02.pcs",
-                "block02: a path starts at `site` or `block[N]`, N from 0 to 19",
-            ),
-            (
-                "block[02]",
-                "block[02]: indices are plain zero-based numbers, as in block[2]",
-            ),
-            (
-                "block[2].pcs.fan",
-                "block[2].pcs.fan: a PCS has no parts a scenario addresses",
-            ),
-            (
-                "block[2].container[0].hvac.fan",
-                "block[2].container[0].hvac.fan: hvac has no parts a scenario addresses",
-            ),
-            ("", ": a path starts at `site` or `block[N]`, N from 0 to 19"),
-        ];
-        for (path, message) in cases {
-            assert_eq!(parse(path), Err(message.to_owned()), "{path}");
-        }
-    }
-}
+mod tests;

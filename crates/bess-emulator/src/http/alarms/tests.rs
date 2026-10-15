@@ -35,7 +35,7 @@ async fn post(addr: SocketAddr, path: &str, body: &str) -> (u16, Value) {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_reset_answers_with_what_stayed_and_refuses_unknown_nodes() {
     let addr: SocketAddr = "127.0.0.1:18081".parse().unwrap();
-    let (handle, _sim) = sim::start(fixtures::tripped_plant(), 1.0);
+    let (handle, _sim) = sim::start(fixtures::tripped_plant(), 1.0, None);
     let mut events = handle.events.subscribe();
     tokio::spawn(http::serve(addr, handle));
     tokio::time::sleep(Duration::from_millis(300)).await;

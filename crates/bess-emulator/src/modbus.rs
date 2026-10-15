@@ -117,26 +117,23 @@ mod tests {
 
     use bess_core::alarms::has_bit;
     use bess_core::alarms::layout::{block, rack, site};
+    use std::net::SocketAddr;
+
+    use bess_scenario::RunParams;
     use tokio_modbus::client::{tcp, Context, Reader, Writer};
     use tokio_modbus::slave::Slave;
 
     use super::serve;
-    use crate::cli::Args;
     use crate::fixtures::{self, HOT_BLOCK};
     use crate::map::{HOLDING_MODE_ADDR, HOLDING_SETPOINT_ADDR};
     use crate::sim;
 
-    fn test_args() -> Args {
-        Args {
+    /// The command line's defaults at full speed.
+    fn test_params() -> RunParams {
+        RunParams {
             seed: 42,
-            start_unix: 1_767_225_600,
+            start_unix_s: 1_767_225_600,
             speed: sim::MAX_SPEED,
-            modbus: "127.0.0.1:15502".parse().unwrap(),
-            http: "127.0.0.1:18080".parse().unwrap(),
-            mqtt_host: "127.0.0.1".into(),
-            mqtt_port: 1883,
-            no_mqtt: true,
-            dump_signal_map: None,
         }
     }
 
@@ -144,12 +141,12 @@ mod tests {
     /// charge setpoint, watch the plant obey, hand control back.
     #[tokio::test(flavor = "multi_thread")]
     async fn modbus_read_write_closed_loop() {
-        let args = test_args();
-        let (handle, _sim_task) = sim::spawn(&args);
-        tokio::spawn(serve(args.modbus, handle));
+        let addr: SocketAddr = "127.0.0.1:15502".parse().unwrap();
+        let (handle, _sim_task) = sim::spawn(test_params(), None);
+        tokio::spawn(serve(addr, handle));
         tokio::time::sleep(Duration::from_millis(300)).await;
 
-        let mut ctx = tcp::connect_slave(args.modbus, Slave(1)).await.unwrap();
+        let mut ctx = tcp::connect_slave(addr, Slave(1)).await.unwrap();
 
         // Telemetry: frequency register near 50 Hz (x1000).
         let regs = ctx.read_input_registers(5, 1).await.unwrap().unwrap();
@@ -216,7 +213,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn a_poller_sees_the_chain_on_the_alarm_registers() {
         let addr = "127.0.0.1:15503".parse().unwrap();
-        let (handle, _sim_task) = sim::start(fixtures::hot_plant(), 600.0);
+        let (handle, _sim_task) = sim::start(fixtures::hot_plant(), 600.0, None);
         tokio::spawn(serve(addr, handle));
         tokio::time::sleep(Duration::from_millis(300)).await;
         let mut ctx = tcp::connect_slave(addr, Slave(1)).await.unwrap();

@@ -1,8 +1,10 @@
 //! HTTP surface: health, Prometheus metrics, REST state and control, the
-//! operator alarm reset, and a WebSocket stream of tick summaries and events.
+//! operator alarm reset, the scenario door, and a WebSocket stream of tick
+//! summaries and events.
 
 mod alarms;
 mod metrics;
+mod scenario;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -32,6 +34,10 @@ pub async fn serve(addr: SocketAddr, handle: SimHandle) {
         .route("/api/v1/setpoint", post(set_setpoint))
         .route("/api/v1/speed", post(set_speed))
         .route("/api/v1/alarms/reset", post(alarms::reset))
+        .route(
+            "/api/v1/scenario",
+            get(scenario::status).post(scenario::load),
+        )
         .route("/api/v1/stream", get(stream))
         .with_state(handle);
     let listener = match tokio::net::TcpListener::bind(addr).await {
@@ -111,6 +117,12 @@ async fn health(State(handle): State<SimHandle>) -> impl IntoResponse {
         // Which version of the register contract this process serves, so a
         // client can check it without fetching the published CSV.
         "signal_map_version": crate::map::MAP_VERSION,
+        // The file this run was started under, as the checkpoint carries
+        // it; null for the plain run.
+        "scenario": snap.state.meta.scenario.as_ref().map(|id| json!({
+            "name": id.name,
+            "content_hash": format!("{:#018x}", id.content_hash),
+        })),
     }))
 }
 

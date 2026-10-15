@@ -241,6 +241,22 @@ v0.4.0 can trip over.
   fixed schedule, `Player` hands out what is due before each tick. No
   shell uses it yet; the CLI and REST doors are phase 4 PR2. Data faults
   are scheduled, not executed, until phase 5.
+- **`--scenario <PATH>`** (phase 4 PR2): the command line plays a file
+  from tick 0. `--seed`, `--start-unix` and `--speed` keep their
+  defaults but a file's own values win over them, and a flag that
+  disagrees with the file is an error naming both, so a scenario cannot
+  run under the wrong seed by accident. A file that does not load ends
+  the process before any socket is bound, with the position.
+- **`POST /api/v1/scenario` and `GET /api/v1/scenario`** (phase 4 PR2):
+  load a file (the YAML as the body, `application/yaml` or `text/yaml`)
+  and read the story's progress. A load starts the run over: a fresh
+  plant at the file's seed and start, the file's speed when it states
+  one, the event log back at `seq` 1, every surface at tick 0 next, and
+  no external setpoint. The status carries the whole resolved schedule
+  with every drawn value, the reproduction record. Codes 200, 400, 422,
+  415 and 503 as COMPATIBILITY.md lists them.
+- **`/health` gains `scenario`** (phase 4 PR2): `{"name", "content_hash"}`
+  for a run started under a file, null otherwise.
 
 ## Open questions
 
@@ -257,6 +273,7 @@ v0.4.0 can trip over.
   4.0, bundled with attribution.
 - EPRI database snapshot: exact category shares and retrieval date
   (phase 5).
-- Whether the WASM shell gets scenario loading in M2 or later. This
-  README owns the question; the current lean is later, and the crate is
-  WASM-clean either way.
+- ~~Whether the WASM shell gets scenario loading in M2 or later.~~ Later,
+  with the next view iteration (phase 4 PR2). The crate compiles for
+  wasm32 and CI checks it on every change, so the door is open when a
+  view wants it.

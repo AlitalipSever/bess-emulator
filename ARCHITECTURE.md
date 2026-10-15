@@ -263,34 +263,59 @@ container, which matches real per-container BMS gateway topologies anyway.
 
 ## Scenario engine
 
-Scenarios are YAML files. Two fault classes are injected at two different
+Scenarios are YAML files, read by `bess-scenario` (M2 phase 4) against the
+site's configuration and played from tick 0: `bess-emulator --scenario
+s.yaml`, or `POST /api/v1/scenario` with the file as the body, which starts
+the plant over under it. Two fault classes are injected at two different
 places, deliberately:
 
-- **Physical faults (inside the kernel):** HVAC failure, PCS trip, protection
-  trip, abnormal cell self-discharge. Frequency and type distributions follow
-  the public EPRI failure incident taxonomy.
+- **Physical faults (inside the kernel):** HVAC failure and repair, PCS
+  trip, protection trip, abnormal cell self-discharge, rack isolation and
+  restore, block maintenance, an operator reset. Each is a `FaultAction`
+  the kernel's door `Simulation::apply` takes between two ticks, marked in
+  the event log ahead of what it causes. Built in phase 4.
 - **Data faults (in the shell, at the protocol layer):** communication
   dropouts, frozen values, timestamp drift, unit errors, NaN bursts, alarm
-  storms, restart backfill. The physics keeps running correctly; only the
-  observation is corrupted, exactly as in reality.
+  chatter, restart backfill. The physics keeps running correctly; only the
+  observation is corrupted, exactly as in reality. Declared and validated
+  in the file format since phase 4 and scheduled by the player; executed
+  by the shells from phase 5.
 
 Beyond faults: calendar events (DST days with 23/25 hours and 92/100
-quarter-hour market periods, a classic pipeline killer that replay makes almost
-free) and planned maintenance / partial availability (a block in maintenance,
-racks isolated), because a plant where everything always works reads as fake.
+quarter-hour market periods, a classic pipeline killer that replay makes
+almost free; a scenario picks its day with `start`) and planned maintenance
+/ partial availability (a block in maintenance, racks isolated), because a
+plant where everything always works reads as fake.
 
 ```yaml
-seed: 42
-day: 2026-07-14        # real prices + real weather from that day
-speed: 60x
+schema: 1
+name: hvac-failure-hot-week
+taxonomy: bos                 # the EPRI category phase 5's gate reads
+seed: 42                      # optional; the file wins over a flag
+start: 2024-07-08T00:00:00Z   # optional; UTC, whole seconds
+speed: 60                     # optional; 1 to 3600
 events:
-  - at: "14:00", target: block[2].container[0].hvac, fault: failure
-  - at: "14:20", surface: mqtt, fault: dropout, duration: 20m
-  - at: "14:40", surface: mqtt, fault: backfill_burst
+  - at: PT14H                 # ISO 8601 offsets from start, never clock times
+    target: block[2].container[0].hvac
+    fault: failure
+  - at: PT14H20M
+    surface: mqtt
+    fault: dropout
+    duration: PT20M
+  - at: P2D
+    target: block[2].container[1].rack[5]
+    fault: self_discharge
+    rate_pct_per_month: [10, 30]     # a range is drawn once, at load
 ```
 
-Scenario file + seed = reproduction. In CI:
-`bess-emulator --scenario s.yaml --assert snapshot.json`.
+Offsets rather than clock times, because a DST day makes "14:00" ambiguous
+and `start` already says which day it is. A range is drawn once when the
+schedule is resolved, from a stream seeded by the run's seed and the
+event's index, so the schedule is fixed before the first tick and
+`GET /api/v1/scenario` shows every drawn value. Scenario file + seed =
+reproduction; the checkpoint carries the file's name and hash, so a resume
+refuses another story. In CI (phase 5):
+`bess-emulator --scenario s.yaml --assert digest.json`.
 
 ## Shells
 

@@ -33,7 +33,12 @@ pub(super) fn data(spec: &EventSpec, surface: Surface) -> Result<DataFault, Refu
         (Some(_), K::BackfillBurst) => return Err(("duration", Reason::DurationForbidden(name))),
         (None, K::UnitError | K::BackfillBurst) => None,
         (None, _) => return Err(("duration", Reason::DurationRequired(name))),
-        (Some(d), _) => Some(duration::parse(d).map_err(|e| ("duration", e.into()))?),
+        (Some(d), _) => match duration::parse(d).map_err(|e| ("duration", e.into()))? {
+            // A fault that lasts no time is a row the author did not mean;
+            // refusing it now keeps phase 5's tap from having to decide.
+            0 => return Err(("duration", Reason::ZeroDuration(name))),
+            seconds => Some(seconds),
+        },
     };
 
     let takes: &[&str] = match kind {

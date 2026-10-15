@@ -24,8 +24,10 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests (physics invariants, determinism, calibration gate)
         run: cargo test --workspace
-      - name: Browser build stays green
-        run: cargo check -p bess-wasm --target wasm32-unknown-unknown
+      - name: Browser build stays green, and the scenario crate with it
+        run: |
+          cargo check -p bess-wasm --target wasm32-unknown-unknown
+          cargo check -p bess-scenario --target wasm32-unknown-unknown
       - name: Signal map is in sync
         run: |
           cargo run -p bess-emulator -- --dump-signal-map /tmp/map.csv

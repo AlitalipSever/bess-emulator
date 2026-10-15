@@ -1,5 +1,7 @@
 //! Command-line interface.
 
+pub mod run_params;
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
@@ -13,17 +15,26 @@ use clap::Parser;
 #[command(name = "bess-emulator", version, about)]
 pub struct Args {
     /// PRNG seed; together with the start time it fully determines the run.
-    #[arg(long, default_value_t = 42)]
-    pub seed: u64,
+    /// Default 42. A scenario that states a seed wins; a flag that
+    /// disagrees with it is an error.
+    #[arg(long)]
+    pub seed: Option<u64>,
 
-    /// Simulation start, unix seconds UTC (default 2026-01-01 00:00:00 UTC).
-    #[arg(long, default_value_t = 1_767_225_600)]
-    pub start_unix: i64,
+    /// Simulation start, unix seconds UTC. Default 1767225600 (2026-01-01
+    /// 00:00:00 UTC). A scenario that states a start wins.
+    #[arg(long)]
+    pub start_unix: Option<i64>,
 
-    /// Time acceleration factor (1 = real time). One simulated day passes
-    /// in 24 wall-clock minutes at the default of 60.
-    #[arg(long, default_value_t = 60.0)]
-    pub speed: f64,
+    /// Time acceleration factor (1 = real time). Default 60: one simulated
+    /// day passes in 24 wall-clock minutes. A scenario that states a speed
+    /// wins.
+    #[arg(long)]
+    pub speed: Option<f64>,
+
+    /// Scenario file to play from tick 0 (YAML, schema 1). Its seed, start
+    /// and speed, where it states them, are the run's.
+    #[arg(long, value_name = "PATH")]
+    pub scenario: Option<PathBuf>,
 
     /// Modbus TCP listen address.
     #[arg(long, default_value = "127.0.0.1:1502")]

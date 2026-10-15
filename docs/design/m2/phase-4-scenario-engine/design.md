@@ -56,7 +56,7 @@ Every field, its type and its rule:
 | `events[].target` | string | a state-tree path (D2); present on a physical event, absent on a data event |
 | `events[].surface` | enum | `mqtt`, `modbus`; present on a data event, absent on a physical event |
 | `events[].fault` | string | one of the names in D3 for the target's kind, or in D4 for the surface |
-| `events[].duration` | string | ISO 8601 duration as `at`; required, optional or forbidden per fault (D4) |
+| `events[].duration` | string | ISO 8601 duration as `at`, at least PT1S; required, optional or forbidden per fault (D4) |
 | `events[].rate_pct_per_month` | number or `[lo, hi]` | `self_discharge` only; 0.1 to 100; a range draws uniformly at load |
 | `events[].points` | string | data faults `freeze`, `unit_error`, `nan_burst`, `chatter`; a path prefix per phase 5 D2, `*` for the whole surface; default `*` |
 | `events[].exponent` | integer | `unit_error` only; the power of ten; default 3; must not be 0 |
@@ -192,8 +192,12 @@ saying so is the cheapest possible review.
   by clap, so a default can never collide with a file. Over REST there is
   no flag to conflict with: the file's values apply and the shell's
   current values stand in for what the file leaves out.
-  **Lands in PR2** with the CLI; PR1 only exposes the file's values as
-  `Option`s on `Scenario`.
+  **Confirmed in PR2.** `cli/run_params.rs` applies the table; the three
+  flags are `Option` and the defaults (42, 1767225600, 60) live there.
+  The refusal reads `--seed 7 conflicts with the scenario's seed, 42;
+  drop the flag or change the file`. Over REST the plant's current seed,
+  start and speed, read from the latest snapshot, stand in for what the
+  file leaves out.
 
 - **D6, loading over REST resets the run.** A scenario describes a run
   from its start; splicing events into a running plant would break the
@@ -206,7 +210,13 @@ saying so is the cheapest possible review.
   an operator door for unscripted faults can wait until someone asks.
   There is no unload endpoint either: loading another file is the way to
   change the story, and restarting the process the way to leave it.
-  **Lands in PR2.**
+  **Confirmed in PR2, one point made explicit:** the external setpoint
+  does not survive a load. It is a control on the old plant, not part of
+  the file, and a fresh plant that started under a setpoint the file's
+  author never saw would not be the file's run. The speed stays the
+  shell's where the file states none. The tick 0 snapshot goes out
+  before the load is answered, so a client reading `GET` after the
+  `200` never sees the old plant.
 
 - **D7, scenario identity in the output, revised.** `/health` carries
   `scenario: {"name", "content_hash"}` or `null`, next to the kernel and
@@ -219,8 +229,13 @@ saying so is the cheapest possible review.
   record is JSON, and the bench does not run scenarios in M2 (phase 5
   D6), so `RunRecord` is unchanged.
   **Hash confirmed in PR1:** `Scenario::id` carries the name and the
-  FNV-1a 64 of the bytes as given, from `bess_core::digest`. The surfaces
-  land in PR2.
+  FNV-1a 64 of the bytes as given, from `bess_core::digest`.
+  **Surfaces confirmed in PR2.** `/health` reads the pair from the tree's
+  `meta.scenario`, so it is the run's identity as a checkpoint would
+  store it, not the shell's memory of a load. `GET /api/v1/scenario`
+  carries the schedule in full, each target spelled as the file spells
+  it (`Target::of` and `Display`, added for this) and each event marked
+  fired or not; the tick is the snapshot's.
 
 - **D8, checkpoint format 8, revised.** `SiteMeta` gains
   `scenario: Option<ScenarioId { name, content_hash }>`: the scenario is
@@ -402,3 +417,6 @@ to the old value, and `bess-bench --check` passes without regeneration.
   semantic ones.
 - 2026-10-15: PR1 outcomes marked in D1 to D12; the
   semantic positions gain the event's line (D9).
+- 2026-10-15, PR2: D5 to D7 confirmed; D6 says what happens to the
+  external setpoint; a data fault's `duration` must be at least a second
+  (D4's table, a PR1 review finding).

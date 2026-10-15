@@ -179,6 +179,30 @@ so each such point states which container it speaks for:
   "alarm", "bit"}]}`, the bits whose cause is still present (they raise
   again on the next tick); 400 for a body it cannot read, an unknown scope,
   or a field no scope has; 422 for a node the site does not have.
+  `POST /api/v1/scenario` takes a scenario file as its body,
+  `Content-Type: application/yaml` or `text/yaml`, and starts the plant
+  over under it between two ticks: a fresh plant at the file's seed and
+  start (the plant's current ones where the file states none), at the
+  file's speed if it states one, the event log back at `seq` 1, every
+  surface at tick 0 next, and no external setpoint, which went with the
+  old plant. It answers 200 with the status below at tick 0; 400 with
+  `{"error", "position"}` for a body that does not parse or validate;
+  422, the same two fields, for a well-formed file naming a node the site
+  does not have; 415 for another content type; 503 when the simulation
+  task is gone. `GET /api/v1/scenario` answers `{"loaded": false}` when
+  no scenario is in force, otherwise `{"loaded": true, "name",
+  "content_hash", "seed", "start_unix_s", "speed", "tick", "fired",
+  "pending", "next", "events"}`: `content_hash` is the FNV-1a 64 of the
+  file's bytes as `0x` and sixteen hex digits, `fired` and `pending`
+  count events, `next` is the next event or null, and `events` is the
+  whole schedule in firing order, each `{"index", "at_s", "tick",
+  "kind": "physical" | "data", "fault", "fired"}` with `target` and, for
+  a leak, `rate_ppm_per_day` on a physical event, and `surface`,
+  `duration_s` and its parameters on a data event. The schedule is the
+  reproduction record: a drawn value is visible nowhere else.
+- **Health (`/health`):** `scenario` is `{"name", "content_hash"}` for a
+  run started under a file and null otherwise, beside `kernel_version`
+  and `signal_map_version`.
 - **REST summary (`/api/v1/summary`) and the stream:** the site's word is
   `alarm_bits` and each block's own word `block_alarm_bits`, the names the
   same words have on Modbus and MQTT. Each block's `mode` carries the
@@ -188,8 +212,9 @@ so each such point states which container it speaks for:
   `events`, every event since the previous message in the MQTT payload
   shape, and `events_lost_ticks` when the stream fell further behind than the
   emulator buffers.
-- **Checkpoint format:** a tagged, versioned envelope. Loaders reject
-  unknown versions loudly; a version bump is documented in release notes.
+- **Checkpoint format:** a tagged, versioned envelope, format 8 since M2
+  phase 4 (v0.4.0 wrote format 3). Loaders reject unknown versions
+  loudly; a version bump is documented in release notes.
 - **Determinism:** within one release, (seed, config, input series) is
   byte-identical. Model improvements legitimately change trajectories
   between releases; the golden snapshot in CI documents each change.
