@@ -26,9 +26,13 @@ Each decision is proposed here and confirmed or revised in its PR.
   dropout stops publishing while the client stays connected to the
   broker (the retained words stay there, as they would for a device gone
   silent), and stores what the device would have sent, in order, up to
-  65,536 messages; a backfill burst replays the store ahead of anything
-  live, each message with the `ts` and `seq` it was born with, 512 per
-  wake so the burst does not overflow the client's queue; a freeze
+  65,536 messages, and publishes every retained word again when the
+  dropout ends, as after a reconnect; a backfill burst replays the store
+  ahead of anything live, each message with the `ts` and `seq` it was
+  born with and none retained (a replay is history, not state), 512 per
+  wake so the burst does not overflow the client's queue, live messages
+  queued behind it until it drains, and a dropout that begins mid-replay
+  ends the replay with the store (review of PR1 before merge); a freeze
   repeats the value a point had when the event fired, captured by the
   task at that tick so the capture is deterministic in simulation time;
   a timestamp drift adds the drift so far to every message's `ts`,

@@ -7,8 +7,16 @@
 //! replays that store ahead of anything live, each message with the
 //! timestamp and the sequence number it was born with: old device times
 //! arriving in a burst under monotone receive times, the pipeline trap the
-//! fault exists to teach. Without a burst the store is kept until the next
-//! dropout starts over.
+//! fault exists to teach. Live messages born while a replay drains wait
+//! their turn behind it, so the wire stays in order. Without a burst the
+//! store is kept until the next dropout starts over, and a dropout that
+//! begins mid-replay ends that replay with the store it was draining.
+//!
+//! A replayed message is history, so it is never retained: the broker's
+//! retained words are only ever set live. When a dropout ends the device
+//! is back the way it is after a reconnect, and the publisher sends every
+//! retained word again, so a word that changed during the silence reaches
+//! late subscribers whether or not a burst ever replays the store.
 //!
 //! The values and the clock are the shared tap's: a frozen point repeats
 //! what it read when the freeze began, a unit error scales it, a NaN burst
@@ -34,6 +42,7 @@ const STORE: usize = 65_536;
 const BURST: usize = 512;
 
 /// One message as the publisher built it.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message {
     /// Full topic.
     pub topic: String,
@@ -45,12 +54,25 @@ pub struct Message {
     pub retain: bool,
 }
 
+/// The wire the outbox hands messages to: the client, or a test's list.
+pub trait Sink {
+    fn publish(&mut self, msg: Message) -> Result<(), ClientError>;
+}
+
+impl Sink for AsyncClient {
+    fn publish(&mut self, msg: Message) -> Result<(), ClientError> {
+        self.try_publish(msg.topic, msg.qos, msg.retain, msg.payload)
+    }
+}
+
 /// The publisher's door to the wire.
 #[derive(Default)]
 pub struct Outbox {
     store: VecDeque<Message>,
     /// Whether the last message found the device offline, to log the edges.
     offline: bool,
+    /// Whether a dropout ended since the publisher last asked.
+    returned: bool,
     /// Backfill bursts begun, by event index.
     replayed: Vec<usize>,
     /// Whether a burst is still draining the store.
@@ -60,14 +82,9 @@ pub struct Outbox {
 }
 
 impl Outbox {
-    /// Publish `msg`, or keep it when the surface is in a dropout at `tick`.
-    pub fn send(
-        &mut self,
-        client: &AsyncClient,
-        taps: &Taps,
-        tick: u64,
-        msg: Message,
-    ) -> Result<(), ClientError> {
+    /// Follow the tap at `tick`: the dropout's edges, each logged once.
+    /// Returns whether the device is offline now.
+    fn observe(&mut self, taps: &Taps, tick: u64) -> bool {
         let offline = taps.dropout(Surface::Mqtt, tick);
         if offline != self.offline {
             self.offline = offline;
@@ -75,28 +92,62 @@ impl Outbox {
                 info!("mqtt: dropout begins at tick {tick}; publishing stops, messages are stored");
                 self.store.clear();
                 self.forgotten = 0;
+                // The store a burst was draining is gone with it.
+                self.replaying = false;
             } else {
                 info!(
                     "mqtt: dropout ends at tick {tick} with {} messages stored",
                     self.store.len()
                 );
+                self.returned = true;
             }
         }
-        if offline {
-            if self.store.len() == STORE {
-                self.store.pop_front();
-                self.forgotten += 1;
-            }
-            self.store.push_back(msg);
+        offline
+    }
+
+    /// Whether a dropout ended since the last call: the device is back,
+    /// and what it holds retained should go out again, as after a reconnect.
+    pub fn returned(&mut self, taps: &Taps, tick: u64) -> bool {
+        self.observe(taps, tick);
+        std::mem::take(&mut self.returned)
+    }
+
+    fn keep(&mut self, msg: Message) {
+        if self.store.len() == STORE {
+            self.store.pop_front();
+            self.forgotten += 1;
+        }
+        self.store.push_back(msg);
+    }
+
+    /// Publish `msg`, or keep it when the surface is in a dropout at `tick`
+    /// or a replay is still draining ahead of it.
+    pub fn send(
+        &mut self,
+        sink: &mut impl Sink,
+        taps: &Taps,
+        tick: u64,
+        msg: Message,
+    ) -> Result<(), ClientError> {
+        if self.observe(taps, tick) {
+            // What the store replays is history by then, never state.
+            self.keep(Message {
+                retain: false,
+                ..msg
+            });
             return Ok(());
         }
-        client.try_publish(msg.topic, msg.qos, msg.retain, msg.payload)
+        if self.replaying {
+            self.keep(msg);
+            return Ok(());
+        }
+        sink.publish(msg)
     }
 
     /// Replay the store when a backfill burst's instant has passed, a
     /// slice of it per call; nothing while a dropout is open.
-    pub fn backfill(&mut self, client: &AsyncClient, taps: &Taps, tick: u64) {
-        if taps.dropout(Surface::Mqtt, tick) {
+    pub fn backfill(&mut self, sink: &mut impl Sink, taps: &Taps, tick: u64) {
+        if self.observe(taps, tick) {
             return;
         }
         if !self.replaying {
@@ -119,10 +170,13 @@ impl Outbox {
                 self.replaying = false;
                 return;
             };
-            if let Err(err) = client.try_publish(msg.topic, msg.qos, msg.retain, msg.payload) {
+            if let Err(err) = sink.publish(msg) {
                 warn!("mqtt: backfill paused: {err}");
                 return;
             }
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
