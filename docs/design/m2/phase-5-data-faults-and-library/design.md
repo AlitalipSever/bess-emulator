@@ -22,16 +22,59 @@ Each decision is proposed here and confirmed or revised in its PR.
   chosen over silently skipping them: a scenario that claims a Modbus
   NaN burst is a scenario that misunderstands Modbus, and the parser
   saying so is documentation.
+  **Confirmed in PR1, with the wire semantics made exact.** MQTT: a
+  dropout stops publishing while the client stays connected to the
+  broker (the retained words stay there, as they would for a device gone
+  silent), and stores what the device would have sent, in order, up to
+  65,536 messages; a backfill burst replays the store ahead of anything
+  live, each message with the `ts` and `seq` it was born with, 512 per
+  wake so the burst does not overflow the client's queue; a freeze
+  repeats the value a point had when the event fired, captured by the
+  task at that tick so the capture is deterministic in simulation time;
+  a timestamp drift adds the drift so far to every message's `ts`,
+  words and events included, and steps back when the window closes, as
+  an NTP correction would; a NaN burst writes the literal `NaN`; a
+  chatter is a square wave on bit 0 of the selected alarm words with a
+  period of `60 / rate_per_min` simulated seconds, an edge published
+  whenever a wake observes one, and the events subtree is left to the
+  kernel, since a fake `raised` would need a fake `seq`. Modbus: a
+  dropout resets every session on its next request (the session's
+  transport is a wire the tap cuts) and accepts and closes a new
+  connection at once, "refused" from the poller's side; a unit error
+  saturates at the register's encoding, the pegged register being the
+  audit trap; a chatter flips bit 0 of the alarm-word registers on the
+  same square wave. Two rules joined the load step: a `duration` is at
+  least PT1S, and a backfill burst needs a dropout on its surface that
+  has ended by its offset (D4's open question in phase 4).
 - **D2, freeze and unit errors take point selectors.** A state-tree path
   prefix selects what is affected (`block[3].*` freezes one block's
   telemetry). Whole-surface freeze is the prefix `*`. Random point
   choice, where a scenario wants it, is drawn at load per the phase 4
   determinism rule.
+  **Confirmed in PR1, revised in two points.** The grammar is `*`,
+  `site`, `block[N]` or `block[N].pcs`, spelled as targets are, because
+  the surfaces publish nothing finer than a block's PCS; a container or
+  a rack is refused by name. The shell matches a selector against the
+  published spelling (`block02.pcs.`). Which points a kind reaches is a
+  rule, not a draw: a freeze every selected point, a unit error and a
+  NaN burst the cadence points only (a word is not a quantity), a
+  chatter the alarm words only, and never the control registers. No
+  random point choice was built: no v1 fault asks for it, and the
+  architecture's surface-seeded stream does not exist, since every
+  fault is a function of its parameters and the tick.
 - **D3, the tap lives in the shell crate, one module per surface
   concern.** No new crate: the tap is projection behavior, and the
   projections live in `bess-emulator`. The AGENTS.md file-size contract
   applies; `mqtt.rs` and `modbus.rs` grow taps as submodules from the
   start rather than swelling in place.
+  **Confirmed in PR1.** `tap.rs` (217 lines) holds what the surfaces
+  share, the windows built from the schedule, the selection and the
+  arithmetic of a value, a flap and a drift, and is carried by the
+  snapshot as one `Arc` replaced when a window opens; `mqtt/tap.rs`
+  (128) is the outbox with the store and the replay, `modbus/tap.rs`
+  (106) the register transform and the wire. The publisher moved to
+  `mqtt/publisher.rs` and the Modbus tests to `modbus/tests.rs` for the
+  room; `mqtt.rs` is 121 lines, `modbus.rs` 134.
 - **D4, library composition.** Around a dozen cases at launch, tagged
   with the EPRI categories; the exact target shares and the tolerance
   the gate holds them to are pinned from the database snapshot in this
@@ -62,7 +105,11 @@ meaning change called out as the break it is.
 ## Checkpoint impact
 
 None. Tap state is shell state, reconstructed from the schedule on
-resume; the kernel checkpoint stays observation-clean.
+resume; the kernel checkpoint stays observation-clean. **Confirmed in
+PR1:** `Taps` is built from `Resolved` and the map; the one thing it
+holds that the schedule does not, a freeze's captured values, is taken
+by the task at the tick the event fires, and the MQTT store a dropout
+fills is the publisher's and starts empty on a resume.
 
 ## Test plan
 
