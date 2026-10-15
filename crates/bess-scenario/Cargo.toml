@@ -1,0 +1,21 @@
+[package]
+name = "bess-scenario"
+description = "Scenario files for the bess-emulator: schema, validation, schedule and player"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bess-core = { workspace = true }
+bess-data = { workspace = true }
+serde = { workspace = true }
+serde-saphyr = { version = "2", default-features = false, features = ["deserialize"] }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+bess-models = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

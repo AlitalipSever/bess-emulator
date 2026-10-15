@@ -1,0 +1,4 @@
+# A scenario with no events: the plain run with a name.
+schema: 1
+name: empty
+events: []
