@@ -64,7 +64,7 @@ ran rather than re-derived afterwards from a summary.
 
 <!-- bess-bench:begin m1-annual -->
 
-Measured by `bess-bench` on kernel 0.4.0: GW-01 on the internal dispatch
+Measured by `bess-bench` on kernel 0.5.0: GW-01 on the internal dispatch
 plan, seed 7, 365 simulated days (31 536 000 ticks) of the replayed weather
 year. Regenerate with `cargo run --release -p bess-bench -- --write`; CI
 fails if this block is stale.
@@ -678,6 +678,32 @@ take 37 s together, the ten-day hot week 14 s and the six-day leak 9 s
 of it; the kernel steps about 60,000 ticks per second. Under a minute
 is inside the budget, so nothing moves to release-tag frequency; the
 decision is revisited when the library doubles.
+
+## M2 (v0.5.0): the annual record at release
+
+The record was regenerated once more for the version bump, as every
+release regenerates it, and the figures did not move: the M2 plant
+measured at v0.5.0 is the plant phase 3 PR2 measured. Over the
+milestone, two phases moved the year, in order:
+
+| Record | Round trip at the POI | Import | Export | Equivalent full cycles | What moved it |
+|---|---|---|---|---|---|
+| v0.4.0 | 0.8422 | 74,400.9 MWh | 62,657.9 MWh | 312.3 | the M1 plant |
+| after phase 1 | 0.8417 | 74,406.4 MWh | 62,629.7 MWh | 312.2 | passive balancing: 26.5 MWh of bleed heat booked to the battery row, 7.6 MWh more cooling |
+| after phase 3, v0.5.0 | 0.8366 | 66,484.8 MWh | 55,622.2 MWh | 277.2 | real day-ahead prices: an unordered plan on days whose peak comes before their trough |
+
+Temperature derating (phase 1) never binds on the replayed year, the
+alarm words (phase 2) are observation, the trip and the staggered return
+(phase 3) never fire in a clean year, the scenario engine and the taps
+(phases 4 and 5) touch nothing unless a file asks, and no file is loaded
+in the annual run; so none of them moved a figure, and CI holds that for
+each. The 0.8366 sits inside the M1 band (the measured EIA fleet floor to
+the NREL ATB ceiling), as the generated block above records, with the
+market rule's cost itemized in the prices section: a planner that orders
+its hours is M4's, and the number will move again then. The fifteen
+library records were regenerated for the same bump and moved in their
+version string and nothing else, which is the evidence that the release
+is the physics the phases measured.
 
 ## Planned gates (from ROADMAP.md)
 
