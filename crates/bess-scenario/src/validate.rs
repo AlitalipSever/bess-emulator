@@ -3,7 +3,8 @@
 //! the one-of rule, and the per-target order of design D12. A physical
 //! event's (kind, fault) table (D3) is `validate/physical.rs`, a data
 //! event's (surface, fault) matrix (D4) `validate/data.rs`; the parameter
-//! check both use stays here.
+//! check both use stays here, as does the one rule between data events: a
+//! backfill burst needs a dropout on its surface that has ended by then.
 
 use std::collections::HashMap;
 
@@ -12,7 +13,7 @@ use bess_core::PlantConfig;
 use serde_saphyr::Spanned;
 
 use crate::error::{LoadError, Position, Reason};
-use crate::scenario::{Fault, Scenario, ScenarioEvent};
+use crate::scenario::{DataFaultKind, Fault, Scenario, ScenarioEvent};
 use crate::schema::target::Target;
 use crate::schema::{duration, EventSpec, File};
 
@@ -77,6 +78,18 @@ pub(crate) fn validate(
         }
         events.push(event);
     }
+    for (index, spanned) in file.events.iter().enumerate() {
+        if backfill_has_nothing_to_replay(index, &events) {
+            return Err(LoadError {
+                position: Position::Event {
+                    index,
+                    field: "at",
+                    line: spanned.referenced.line(),
+                },
+                reason: Reason::BackfillWithoutDropout,
+            });
+        }
+    }
 
     Ok(Scenario {
         id: ScenarioId {
@@ -88,6 +101,26 @@ pub(crate) fn validate(
         start_unix_s,
         speed: file.speed.map(|s| s.value),
         events,
+    })
+}
+
+/// Whether `events[index]` is a backfill burst with no dropout on its
+/// surface that has ended by its offset, wherever in the file the dropout
+/// is listed.
+fn backfill_has_nothing_to_replay(index: usize, events: &[ScenarioEvent]) -> bool {
+    let Fault::Data(burst) = &events[index].fault else {
+        return false;
+    };
+    if burst.fault != DataFaultKind::BackfillBurst {
+        return false;
+    }
+    !events.iter().any(|e| match &e.fault {
+        Fault::Data(d) => {
+            d.surface == burst.surface
+                && d.fault == DataFaultKind::Dropout
+                && e.at_s + d.duration_s.unwrap_or(0) <= events[index].at_s
+        }
+        Fault::Physical { .. } => false,
     })
 }
 
@@ -107,7 +140,7 @@ fn event(index: usize, spec: &EventSpec, cfg: &PlantConfig) -> Result<ScenarioEv
         (Some(_), Some(_)) => return Err(("surface", Reason::BothTargetAndSurface)),
         (None, None) => return Err(("target", Reason::NeitherTargetNorSurface)),
         (Some(path), None) => physical::physical(spec, path, cfg)?,
-        (None, Some(surface)) => Fault::Data(data::data(spec, surface)?),
+        (None, Some(surface)) => Fault::Data(data::data(spec, surface, cfg)?),
     };
     Ok(ScenarioEvent { index, at_s, fault })
 }

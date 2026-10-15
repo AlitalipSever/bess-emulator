@@ -6,8 +6,8 @@ use bess_core::digest::fnv1a_64;
 use bess_core::kernel::FaultAction;
 use bess_core::PlantConfig;
 use bess_scenario::{
-    load, DataFault, DataFaultKind, Due, Fault, PendingAction, Rate, RunParams, Surface, Target,
-    Taxonomy,
+    load, DataFault, DataFaultKind, Due, Fault, PendingAction, Rate, RunParams, Selector, Surface,
+    Target, Taxonomy,
 };
 
 const EXAMPLE: &[u8] = include_bytes!("fixtures/hvac-failure-hot-week.yaml");
@@ -129,7 +129,7 @@ events:
     surface: mqtt
     fault: freeze
     duration: PT5M
-    points: block02.pcs
+    points: block[2].pcs
   - at: PT3M
     target: block[4]
     fault: alarm_reset
@@ -139,13 +139,13 @@ events:
         panic!("not a data fault")
     };
     assert_eq!(
-        (unit.points.as_deref(), unit.exponent, unit.duration_s),
-        (Some("*"), Some(3), None)
+        (unit.points, unit.exponent, unit.duration_s),
+        (Some(Selector::All), Some(3), None)
     );
     let Fault::Data(freeze) = &s.events[1].fault else {
         panic!("not a data fault")
     };
-    assert_eq!(freeze.points.as_deref(), Some("block02.pcs"));
+    assert_eq!(freeze.points, Some(Selector::Pcs { block: 2 }));
     assert_eq!(
         s.events[2].fault,
         Fault::Physical {

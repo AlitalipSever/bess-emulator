@@ -10,6 +10,7 @@ use bess_core::kernel::FaultAction;
 use bess_core::state::ScenarioId;
 use serde::Serialize;
 
+use crate::schema::selector::Selector;
 use crate::schema::target::Target;
 use crate::schema::{Rate, Surface, Taxonomy};
 
@@ -74,7 +75,7 @@ pub enum PendingAction {
 }
 
 /// A data fault, its parameters checked for presence and range and their
-/// defaults applied. Phase 5 gives them meaning.
+/// defaults applied. The shells' taps give them meaning.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DataFault {
     /// The surface it corrupts.
@@ -85,10 +86,9 @@ pub struct DataFault {
     /// end of the run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_s: Option<u64>,
-    /// The point prefix (`*` for the whole surface), where the fault takes
-    /// one.
+    /// Which points, where the fault takes a selection (`*` by default).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub points: Option<String>,
+    pub points: Option<Selector>,
     /// `unit_error`'s power of ten.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exponent: Option<i32>,
