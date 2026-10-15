@@ -14,6 +14,7 @@ mod map;
 mod modbus;
 mod mqtt;
 mod sim;
+mod tap;
 
 use std::path::Path;
 use std::process::ExitCode;

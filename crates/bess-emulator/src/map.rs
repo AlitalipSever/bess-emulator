@@ -32,6 +32,7 @@ pub(crate) use block::block_mode_code;
 pub use control::{HOLDING_MODE_ADDR, HOLDING_SETPOINT_ADDR};
 pub use csv::dump_signal_map_csv;
 pub use encode::write_banks;
+pub(crate) use encode::write_point;
 
 /// Version of the published signal map, semver, independent of the crate
 /// version per COMPATIBILITY.md.

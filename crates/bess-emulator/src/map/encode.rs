@@ -5,7 +5,7 @@ use bess_core::state::SiteState;
 use super::{Encoding, Point, Space};
 
 /// Encode one physical value into registers at `point.addr`.
-fn write_point(point: &Point, value: f64, bank: &mut [u16]) {
+pub(crate) fn write_point(point: &Point, value: f64, bank: &mut [u16]) {
     let scaled = value * point.scale;
     let addr = point.addr as usize;
     match point.encoding {

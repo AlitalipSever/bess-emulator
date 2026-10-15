@@ -1,8 +1,8 @@
 //! A scenario in force: the player's home in the shell (design D6, D7).
 //!
 //! Before each tick the task asks what is due. Physical actions go through
-//! the kernel's door; data faults advance the cursor and are logged as
-//! scheduled only, until phase 5's tap executes them. The status the
+//! the kernel's door; a data fault opens its window on the tap, which the
+//! surfaces read, and touches nothing in the kernel. The status the
 //! surfaces publish is built here once per change: `GET /api/v1/scenario`'s
 //! answer but for the tick, which the snapshot carries.
 
@@ -10,21 +10,38 @@ use std::sync::Arc;
 
 use bess_core::kernel::FaultAction;
 use bess_core::Simulation;
-use bess_scenario::{Due, Player, Resolved, Scheduled, Target};
+use bess_scenario::{DataFaultKind, Due, Player, Resolved, Scheduled, Target};
 use serde_json::{json, Value};
 use tracing::{info, warn};
 
-/// The schedule and the cursor over it.
+use crate::map::Point;
+use crate::tap::Taps;
+
+/// The schedule, the cursor over it, and the tap its data faults open.
 pub struct Active {
     resolved: Arc<Resolved>,
     player: Player,
+    points: Arc<Vec<Point>>,
+    taps: Arc<Taps>,
 }
 
 impl Active {
-    /// At the start of `resolved`'s schedule.
-    pub fn new(resolved: Arc<Resolved>) -> Self {
+    /// At the start of `resolved`'s schedule, with the map the data faults
+    /// select points from.
+    pub fn new(resolved: Arc<Resolved>, points: Arc<Vec<Point>>) -> Self {
         let player = Player::new(&resolved);
-        Self { resolved, player }
+        let taps = Arc::new(Taps::new(&resolved, &points));
+        Self {
+            resolved,
+            player,
+            points,
+            taps,
+        }
+    }
+
+    /// The data faults as the surfaces read them.
+    pub fn taps(&self) -> Arc<Taps> {
+        Arc::clone(&self.taps)
     }
 
     /// Hand the kernel what is due before it steps the next tick; whether
@@ -49,13 +66,22 @@ impl Active {
                     // run goes on without the action.
                     Err(err) => warn!(event, tick, "scenario: fault refused: {err}"),
                 },
-                Due::Data(fault) => info!(
-                    event,
-                    tick,
-                    surface = fault.surface.name(),
-                    fault = fault.fault.name(),
-                    "scenario: data fault scheduled only; the tap arrives in phase 5"
-                ),
+                Due::Data(fault) => {
+                    // A freeze holds what the points read now; the other
+                    // windows are a function of the tick alone.
+                    if fault.fault == DataFaultKind::Freeze {
+                        let state = sim.state();
+                        let values = self.points.iter().map(|p| (p.extract)(state)).collect();
+                        Arc::make_mut(&mut self.taps).open(event, values);
+                    }
+                    info!(
+                        event,
+                        tick,
+                        surface = fault.surface.name(),
+                        fault = fault.fault.name(),
+                        "scenario: data fault opens on the tap"
+                    );
+                }
             }
         }
         !due.is_empty()

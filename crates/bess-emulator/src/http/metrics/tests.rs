@@ -1,5 +1,7 @@
 //! The exposition held to the state it reads and to the dashboard that reads it.
 
+use std::sync::Arc;
+
 use bess_core::alarms::layout::{block, rack, site};
 use bess_core::state::AuxPower;
 use bess_core::{PlantConfig, SiteState};
@@ -39,6 +41,7 @@ fn snapshot() -> Snapshot {
         holding_regs: Vec::new(),
         speed: 60.0,
         scenario: None,
+        taps: Arc::default(),
     }
 }
 
