@@ -123,6 +123,9 @@ pub enum Reason {
     /// The fault takes no duration and has one.
     #[error("{0} takes no `duration`")]
     DurationForbidden(&'static str),
+    /// The duration is PT0S: a fault that lasts no time at all.
+    #[error("{0} takes a `duration` of at least one second, not PT0S")]
+    ZeroDuration(&'static str),
     /// A parameter the fault needs is missing.
     #[error("{fault} needs `{parameter}`")]
     ParameterMissing {
