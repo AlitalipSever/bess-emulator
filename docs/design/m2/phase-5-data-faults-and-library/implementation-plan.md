@@ -114,6 +114,23 @@ the library with its gate and the CI step, the documents.
 Accept: tag pushed, docker quickstart green, npm publish script run per
 the M1.5 release path.
 
+### As landed (2026-10-15)
+
+- **The version bump moved only version strings.** The annual record
+  and the fifteen library records were regenerated under 0.5.0 and
+  changed in `engine_version` and nowhere else: the release is the
+  physics the phases measured, and CALIBRATION.md's new section says
+  so with the three figures that did move over the milestone and why.
+- **No separate "M2 entry" with a composition table:** the library
+  section (PR2) carries the EPRI snapshot and the composition, the
+  release section carries the annual figures; two sections for two
+  measurements rather than one that repeats both.
+- **The release note is a file,** `docs/design/m2/release-notes.md`,
+  edited from the inventory, so the tag can be created with
+  `--notes-file`; the M1.5 note was composed at tag time.
+- **The tag, the Docker image and the npm publish are the maintainer's
+  steps** after the merge: the PR carries everything they read.
+
 ## Open questions
 
 Settled on 2026-10-15, in PR2:
