@@ -570,6 +570,53 @@ as exact values, since they are arithmetic. The reference year itself has
 price is known, but no EUR figure is computed or published anywhere until
 M4 sources the band it would be held against.
 
+## M2 (v0.5.0): the rack self-discharge fault
+
+Phase 4 adds the one fault no earlier phase built: one cell in a rack's
+string leaks faster than its neighbours, a soft internal short. The
+fault sets a per-rack excess rate, and the spread law adds it to the
+healthy drift above (1.8 % SoC per month). Nothing else changes: the
+consequences are the balancing and imbalance behaviour already
+calibrated in the two sections before this one.
+
+| Parameter | Value | Basis | Status |
+|---|---|---|---|
+| Excess self-discharge | 0.1 to 100 % SoC per month, per scenario | a soft internal short is described in the literature as tens of times a healthy cell's leak; no public dataset pins a figure for a 314 Ah LFP cell | estimate; the schema's range, not a claim about any cell |
+| Carried as | integer ppm of SoC per day (1 %/month = 333) | keeps the fault event exact under the determinism digest | by construction |
+| Spread ceiling | 1.0 (the whole window) | a cell cannot hold less than empty | by construction |
+
+Measured from 11 April (seed 7) on one container of twelve racks, rack 5
+leaking, the day its `rack.imbalance_warning` first raises:
+
+| Excess rate | Warning | Balancing hours on the leaking rack, first 90 days |
+|---|---|---|
+| none (healthy) | never | 62 |
+| 3 %/month | never | 176 |
+| 10 %/month | never | 450 |
+| 13.5 %/month | day 36 | 587 |
+| 18 %/month (ten times the healthy drift) | day 20 | 629 |
+| 30 %/month | day 5 | 656 |
+| 100 %/month | day 2 | 662 |
+
+At 100 %/month the spread meets the ceiling after about a month and
+`rack.imbalance_trip` (500 mV) latches on day 35; no slower rate trips
+inside 90 days.
+
+The bleed is the reason for the step between 10 and 13.5 %/month. It
+removes at most 0.076 % SoC an hour and runs only at the top of the
+window, about 7.5 hours a day in this spring, so it absorbs a leak up to
+roughly 17 %/month on a good day and less on a day that does not reach
+the top. Below that the leak shows only as more balancing; above it the
+spread climbs. The healthy neighbours peak at 78 mV and never warn.
+`tests/self_discharge.rs` holds the 18 %/month row (a warning inside 30
+days, no neighbour warning) and the arithmetic behind it.
+
+**Known gaps.** The leak drains the spread, not the rack's mean SoC, as
+for the healthy drift: what one cell of 416 loses is below anything the
+energy account shows. There is no cell undervoltage: the model has no
+per-cell voltage limit, so an emptied weak cell is visible only through
+the imbalance bits.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);
