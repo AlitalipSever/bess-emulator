@@ -4,7 +4,10 @@ Each decision is proposed here and confirmed or revised in its PR. Pinned
 on 2026-10-14 against the tree as phase 3 left it; the draft of
 2026-10-05 is kept where it still holds and revised in place where the
 code that landed since made it wrong (D3, D7, D8, D9 to D12 are new or
-changed; the revision history is at the end).
+changed; the revision history is at the end). PR1 landed on 2026-10-15
+and confirmed D1 to D4 and D8 to D12, D2 and D8 in revised form and D3
+and D11 with additions; D5 to D7 are PR2's. The outcome is marked in
+each.
 
 ## The schema, v1
 
@@ -76,6 +79,10 @@ saying so is the cheapest possible review.
   Resolution: an offset of `n` seconds is tick `n`, fired before the
   kernel steps that tick, so `PT0S` acts on the initial state exactly as
   the chain test's `set_hvac_failed` before its first step does.
+  **Confirmed in PR1:** `schema/duration.rs` reads `PnW` and `PnDTnHnMnS`
+  in any subset, whole seconds; months, years, fractions, negatives and a
+  time part without `T` are refused by name. Weeks stand alone, as ISO
+  8601 has them: `P1W2D` is refused with a pointer to days.
 
 - **D2, target paths are state-tree paths.** Bracket-indexed tree
   addresses, validated at load against `PlantConfig`:
@@ -98,6 +105,11 @@ saying so is the cheapest possible review.
   `hvac` and `rack[0]` to `rack[11]`"), which is what keeps the two
   spellings from becoming a trap. `container[C]` without a child is not
   a target: nothing acts on a container as a whole in v1.
+  **Confirmed in PR1, one step instead of two:** `Target::parse(path,
+  cfg)` resolves and range-checks together, because the refusal text needs
+  the site's range at whichever level failed. The messages are the ones
+  above, held by the module's tests; a padded index (`block[02]`) is
+  refused too.
 
 - **D3, physical fault set v1**, the `FaultAction` enum, one row per
   (kind, fault) pair the validator accepts:
@@ -133,6 +145,18 @@ saying so is the cheapest possible review.
   and combinations are library material (phase 5), not engine material;
   an external setpoint is a control, not a fault, and stays a REST and
   Modbus matter.
+  **Confirmed in PR1, with two additions.** `FaultAction` carries the
+  ten rows and `FaultAction::name()` their file names, shared by the
+  parser and the MQTT payload. An accepted action that changes nothing (a
+  second trip, a repair of a working unit) answers `false` and is still
+  marked, since the log records what was done. The spread law now stops
+  the spread at 1.0, the whole window, which the fastest leak the schema
+  allows would otherwise pass in a month; below that ceiling nothing
+  moves. Measured in CALIBRATION.md: the bleed absorbs a leak up to about
+  10 %/month, and above it ten times the healthy drift reaches the
+  imbalance warning on day 20. The example's `[10, 30]` range therefore
+  straddles the point where the fault becomes visible, which phase 5's
+  library should know when it picks its cases.
 
 - **D4, data fault set v1 in the schema now, executed in phase 5.** The
   validator enforces this matrix from this phase, with the reason in the
@@ -153,6 +177,11 @@ saying so is the cheapest possible review.
   confirm when the tap gives them meaning; until then they are checked
   for presence and range only. Whether a `backfill_burst` must follow a
   `dropout` on the same surface is a phase 5 rule.
+  **Confirmed in PR1.** `rate_per_min` (chatter) and `drift_s_per_h`
+  (timestamp drift) are required for their faults; `points` defaults to
+  `*` where taken, `exponent` to 3. A parameter given to a fault that
+  does not take it is refused, and a physical event takes no
+  `duration`.
 
 - **D5, the file wins.** Scenario-stated seed, start and speed are
   authoritative; an explicit CLI flag that disagrees is an error naming
@@ -163,6 +192,8 @@ saying so is the cheapest possible review.
   by clap, so a default can never collide with a file. Over REST there is
   no flag to conflict with: the file's values apply and the shell's
   current values stand in for what the file leaves out.
+  **Lands in PR2** with the CLI; PR1 only exposes the file's values as
+  `Option`s on `Scenario`.
 
 - **D6, loading over REST resets the run.** A scenario describes a run
   from its start; splicing events into a running plant would break the
@@ -175,6 +206,7 @@ saying so is the cheapest possible review.
   an operator door for unscripted faults can wait until someone asks.
   There is no unload endpoint either: loading another file is the way to
   change the story, and restarting the process the way to leave it.
+  **Lands in PR2.**
 
 - **D7, scenario identity in the output, revised.** `/health` carries
   `scenario: {"name", "content_hash"}` or `null`, next to the kernel and
@@ -186,6 +218,9 @@ saying so is the cheapest possible review.
   metadata": there is no Parquet anywhere in the workspace, the bench's
   record is JSON, and the bench does not run scenarios in M2 (phase 5
   D6), so `RunRecord` is unchanged.
+  **Hash confirmed in PR1:** `Scenario::id` carries the name and the
+  FNV-1a 64 of the bytes as given, from `bess_core::digest`. The surfaces
+  land in PR2.
 
 - **D8, checkpoint format 8, revised.** `SiteMeta` gains
   `scenario: Option<ScenarioId { name, content_hash }>`: the scenario is
@@ -198,6 +233,12 @@ saying so is the cheapest possible review.
   the tree. What a resume must check is that it has the same file, and
   `bess_scenario::Resolved::resume(SiteState)` refuses a tree whose
   `scenario` hash is not its own, or that carries no scenario at all.
+  **Confirmed in PR1, revised in one point:** `Resolved::resume` also
+  refuses a tree whose seed is not the one the schedule was drawn with,
+  since a range drawn under another seed is another schedule. It takes
+  the configuration and models as `simulation` does. `Player::catch_up`
+  rebuilds the position from the tree's tick; the determinism test
+  resumes at the tick a reset is due and matches the continuous run.
 
 - **D9, the YAML parser (needs Ali's yes before `cargo add`).** The
   workspace has no YAML dependency. `serde_yaml` is deprecated since
@@ -219,6 +260,15 @@ saying so is the cheapest possible review.
   that reaches the network. If the crate turns out to lack something the
   schema needs (spans on values, say), `serde_norway` is the fallback
   and the design does not change.
+  **Confirmed in PR1 (Ali's yes, 2026-10-15):** `serde-saphyr` 2.0.0
+  with `default-features = false, features = ["deserialize"]`, in
+  `bess-scenario` only. It and its parser `granit-parser` forbid
+  `unsafe`; what they pull in has two build scripts (num-traits' autocfg
+  probe, encoding_rs's rustversion cfg), neither reaches the network.
+  The encoding layer (`encoding_rs`, `simdutf8`) uses `unsafe` for SIMD,
+  as everywhere it is used. Spans on values exist (`Spanned<T>`): each
+  event is read spanned, so a semantic rejection carries the line its
+  event starts on as well as `events[i].field`.
 
 - **D10, `bess-scenario` depends on `bess-data` for the calendar.**
   `start` is a civil UTC timestamp; turning it into unix seconds needs
@@ -230,6 +280,8 @@ saying so is the cheapest possible review.
   appears. The artifacts `bess-data` bundles come along; the crate is
   still WASM-clean (`bess-models` has carried them into the browser
   build since M1).
+  **Confirmed in PR1:** `validate.rs` converts `start` with
+  `days_from_civil` and checks the date with its inverse.
 
 - **D11, `Event::FaultApplied(FaultAction)`.** Every action `apply`
   accepts goes out as an event with the next tick, ahead of its
@@ -248,6 +300,12 @@ saying so is the cheapest possible review.
   "ts", "node", "event": "fault", "fault": "<name as in the YAML>",
   "rate_ppm_per_day"?: n, "scope"?: "<node>"}`; a `ProtectionTrip` and a
   site reset act on `site`.
+  **Confirmed in PR1, one spelling added:** an HVAC unit has no alarm
+  word and so no `AlarmNode`; its fault publishes under
+  `events/block02/container0/hvac/fault`, the path the tree gives it,
+  beside the rack paths. A reset's `scope` is the reached node's path.
+  The arms and their tests landed with the variant, since the match is
+  exhaustive.
 
 - **D12, the schedule and the draws.** `Resolved` holds the events sorted
   by (tick, file index), so two events due on one tick fire in file
@@ -260,6 +318,11 @@ saying so is the cheapest possible review.
   the file in time order per target (a reader groups by target, and a
   file that lists a repair before its failure is a file with a mistake
   in it); the file as a whole need not be sorted.
+  **Confirmed in PR1:** the salt is `SCENARIO_STREAM` in `resolve.rs`;
+  the example's leak draws 6,962 ppm/day (20.9 %/month) under seed 42,
+  pinned in `tests/goldens.rs`. The same-tick and order rules apply to
+  physical targets; data events on one surface are phase 5's to rule on,
+  as D4 already leaves the dropout and backfill relation to it.
 
 ## Signal map impact
 
@@ -276,7 +339,10 @@ Format 7 to 8 (D8): `SiteMeta::scenario`, `RackState::self_discharge_excess_per_
 Moves once, in PR1, for schema alone: the tree gains the two fields, and
 with them set aside it is identical to phase 3's, value for value. The
 annual record does not move: the plain run has no scenario and no rack
-leaks.
+leaks. **Confirmed in PR1:** `0xa24f_1646_1b6a_d90e` to
+`0xf3fb_8ad4_75c9_980f`; the new tree with `"scenario":null` and the 480
+`"self_discharge_excess_per_s":0.0` removed from its serialization hashes
+to the old value, and `bess-bench --check` passes without regeneration.
 
 ## Test plan
 
@@ -334,3 +400,5 @@ leaks.
   variant, the schedule rule). Error positions revised from "line" to
   line and column for parse errors and event index and field for
   semantic ones.
+- 2026-10-15: PR1 outcomes marked in D1 to D12; the
+  semantic positions gain the event's line (D9).

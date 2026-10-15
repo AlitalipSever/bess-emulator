@@ -189,6 +189,43 @@ parser's rationale and Ali's yes, quoted.
 Any CLI or REST door; the player running anywhere but tests; data-fault
 execution; the library; a repair action for a leaking rack (M5).
 
+### As landed (2026-10-15)
+
+PR1 follows the commits below; where the code parted from this plan,
+the plan was wrong in a detail and the code is the record:
+
+- **`apply` needs no node check of its own.** It records where the
+  pending queue ends, calls the command (every command already refuses an
+  unknown node before changing anything), and on success inserts the mark
+  at that position. Same outcome as "check, mark, command" (a refusal
+  leaves no trace, the mark precedes the effect) without a second copy
+  of the node lookups. No-ops are marked too (design D3).
+- **The door's tests are `bess-models/tests/fault_door.rs`,** not unit
+  tests beside `kernel/fault.rs`: a `Simulation` needs models and
+  `bess-core` has none, which is also where phase 3 tested the commands.
+- **`events.rs`'s tests moved to `events/tests.rs`;** the two new ones
+  would have taken the file past the soft limit.
+- **The crate has eleven source files, not eight.** `scenario.rs` holds
+  the validated types (a concern of its own: what a file means once it
+  passed), and `validate.rs` came out at 361 lines, so the (kind, fault)
+  table went to `validate/physical.rs` and the data matrix to
+  `validate/data.rs`; the parent keeps the file-level rules and the
+  parameter check both use. `tests/support/play.rs` is the shell's loop
+  for the integration tests, included by path. `Target::node()` became
+  `reset_scope()` and `kind()`, which are what callers needed;
+  `Player::position()` is `progress()` returning `Progress`, since
+  `Position` is the error's.
+- **The spread stops at 1.0** (design D3): the fastest leak the schema
+  allows passed it within a month in the measurement.
+- **The leak's integration case runs on one container** (twelve racks,
+  half the site rating) for 30 days, 2 seconds in the dev profile; the
+  rates and days are in CALIBRATION.md.
+- **COMPATIBILITY.md gains the `fault` payload in this PR,** not PR2,
+  because the payload ships here.
+- **WASM:** `cargo check -p bess-scenario --target
+  wasm32-unknown-unknown` passes (2026-10-15), so the crate is
+  WASM-clean by measurement; CI's browser build still does not include it.
+
 ## PR2: the surfaces
 
 What the PR does, in one paragraph: the shell learns to start from a
@@ -384,13 +421,16 @@ Settled on 2026-10-14, at the pin:
   fixtures/`, not `scenarios/`; the library and its README contract are
   phase 5's.
 
-Open for the PRs:
+Settled on 2026-10-15, in PR1:
 
-- **D9, the parser:** Ali's yes on `serde-saphyr`, or the fallback.
+- **D9, the parser:** `serde-saphyr` 2.0.0, Ali's yes; deserialize only.
+- **Spans on values:** the parser has them (`Spanned<T>`). Each event
+  is read spanned, so a semantic rejection names `events[i].field` and
+  the line the event starts on; per-value spans were not needed.
+
+Open for PR2 and phase 5:
+
 - **The taxonomy tag set** (`bos`, `controls`, `cell`, `calendar`,
   `maintenance`): phase 5 pins the failure categories against the EPRI
   snapshot and may add tags; an added enum variant is an addition to the
   file format, and the enum sits in one file.
-- **Spans on values:** if the parser hands back positions for individual
-  values, semantic rejections may carry a line as well as the event
-  index; decided when the parser is in, recorded in design.md.

@@ -77,9 +77,10 @@ explained in CALIBRATION.md.
   values change.
 - **Checkpoint:** format 3 bumps as schema-changing PRs land (spread and
   balancing state in phase 1, alarm latches in phase 2, block mode and
-  the sequencer then the revenue meter in phase 3's two PRs, scenario
-  position in phase 4). Same rule as M1: bump when the schema changes,
-  reject old files by version, no migration pre-1.0.
+  the sequencer then the revenue meter in phase 3's two PRs, the
+  scenario's identity and a rack's leak rate in phase 4). Same rule as
+  M1: bump when the schema changes, reject old files by version, no
+  migration pre-1.0.
 
 ## Release-note inventory for v0.5.0
 
@@ -212,6 +213,34 @@ v0.4.0 can trip over.
   `round_trip_efficiency_endpoint_corrected`: under real prices the
   plain monthly ratio carries month-end state of charge, and the season
   shows only once that is taken out.
+- **The fault door** (phase 4 PR1): `bess_core::kernel::FaultAction`
+  names every physical fault the kernel accepts (HVAC failure and
+  repair, PCS trip, protection trip, rack self-discharge, rack isolate
+  and restore, block maintenance enter and exit, alarm reset), and
+  `Simulation::apply` applies any of them between ticks, answering
+  whether the plant changed and refusing a node the site lacks with a
+  `FaultError`. The commands it dispatches to are unchanged.
+- **`Event` gains `FaultApplied(FaultAction)`** (phase 4 PR1), its fourth
+  variant: every accepted action, ahead of what it causes on the same
+  tick. Code matching on `Event` exhaustively adds an arm. `Event` moved
+  to `kernel/event.rs` and is re-exported from `kernel` as before.
+- **Checkpoint format 8** (phase 4 PR1): `SiteMeta::scenario` (name and
+  content hash of the file a run was started under, `None` otherwise) and
+  `RackState::self_discharge_excess_per_s`. Format 7 files are rejected by
+  version. The player's position is not stored; a resume rebuilds it.
+- **A rack can leak** (phase 4 PR1): the spread law adds a rack's excess
+  self-discharge to the healthy drift, and the spread now stops at 1.0.
+  Zero on every rack unless a fault sets it, so the plain run and the
+  annual record do not move. CALIBRATION.md has the measured days to the
+  imbalance warning by rate.
+- **MQTT `fault` events** (phase 4 PR1): `events/<node>/fault` with
+  `{"seq", "ts", "node", "event": "fault", "fault"}`, plus
+  `rate_ppm_per_day` for a leak and `scope` for a reset.
+- **`bess-scenario`** (phase 4 PR1), a new crate: `load` reads a schema 1
+  YAML file against a site, `Scenario::resolve` draws its ranges into a
+  fixed schedule, `Player` hands out what is due before each tick. No
+  shell uses it yet; the CLI and REST doors are phase 4 PR2. Data faults
+  are scheduled, not executed, until phase 5.
 
 ## Open questions
 

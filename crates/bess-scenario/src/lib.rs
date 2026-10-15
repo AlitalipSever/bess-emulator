@@ -1,7 +1,9 @@
 //! Scenario files for the bess-emulator: a YAML file that describes a run
 //! and everything that goes wrong in it, as a reproducible input.
 //!
-//! `load` turns bytes into a validated `Scenario`. Physical faults
+//! `load` turns bytes into a validated `Scenario`; `Scenario::resolve`
+//! draws its ranges and fixes a `Resolved` schedule for one run; a
+//! `Player` hands the shell what is due before each tick. Physical faults
 //! resolve to `bess_core::kernel::FaultAction` and execute in the kernel
 //! through `Simulation::apply`; data faults are scheduled here and executed
 //! by the shells from phase 5. The crate never steps a simulation and does
@@ -11,11 +13,15 @@ use bess_core::digest::fnv1a_64;
 use bess_core::PlantConfig;
 
 mod error;
+mod player;
+mod resolve;
 mod scenario;
 pub mod schema;
 mod validate;
 
 pub use error::{LoadError, Position, Reason};
+pub use player::{Player, Progress};
+pub use resolve::{ppm_per_day, Due, Resolved, ResumeError, RunParams, Scheduled};
 pub use scenario::{DataFault, DataFaultKind, Fault, PendingAction, Scenario, ScenarioEvent};
 pub use schema::target::Target;
 pub use schema::{Rate, Surface, Taxonomy};

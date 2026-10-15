@@ -1,12 +1,13 @@
-//! The design's example, parsed field for field; the two other fixtures
-//! load.
+//! The design's example, parsed field for field and resolved with its
+//! seeded draw pinned; the two other fixtures load.
 
 use bess_core::alarms::ResetScope;
 use bess_core::digest::fnv1a_64;
 use bess_core::kernel::FaultAction;
 use bess_core::PlantConfig;
 use bess_scenario::{
-    load, DataFault, DataFaultKind, Fault, PendingAction, Rate, Surface, Target, Taxonomy,
+    load, DataFault, DataFaultKind, Due, Fault, PendingAction, Rate, RunParams, Surface, Target,
+    Taxonomy,
 };
 
 const EXAMPLE: &[u8] = include_bytes!("fixtures/hvac-failure-hot-week.yaml");
@@ -152,4 +153,55 @@ events:
             action: PendingAction::Ready(FaultAction::AlarmReset(ResetScope::Block(4))),
         }
     );
+}
+
+/// The example resolved with the parameters it states: sorted by tick and
+/// then file index, the leak's range drawn once from the scenario stream.
+#[test]
+fn the_example_resolves_to_a_pinned_schedule() {
+    let s = load(EXAMPLE, &PlantConfig::gw01()).unwrap();
+    let params = RunParams {
+        seed: s.seed.unwrap(),
+        start_unix_s: s.start_unix_s.unwrap(),
+        speed: s.speed.unwrap(),
+    };
+    let r = s.resolve(params);
+    let order: Vec<(u64, usize)> = r.schedule.iter().map(|e| (e.tick, e.index)).collect();
+    assert_eq!(
+        order,
+        [
+            (50_400, 0),
+            (51_600, 4),
+            (52_800, 5),
+            (136_800, 1),
+            (172_800, 2),
+            (799_200, 3)
+        ]
+    );
+    let leak = |r: &bess_scenario::Resolved| {
+        r.schedule
+            .iter()
+            .find(|e| e.index == 2)
+            .unwrap()
+            .due
+            .clone()
+    };
+    // 20.9 %/month, inside [10, 30]: the value a reproduction of seed 42
+    // must see.
+    let drawn = Due::Physical(FaultAction::RackSelfDischarge {
+        block: 2,
+        container: 1,
+        rack: 5,
+        excess_ppm_per_day: 6_962,
+    });
+    assert_eq!(leak(&r), drawn);
+    assert_eq!(r.id.content_hash, fnv1a_64(EXAMPLE));
+
+    // Another seed draws another rate; the same seed always this one.
+    let again = load(EXAMPLE, &PlantConfig::gw01()).unwrap().resolve(params);
+    assert_eq!(leak(&again), drawn);
+    let other = load(EXAMPLE, &PlantConfig::gw01())
+        .unwrap()
+        .resolve(RunParams { seed: 43, ..params });
+    assert_ne!(leak(&other), drawn);
 }
