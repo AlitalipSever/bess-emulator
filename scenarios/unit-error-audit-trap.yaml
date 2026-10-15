@@ -1,0 +1,24 @@
+# The site's quantities arrive a thousand times too large for two hours
+# on both surfaces: a gateway that scaled watts as kilowatts. On MQTT
+# the values are simply wrong; on Modbus the registers saturate at their
+# encoding, so a poller reads a pegged register, which is how this one
+# is caught in audits. The alarm words are untouched.
+schema: 1
+name: unit-error-audit-trap
+taxonomy: controls
+seed: 7
+start: 2026-07-14T10:00:00Z
+length: PT4H
+events:
+  - at: PT1H
+    surface: mqtt
+    fault: unit_error
+    duration: PT2H
+    points: site
+    exponent: 3
+  - at: PT1H
+    surface: modbus
+    fault: unit_error
+    duration: PT2H
+    points: site
+    exponent: 3

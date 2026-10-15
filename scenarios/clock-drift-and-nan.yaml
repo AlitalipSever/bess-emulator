@@ -1,0 +1,22 @@
+# Two things a gateway does to a historian: its clock drifts a minute
+# an hour for six hours, so every MQTT timestamp runs ahead of the plant
+# and steps back when the NTP correction lands; and for two minutes the
+# block 9 PCS points read NaN, which is not JSON. Modbus has no clock
+# and no NaN, so it is honest throughout; REST and the stream are too.
+schema: 1
+name: clock-drift-and-nan
+taxonomy: controls
+seed: 7
+start: 2026-07-14T08:00:00Z
+length: PT8H
+events:
+  - at: PT1H
+    surface: mqtt
+    fault: timestamp_drift
+    duration: PT6H
+    drift_s_per_h: 60
+  - at: PT4H
+    surface: mqtt
+    fault: nan_burst
+    duration: PT2M
+    points: block[9].pcs

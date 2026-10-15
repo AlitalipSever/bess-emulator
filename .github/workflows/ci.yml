@@ -48,3 +48,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Annual calibration gate
         run: cargo run --release -p bess-bench -- --check
+      # The library, headless, every case against its committed record: a
+      # scenario whose digest moved is a physics change to regenerate
+      # loudly or a regression caught.
+      - name: Scenario library holds its records
+        run: scripts/assert-library.sh

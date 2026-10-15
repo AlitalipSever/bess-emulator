@@ -1,0 +1,14 @@
+{
+  "scenario": "block-maintenance-window",
+  "content_hash": "0x7f58084fccfd78fe",
+  "engine_version": "0.4.0",
+  "seed": 7,
+  "start_unix_s": 1775779200,
+  "ticks": 86400,
+  "state_digest": "0xf28d7481cebd53a0",
+  "event_log": {
+    "count": 170,
+    "digest": "0x7ca446cedd87edad"
+  },
+  "revenue_periods_closed": 96
+}

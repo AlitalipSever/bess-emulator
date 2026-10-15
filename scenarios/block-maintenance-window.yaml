@@ -1,0 +1,17 @@
+# Block 7 is taken out for a working day: its mode reads maintenance,
+# its converter stops paying its standby tare, the site's available
+# power is one block short, the block's maintenance bit mirrors the
+# mode. At 16:00 it is handed back and rejoins the dispatch.
+schema: 1
+name: block-maintenance-window
+taxonomy: maintenance
+seed: 7
+start: 2026-04-10T00:00:00Z
+length: P1D
+events:
+  - at: PT8H
+    target: block[7]
+    fault: maintenance_enter
+  - at: PT16H
+    target: block[7]
+    fault: maintenance_exit

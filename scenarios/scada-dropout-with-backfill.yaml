@@ -1,0 +1,20 @@
+# The gateway loses its uplink for twenty minutes and comes back with its
+# store: an MQTT subscriber sees silence, then a burst of twenty minutes
+# of messages with the device timestamps they were born with, in order,
+# ahead of the live stream. The plant did nothing unusual. A pipeline
+# that keys on receive time, or drops out-of-window samples, learns it
+# here.
+schema: 1
+name: scada-dropout-with-backfill
+taxonomy: controls
+seed: 7
+start: 2026-07-14T14:00:00Z
+length: PT2H
+events:
+  - at: PT30M
+    surface: mqtt
+    fault: dropout
+    duration: PT20M
+  - at: PT50M
+    surface: mqtt
+    fault: backfill_burst
