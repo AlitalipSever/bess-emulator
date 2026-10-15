@@ -16,6 +16,7 @@ fn snapshot() -> Snapshot {
         input_regs: Vec::new(),
         holding_regs: Vec::new(),
         speed: 60.0,
+        scenario: None,
     }
 }
 

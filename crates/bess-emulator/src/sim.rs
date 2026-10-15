@@ -1,6 +1,8 @@
-//! The simulation task: owns the kernel, applies control commands, paces
-//! ticks against wall time, and publishes snapshots and events to all
-//! surfaces.
+//! The simulation task: owns the kernel, applies control commands, plays
+//! the scenario in force ahead of every tick, paces ticks against wall
+//! time, and publishes snapshots and events to all surfaces.
+
+mod scenario;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,14 +10,16 @@ use std::time::Duration;
 use bess_core::alarms::{AlarmNode, ResetError, ResetScope};
 use bess_core::kernel::Event;
 use bess_core::{PlantConfig, Simulation, SiteState};
-use bess_models::{gw01_models, gw01_weather};
+use bess_models::{gw01_models, gw01_weather, HistoricalWeather};
+use bess_scenario::{Resolved, RunParams};
+use serde_json::Value;
 use tokio::sync::{broadcast, mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
 use tracing::info;
 
-use crate::cli::Args;
 use crate::map::{self, Point};
+use scenario::Active;
 
 /// Highest allowed acceleration factor.
 pub const MAX_SPEED: f64 = 3600.0;
@@ -44,6 +48,17 @@ pub enum Command {
         /// Where the answer goes.
         reply: oneshot::Sender<ResetReply>,
     },
+    /// Start over under a scenario, between two ticks (design D6): a fresh
+    /// plant at the schedule's seed and start, at its speed, the log back
+    /// at `seq` 1, and no external setpoint, which went with the old plant.
+    /// Answers the scenario's status at tick 0, once the switch is made and
+    /// the tick 0 snapshot is out.
+    LoadScenario {
+        /// The schedule, fixed by the parameters the caller resolved.
+        resolved: Arc<Resolved>,
+        /// Where the status goes.
+        reply: oneshot::Sender<Arc<Value>>,
+    },
 }
 
 /// One published tick: the state tree plus its Modbus projection.
@@ -56,6 +71,11 @@ pub struct Snapshot {
     pub holding_regs: Vec<u16>,
     /// Acceleration factor in effect.
     pub speed: f64,
+    /// The scenario's status as of this tick, `GET /api/v1/scenario`'s
+    /// answer but for the tick, which `state` carries; `None` without a
+    /// scenario. The same `Arc` from tick to tick until something fires,
+    /// so the per-tick clone stays one pointer.
+    pub scenario: Option<Arc<Value>>,
 }
 
 /// The events one tick emitted, numbered by their place in the kernel's log.
@@ -92,52 +112,50 @@ pub struct SimHandle {
     pub events: broadcast::Sender<Arc<TickEvents>>,
 }
 
-/// Spawn the simulation task for the reference site.
-pub fn spawn(args: &Args) -> (SimHandle, JoinHandle<()>) {
+/// Spawn the simulation task for the reference site: a fresh plant at
+/// `params`, carrying the scenario's identity and playing its schedule when
+/// the command line loaded one.
+pub fn spawn(params: RunParams, scenario: Option<Resolved>) -> (SimHandle, JoinHandle<()>) {
     let cfg = PlantConfig::gw01();
     let models = gw01_models(&cfg);
-    start(
-        Simulation::new(cfg, models, args.seed, args.start_unix),
-        args.speed,
-    )
+    let sim = match &scenario {
+        Some(resolved) => resolved.simulation(cfg, models),
+        None => Simulation::new(cfg, models, params.seed, params.start_unix_s),
+    };
+    start(sim, params.speed, scenario)
 }
 
-/// Run an already built simulation as the task. Tests start from a prepared
-/// plant through it.
-pub fn start(mut sim: Simulation, speed: f64) -> (SimHandle, JoinHandle<()>) {
+/// Run an already built simulation as the task, under a scenario if one is
+/// given. Tests start from a prepared plant through it.
+pub fn start(
+    sim: Simulation,
+    speed: f64,
+    scenario: Option<Resolved>,
+) -> (SimHandle, JoinHandle<()>) {
     let points = Arc::new(map::build_points(sim.config()));
-    let mut speed = speed.clamp(1.0, MAX_SPEED);
     let (cmd_tx, mut cmd_rx) = mpsc::channel::<Command>(64);
-    let (snap_tx, snap_rx) = watch::channel(make_snapshot(&sim, &points, speed));
     let (events_tx, _) = broadcast::channel(EVENT_BACKLOG);
+    let story = scenario.map(|resolved| Active::new(Arc::new(resolved)));
+    let mut task = Task {
+        status: story.as_ref().map(|active| Arc::new(active.status())),
+        sim,
+        speed: speed.clamp(1.0, MAX_SPEED),
+        story,
+        points: Arc::clone(&points),
+        events: events_tx.clone(),
+    };
+    let (snap_tx, snap_rx) = watch::channel(task.snapshot());
 
-    let task_points = Arc::clone(&points);
-    let task_events = events_tx.clone();
-    let task = tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
         let weather = gw01_weather();
         let mut next_tick = Instant::now();
         loop {
             while let Ok(cmd) = cmd_rx.try_recv() {
-                apply(&mut sim, cmd, &mut speed);
+                task.command(cmd, &snap_tx);
             }
+            task.tick(weather, &snap_tx);
 
-            let inputs = weather.inputs_at(sim.unix_time_s());
-            let events = sim.step(&inputs).to_vec();
-            // Snapshot first: a surface reacting to an event then reads a
-            // snapshot at least as new as the event.
-            let _ = snap_tx.send(make_snapshot(&sim, &task_points, speed));
-            if !events.is_empty() {
-                let count = sim.state().event_log.count;
-                let batch = TickEvents {
-                    unix_time_s: sim.unix_time_s(),
-                    first_seq: count + 1 - events.len() as u64,
-                    events,
-                };
-                // No subscriber is not an error: the events are in the log.
-                let _ = task_events.send(Arc::new(batch));
-            }
-
-            next_tick += Duration::from_secs_f64(1.0 / speed);
+            next_tick += Duration::from_secs_f64(1.0 / task.speed);
             let now = Instant::now();
             if next_tick > now {
                 tokio::time::sleep_until(next_tick).await;
@@ -156,37 +174,103 @@ pub fn start(mut sim: Simulation, speed: f64) -> (SimHandle, JoinHandle<()>) {
             points,
             events: events_tx,
         },
-        task,
+        handle,
     )
 }
 
-fn apply(sim: &mut Simulation, cmd: Command, speed: &mut f64) {
-    match cmd {
-        Command::SetSetpointW(setpoint) => {
-            info!(?setpoint, "external setpoint command");
-            sim.set_external_setpoint_w(setpoint);
-        }
-        Command::SetSpeed(factor) => {
-            *speed = factor.clamp(1.0, MAX_SPEED);
-            info!(speed, "speed changed");
-        }
-        Command::ResetAlarms { scope, reply } => {
-            let result = sim.reset_alarms(scope);
-            info!(?scope, refused = result.is_err(), "alarm reset command");
-            // The asker may have gone; the reset stands either way.
-            let _ = reply.send(result);
-        }
-    }
+/// What the task owns between ticks.
+struct Task {
+    sim: Simulation,
+    speed: f64,
+    /// The scenario in force, if any.
+    story: Option<Active>,
+    /// Its status, rebuilt when something fires.
+    status: Option<Arc<Value>>,
+    points: Arc<Vec<Point>>,
+    events: broadcast::Sender<Arc<TickEvents>>,
 }
 
-fn make_snapshot(sim: &Simulation, points: &[Point], speed: f64) -> Arc<Snapshot> {
-    let mut input_regs = vec![0u16; map::INPUT_BANK_LEN];
-    let mut holding_regs = vec![0u16; map::HOLDING_BANK_LEN];
-    map::write_banks(points, sim.state(), &mut input_regs, &mut holding_regs);
-    Arc::new(Snapshot {
-        state: sim.state().clone(),
-        input_regs,
-        holding_regs,
-        speed,
-    })
+impl Task {
+    /// Apply one command between two ticks.
+    fn command(&mut self, cmd: Command, snap_tx: &watch::Sender<Arc<Snapshot>>) {
+        match cmd {
+            Command::SetSetpointW(setpoint) => {
+                info!(?setpoint, "external setpoint command");
+                self.sim.set_external_setpoint_w(setpoint);
+            }
+            Command::SetSpeed(factor) => {
+                self.speed = factor.clamp(1.0, MAX_SPEED);
+                info!(speed = self.speed, "speed changed");
+            }
+            Command::ResetAlarms { scope, reply } => {
+                let result = self.sim.reset_alarms(scope);
+                info!(?scope, refused = result.is_err(), "alarm reset command");
+                // The asker may have gone; the reset stands either way.
+                let _ = reply.send(result);
+            }
+            Command::LoadScenario { resolved, reply } => {
+                let cfg = self.sim.config().clone();
+                let models = gw01_models(&cfg);
+                self.sim = resolved.simulation(cfg, models);
+                self.speed = resolved.params.speed.clamp(1.0, MAX_SPEED);
+                let content_hash = format!("{:#018x}", resolved.id.content_hash);
+                info!(
+                    scenario = %resolved.id.name,
+                    content_hash,
+                    seed = resolved.params.seed,
+                    speed = self.speed,
+                    "scenario loaded; the run starts over at tick 0"
+                );
+                let active = Active::new(resolved);
+                let status = Arc::new(active.status());
+                self.story = Some(active);
+                self.status = Some(Arc::clone(&status));
+                // Every surface sees tick 0 next, before anything fires.
+                let _ = snap_tx.send(self.snapshot());
+                let _ = reply.send(status);
+            }
+        }
+    }
+
+    /// Fire what the scenario has due, step one tick, publish.
+    fn tick(&mut self, weather: HistoricalWeather, snap_tx: &watch::Sender<Arc<Snapshot>>) {
+        if let Some(active) = self.story.as_mut() {
+            if active.fire_due(&mut self.sim) {
+                self.status = Some(Arc::new(active.status()));
+            }
+        }
+        let inputs = weather.inputs_at(self.sim.unix_time_s());
+        let events = self.sim.step(&inputs).to_vec();
+        // Snapshot first: a surface reacting to an event then reads a
+        // snapshot at least as new as the event.
+        let _ = snap_tx.send(self.snapshot());
+        if !events.is_empty() {
+            let count = self.sim.state().event_log.count;
+            let batch = TickEvents {
+                unix_time_s: self.sim.unix_time_s(),
+                first_seq: count + 1 - events.len() as u64,
+                events,
+            };
+            // No subscriber is not an error: the events are in the log.
+            let _ = self.events.send(Arc::new(batch));
+        }
+    }
+
+    fn snapshot(&self) -> Arc<Snapshot> {
+        let mut input_regs = vec![0u16; map::INPUT_BANK_LEN];
+        let mut holding_regs = vec![0u16; map::HOLDING_BANK_LEN];
+        map::write_banks(
+            &self.points,
+            self.sim.state(),
+            &mut input_regs,
+            &mut holding_regs,
+        );
+        Arc::new(Snapshot {
+            state: self.sim.state().clone(),
+            input_regs,
+            holding_regs,
+            speed: self.speed,
+            scenario: self.status.clone(),
+        })
+    }
 }

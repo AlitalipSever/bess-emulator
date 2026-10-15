@@ -62,7 +62,12 @@ fn main() -> ExitCode {
 }
 
 async fn run(args: cli::Args) -> Result<(), Box<dyn std::error::Error>> {
-    let (handle, sim_task) = sim::spawn(&args);
+    let params = bess_scenario::RunParams {
+        seed: args.seed,
+        start_unix_s: args.start_unix,
+        speed: args.speed,
+    };
+    let (handle, sim_task) = sim::spawn(params, None);
 
     info!(
         site = "GW-01",

@@ -48,10 +48,10 @@ cargo run --release -p bess-emulator
 |---|---|---|
 | Modbus TCP | `127.0.0.1:1502` | Input registers: telemetry. Holding registers: control (site setpoint, EMS mode). |
 | MQTT | broker at `127.0.0.1:1883` | Topics under `bess/gw01/`, JSON payloads, decimated per publication class; alarm words retained and published on change; every alarm raise, clear and PCS transition under `bess/gw01/events/`. |
-| REST | `http://127.0.0.1:8080/api/v1/` | `state`, `summary`, `setpoint`, `speed`, `alarms/reset`. |
+| REST | `http://127.0.0.1:8080/api/v1/` | `state`, `summary`, `setpoint`, `speed`, `alarms/reset`, `scenario` (load a file, read the story's progress). |
 | WebSocket | `ws://127.0.0.1:8080/api/v1/stream` | Tick summaries, 4 per second, with the events since the last one. |
 | Prometheus | `http://127.0.0.1:8080/metrics` | Site KPIs, temperatures, HVAC staging, house load by item, cumulative losses by category, cell spread, active alarms and the event count, the fiscal (revenue) meter, and the day-ahead price the planner acts on. |
-| Health | `http://127.0.0.1:8080/health` | Liveness + kernel version. |
+| Health | `http://127.0.0.1:8080/health` | Liveness, kernel and map versions, the scenario in play. |
 
 The full register and topic reference is
 [refmodel/gw01-signal-map.csv](refmodel/gw01-signal-map.csv); its stability

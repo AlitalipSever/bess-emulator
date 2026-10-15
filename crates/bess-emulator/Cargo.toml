@@ -14,6 +14,7 @@ path = "src/main.rs"
 axum = { version = "0.8.9", features = ["ws"] }
 bess-core = { workspace = true }
 bess-models = { workspace = true }
+bess-scenario = { workspace = true }
 clap = { version = "4.6.4", features = ["derive"] }
 rumqttc = { version = "0.25.1", default-features = false }
 serde = { workspace = true }

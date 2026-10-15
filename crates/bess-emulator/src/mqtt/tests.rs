@@ -139,7 +139,7 @@ async fn wait_for(
 #[tokio::test(flavor = "multi_thread")]
 async fn an_alarm_raise_and_clear_arrive_with_the_documented_payload() {
     let (port, mut rx) = broker(None).await;
-    let (handle, _sim) = sim::start(fixtures::hot_plant(), sim::MAX_SPEED);
+    let (handle, _sim) = sim::start(fixtures::hot_plant(), sim::MAX_SPEED, None);
     let commands = handle.commands.clone();
     tokio::spawn(publish("127.0.0.1".into(), port, handle));
     let deadline = Instant::now() + Duration::from_secs(120);
@@ -205,7 +205,7 @@ async fn an_alarm_raise_and_clear_arrive_with_the_documented_payload() {
 async fn retained_words_are_sent_again_after_a_reconnect() {
     let word = "bess/gw01/site/alarm_bits";
     let (port, mut rx) = broker(Some(word)).await;
-    let (handle, _sim) = sim::start(fixtures::tripped_plant(), 1.0);
+    let (handle, _sim) = sim::start(fixtures::tripped_plant(), 1.0, None);
     tokio::spawn(publish("127.0.0.1".into(), port, handle));
     let deadline = Instant::now() + Duration::from_secs(30);
 

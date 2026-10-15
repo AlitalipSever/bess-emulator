@@ -540,6 +540,7 @@ dependencies = [
  "axum",
  "bess-core",
  "bess-models",
+ "bess-scenario",
  "clap",
  "rumqttc",
  "serde",
