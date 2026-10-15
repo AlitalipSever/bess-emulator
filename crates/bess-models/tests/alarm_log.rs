@@ -54,7 +54,7 @@ fn apply(words: &mut HashMap<AlarmNode, u32>, events: &[Event]) {
                 assert!(has_bit(*w, bit), "{node:?} bit {bit} cleared while clear");
                 *w &= !(1 << bit);
             }
-            Event::PcsStateChanged { .. } => {}
+            Event::PcsStateChanged { .. } | Event::FaultApplied(_) => {}
         }
     }
 }

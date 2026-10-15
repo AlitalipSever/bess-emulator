@@ -64,6 +64,7 @@ impl SiteState {
                                     .uniform(COMMISSIONING_DSOC.0, COMMISSIONING_DSOC.1),
                                 cell_dv_v: 0.0,
                                 balancing_active: false,
+                                self_discharge_excess_per_s: 0.0,
                             })
                             .collect(),
                     })
@@ -78,6 +79,7 @@ impl SiteState {
                 site_id: cfg.site_id.clone(),
                 seed,
                 start_unix_s,
+                scenario: None,
             },
             tick: 0,
             rng,

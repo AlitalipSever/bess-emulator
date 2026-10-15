@@ -1,0 +1,30 @@
+# The design's example (docs/design/m2/phase-4-scenario-engine/design.md):
+# a hot week on block 2. Test material, not the library; phase 5's library
+# lives at scenarios/.
+schema: 1
+name: hvac-failure-hot-week
+taxonomy: bos                 # phase 5's gate reads this tag
+seed: 42                      # optional; the file wins over a flag (D5)
+start: 2024-07-08T00:00:00Z   # optional; UTC, whole seconds
+speed: 60                     # optional; 1 to 3600
+events:
+  - at: PT14H
+    target: block[2].container[0].hvac
+    fault: failure
+  - at: PT38H
+    target: block[2].container[0].hvac
+    fault: repair
+  - at: P2D
+    target: block[2].container[1].rack[5]
+    fault: self_discharge
+    rate_pct_per_month: [10, 30]     # a range is drawn at load (D1)
+  - at: P9DT6H
+    target: block[2].container[1].rack[5]
+    fault: isolate
+  - at: PT14H20M
+    surface: mqtt
+    fault: dropout
+    duration: PT20M
+  - at: PT14H40M
+    surface: mqtt
+    fault: backfill_burst

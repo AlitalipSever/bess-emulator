@@ -3,7 +3,8 @@
 //! One scalar per rack, the SoC spread between its highest and lowest cell.
 //! Throughput widens it (cells differ in coulombic efficiency, so the same
 //! current moves their charge by slightly different amounts), idle time
-//! widens it (they self-discharge at slightly different rates), and bleed
+//! widens it (they self-discharge at slightly different rates, and a cell
+//! with a soft internal short at a much faster one), and bleed
 //! resistors narrow it by burning charge off the high cells near the top of
 //! charge. The voltage spread a SCADA screen shows is that SoC spread read
 //! through the OCV curve.
@@ -83,7 +84,13 @@ impl Balancing {
             let throughput_soc = rack.current_a.abs() * dt_s / (3600.0 * capacity_ah);
             rack.cell_dsoc += self.growth_per_throughput * throughput_soc;
         }
-        rack.cell_dsoc += self.growth_per_s * dt_s;
+        // A leaking cell (a fault's excess rate, zero on a healthy rack)
+        // drifts away from its neighbours whether or not the string is in
+        // service, as the healthy difference does. The spread cannot exceed
+        // the whole window: a cell holds no less than empty.
+        rack.cell_dsoc = (rack.cell_dsoc
+            + (self.growth_per_s + rack.self_discharge_excess_per_s) * dt_s)
+            .min(1.0);
 
         // The policy reads the voltage spread the last step left, as a BMS
         // reads its last measurement.
@@ -138,6 +145,7 @@ mod tests {
             cell_dsoc: dsoc,
             cell_dv_v: 0.0,
             balancing_active: false,
+            self_discharge_excess_per_s: 0.0,
         }
     }
 

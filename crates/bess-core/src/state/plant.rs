@@ -143,4 +143,9 @@ pub struct RackState {
     pub cell_dv_v: f64,
     /// Whether the bleed resistors are on. Status, not an alarm.
     pub balancing_active: bool,
+    /// How much faster than its neighbours the string's weakest cell
+    /// self-discharges, SoC per second: a soft internal short. Zero on a
+    /// healthy rack; set only by a fault (`FaultAction::RackSelfDischarge`),
+    /// and read by the spread law, which adds it to the healthy drift.
+    pub self_discharge_excess_per_s: f64,
 }

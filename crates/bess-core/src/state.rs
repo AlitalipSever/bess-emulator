@@ -24,7 +24,7 @@ pub use revenue::RevenueMeter;
 /// Root of the state tree.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SiteState {
-    /// Run identity: site id, seed, simulation start time.
+    /// Run identity: site id, seed, simulation start time, scenario.
     pub meta: SiteMeta,
     /// Ticks elapsed since simulation start.
     pub tick: u64,
@@ -66,6 +66,21 @@ pub struct SiteMeta {
     pub seed: u64,
     /// Unix timestamp (UTC seconds) of tick 0.
     pub start_unix_s: i64,
+    /// The scenario this run was started under, if any. A resume checks it
+    /// against the file it is handed, so a checkpoint cannot continue under
+    /// a different story.
+    pub scenario: Option<ScenarioId>,
+}
+
+/// Which scenario file a run plays: its name and the FNV-1a 64 of its bytes
+/// as given (`digest::fnv1a_64`). The name is for people; the hash is what
+/// a resume compares.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScenarioId {
+    /// The file's `name` field.
+    pub name: String,
+    /// FNV-1a 64 over the file's bytes.
+    pub content_hash: u64,
 }
 
 /// Plant controller (EMS) operating mode.

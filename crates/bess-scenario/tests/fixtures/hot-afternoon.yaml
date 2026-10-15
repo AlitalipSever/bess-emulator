@@ -1,0 +1,16 @@
+# The phase 2 causal chain as a scenario: both HVAC units of block 2 fail
+# before the first tick. The twin test prepares the hot plant itself (racks
+# at 54 C, full discharge asked); the file states the seed and start that
+# test uses, 2026-07-14 14:00 UTC.
+schema: 1
+name: hot-afternoon
+taxonomy: bos
+seed: 7
+start: 2026-07-14T14:00:00Z
+events:
+  - at: PT0S
+    target: block[2].container[0].hvac
+    fault: failure
+  - at: PT0S
+    target: block[2].container[1].hvac
+    fault: failure

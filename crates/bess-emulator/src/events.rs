@@ -5,8 +5,8 @@
 //! names nodes the same way, so a consumer reading one surface can match
 //! what another said.
 
-use bess_core::alarms::{layout, AlarmNode, Severity};
-use bess_core::kernel::Event;
+use bess_core::alarms::{layout, AlarmNode, ResetScope, Severity};
+use bess_core::kernel::{Event, FaultAction};
 use bess_core::state::PcsOpState;
 use serde_json::{json, Value};
 
@@ -46,6 +46,52 @@ pub fn severity_name(severity: Severity) -> &'static str {
     }
 }
 
+/// Path of the node a fault action acted on, in `node_path`'s spelling. An
+/// HVAC unit has no alarm word of its own, so it is spelled as the tree
+/// addresses it, `block02/container0/hvac`, beside the rack paths.
+pub fn fault_path(action: &FaultAction) -> String {
+    match *action {
+        FaultAction::HvacFailure { block, container }
+        | FaultAction::HvacRepair { block, container } => {
+            format!("block{block:02}/container{container}/hvac")
+        }
+        FaultAction::PcsTrip { block }
+        | FaultAction::BlockMaintenanceEnter { block }
+        | FaultAction::BlockMaintenanceExit { block }
+        | FaultAction::AlarmReset(ResetScope::Block(block)) => {
+            node_path(AlarmNode::Block { block })
+        }
+        FaultAction::ProtectionTrip | FaultAction::AlarmReset(ResetScope::Site) => {
+            node_path(AlarmNode::Site)
+        }
+        FaultAction::RackSelfDischarge {
+            block,
+            container,
+            rack,
+            ..
+        }
+        | FaultAction::RackIsolate {
+            block,
+            container,
+            rack,
+        }
+        | FaultAction::RackRestore {
+            block,
+            container,
+            rack,
+        }
+        | FaultAction::AlarmReset(ResetScope::Rack {
+            block,
+            container,
+            rack,
+        }) => node_path(AlarmNode::Rack {
+            block,
+            container,
+            rack,
+        }),
+    }
+}
+
 fn pcs_state_name(state: PcsOpState) -> &'static str {
     match state {
         PcsOpState::Standby => "standby",
@@ -68,6 +114,7 @@ pub fn topic(prefix: &str, event: &Event) -> String {
         Event::PcsStateChanged { block, .. } => {
             format!("{prefix}events/block{block:02}/pcs/state")
         }
+        Event::FaultApplied(action) => format!("{prefix}events/{}/fault", fault_path(&action)),
     }
 }
 
@@ -103,98 +150,25 @@ pub fn payload(event: &Event, seq: u64, ts: i64) -> Value {
             "from": pcs_state_name(from),
             "to": pcs_state_name(to),
         }),
+        Event::FaultApplied(action) => {
+            let mut v = json!({
+                "seq": seq,
+                "ts": ts,
+                "node": fault_path(&action),
+                "event": "fault",
+                "fault": action.name(),
+            });
+            match action {
+                FaultAction::RackSelfDischarge {
+                    excess_ppm_per_day, ..
+                } => v["rate_ppm_per_day"] = json!(excess_ppm_per_day),
+                FaultAction::AlarmReset(_) => v["scope"] = json!(fault_path(&action)),
+                _ => {}
+            }
+            v
+        }
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use bess_core::alarms::layout::{block, rack};
-
-    use super::*;
-
-    const PREFIX: &str = "bess/gw01/";
-
-    fn derate(raised: bool) -> Event {
-        let node = AlarmNode::Rack {
-            block: 2,
-            container: 1,
-            rack: 5,
-        };
-        let (bit, severity) = (rack::DERATE_ACTIVE, Severity::Warning);
-        if raised {
-            Event::AlarmRaised {
-                node,
-                bit,
-                severity,
-            }
-        } else {
-            Event::AlarmCleared {
-                node,
-                bit,
-                severity,
-            }
-        }
-    }
-
-    /// A rack edge goes to the rack's own topic, named by the layout, and
-    /// its payload says everything the topic does, so a wildcard subscriber
-    /// needs only the payload.
-    #[test]
-    fn a_rack_edge_is_published_under_its_node_and_name() {
-        assert_eq!(
-            topic(PREFIX, &derate(true)),
-            "bess/gw01/events/block02/container1/rack05/derate_active"
-        );
-        assert_eq!(
-            payload(&derate(true), 41, 1_784_037_600),
-            json!({
-                "seq": 41,
-                "ts": 1_784_037_600,
-                "node": "block02/container1/rack05",
-                "event": "raised",
-                "alarm": "rack.derate_active",
-                "bit": 5,
-                "severity": "warning",
-            })
-        );
-        assert_eq!(payload(&derate(false), 42, 0)["event"], "cleared");
-    }
-
-    #[test]
-    fn block_site_and_pcs_events_have_their_own_topics() {
-        let pcs = Event::AlarmRaised {
-            node: AlarmNode::Block { block: 7 },
-            bit: block::PCS_FAULT,
-            severity: Severity::Trip,
-        };
-        assert_eq!(topic(PREFIX, &pcs), "bess/gw01/events/block07/pcs_fault");
-        assert_eq!(payload(&pcs, 1, 0)["severity"], "trip");
-
-        let site = Event::AlarmCleared {
-            node: AlarmNode::Site,
-            bit: 0,
-            severity: Severity::Warning,
-        };
-        assert_eq!(topic(PREFIX, &site), "bess/gw01/events/site/power_limited");
-
-        let transition = Event::PcsStateChanged {
-            block: 7,
-            from: PcsOpState::Fault,
-            to: PcsOpState::Standby,
-        };
-        assert_eq!(
-            topic(PREFIX, &transition),
-            "bess/gw01/events/block07/pcs/state"
-        );
-        assert_eq!(
-            payload(&transition, 9, 60),
-            json!({"seq": 9, "ts": 60, "node": "block07", "event": "pcs_state",
-                   "from": "fault", "to": "standby"})
-        );
-    }
-
-    #[test]
-    fn a_free_bit_still_has_a_name() {
-        assert_eq!(alarm_name(AlarmNode::Site, 7), "site.bit7");
-    }
-}
+mod tests;

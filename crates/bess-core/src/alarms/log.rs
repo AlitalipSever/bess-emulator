@@ -8,6 +8,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::digest;
 use crate::kernel::Event;
 
 /// Count and digest of every event the kernel has emitted.
@@ -22,16 +23,11 @@ pub struct EventLog {
 impl EventLog {
     /// Fold one event into the log.
     pub fn record(&mut self, event: &Event) {
-        const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
-        const PRIME: u64 = 0x0000_0100_0000_01b3;
         if self.count == 0 {
-            self.digest = OFFSET;
+            self.digest = digest::OFFSET;
         }
         let bytes = serde_json::to_vec(event).expect("event serialization is infallible");
-        for b in bytes {
-            self.digest ^= u64::from(b);
-            self.digest = self.digest.wrapping_mul(PRIME);
-        }
+        self.digest = digest::fold(self.digest, &bytes);
         self.count += 1;
     }
 

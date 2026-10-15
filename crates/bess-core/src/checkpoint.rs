@@ -18,6 +18,10 @@ use crate::state::SiteState;
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
 ///
+/// v8 (M2): run identity gained the scenario (name and content hash) the
+/// run was started under, so a resume can refuse a different file, and
+/// racks gained the excess self-discharge rate a fault sets. The player's
+/// position is not stored: it follows from the file, the seed and the tick.
 /// v7 (M2): the substation gained the fiscal revenue meter: running totals,
 /// the open quarter-hour period and the last closed one, so a resumed run
 /// continues the open period and closes it on the same tick.
@@ -36,7 +40,7 @@ pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Pre-1.0 checkpoints are not migrated; an older file is rejected with its
 /// version named rather than half-restored, since a missing item would
 /// otherwise restore as a plant whose auxiliary meters silently read zero.
-pub const FORMAT_VERSION: u32 = 7;
+pub const FORMAT_VERSION: u32 = 8;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {
@@ -98,18 +102,7 @@ pub fn load(bytes: &[u8]) -> Result<SiteState, CheckpointError> {
 pub fn state_digest(state: &SiteState) -> u64 {
     // Digest the state serialization directly, not the envelope.
     let bytes = serde_json::to_vec(state).expect("state serialization is infallible");
-    fnv1a64(&bytes)
-}
-
-fn fnv1a64(bytes: &[u8]) -> u64 {
-    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
-    const PRIME: u64 = 0x0000_0100_0000_01b3;
-    let mut hash = OFFSET;
-    for &b in bytes {
-        hash ^= u64::from(b);
-        hash = hash.wrapping_mul(PRIME);
-    }
-    hash
+    crate::digest::fnv1a_64(&bytes)
 }
 
 #[cfg(test)]

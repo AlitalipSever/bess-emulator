@@ -63,7 +63,7 @@ pub enum AlarmNode {
 }
 
 /// Which alarm words an operator reset reaches.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResetScope {
     /// Every word on site, and every PCS in fault.
     Site,

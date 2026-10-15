@@ -160,7 +160,12 @@ so each such point states which container it speaks for:
   `{"seq", "ts", "node", "event": "raised" | "cleared", "alarm", "bit",
   "severity": "warning" | "trip"}`; a PCS transition is `{"seq", "ts",
   "node", "event": "pcs_state", "from", "to"}` with states `standby`, `run`,
-  `fault`. `seq` is the event's number in the kernel's log, from 1, so a gap
+  `fault`. A fault applied to the plant (a scenario's physical event) is
+  `{"seq", "ts", "node", "event": "fault", "fault"}` under
+  `events/<node>/fault`, ahead of what it causes on the same tick; `fault`
+  is the name the scenario file uses, an HVAC unit's node is
+  `block02/container0/hvac`, a leak adds `rate_ppm_per_day` and a reset
+  `scope`. `seq` is the event's number in the kernel's log, from 1, so a gap
   means a lost message. A word and the event that changed it are not
   ordered relative to each other: the retained word may arrive first. These
   topics and fields follow the same rules as points: renaming is major,
