@@ -177,9 +177,12 @@ so each such point states which container it speaks for:
   the plant did and what SCADA saw is visible. On MQTT a `dropout` stops
   publishing for its duration while the client stays connected (the
   retained words stay in the broker), and the messages the device would
-  have sent are stored in order; a `backfill_burst` replays that store
-  ahead of anything live, each message with the `ts` and the `seq` it
-  was born with, a few hundred per second. A `freeze` repeats the value
+  have sent are stored in order; when the dropout ends every `event`
+  word is published again, as after a reconnect, so a word that changed
+  in the silence reaches the broker; a `backfill_burst` replays that
+  store ahead of anything live (live messages wait behind it), each
+  message with the `ts` and the `seq` it was born with, none retained,
+  a few hundred per second. A `freeze` repeats the value
   a selected point had when it began, with the current `ts`; a
   `unit_error` multiplies a selected quantity by `10^exponent`; a
   `nan_burst` writes the literal `NaN` as the value, which is not JSON,

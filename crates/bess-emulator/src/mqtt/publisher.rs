@@ -76,7 +76,7 @@ impl Publisher {
     pub(super) fn backfill(&mut self) {
         let snap = self.handle.snapshot.borrow().clone();
         self.outbox
-            .backfill(&self.client, &snap.taps, snap.state.tick);
+            .backfill(&mut self.client, &snap.taps, snap.state.tick);
     }
 
     /// The cadence points whose class period has elapsed in simulation time.
@@ -101,7 +101,7 @@ impl Publisher {
                 qos: QoS::AtMostOnce,
                 retain: false,
             };
-            if let Err(err) = self.outbox.send(&self.client, &snap.taps, tick, msg) {
+            if let Err(err) = self.outbox.send(&mut self.client, &snap.taps, tick, msg) {
                 // Broker down or queue full: drop this batch, the event
                 // loop reconnects on its own.
                 debug!("mqtt: publish skipped: {err}");
@@ -118,16 +118,19 @@ impl Publisher {
     /// The event-class points whose value differs from what was last
     /// published, retained. A chatter's flap is such a change.
     pub(super) fn publish_changed(&mut self) {
-        // A new connection may be to a broker that lost its retained
-        // store: forget what was published, so every word goes out again.
-        let connection = self.connections.load(Ordering::Relaxed);
-        if connection != self.published_on {
-            self.last_event_value.fill(None);
-            self.published_on = connection;
-        }
         let snap = self.handle.snapshot.borrow().clone();
         let tick = snap.state.tick;
         let ts = device_time_s(&snap);
+        // A new connection may be to a broker that lost its retained
+        // store, and a dropout that ended left the broker with the words
+        // from before it: forget what was published, so every word goes
+        // out again.
+        let connection = self.connections.load(Ordering::Relaxed);
+        let returned = self.outbox.returned(&snap.taps, tick);
+        if connection != self.published_on || returned {
+            self.last_event_value.fill(None);
+            self.published_on = connection;
+        }
         for (i, point) in self.handle.points.iter().enumerate() {
             if point.class != Class::Event {
                 continue;
@@ -146,7 +149,7 @@ impl Publisher {
                 qos: QoS::AtLeastOnce,
                 retain: true,
             };
-            match self.outbox.send(&self.client, &snap.taps, tick, msg) {
+            match self.outbox.send(&mut self.client, &snap.taps, tick, msg) {
                 Ok(()) => self.last_event_value[i] = Some(value),
                 // Left unrecorded, so the next wake tries again.
                 Err(err) => debug!("mqtt: publish skipped: {err}"),
@@ -166,7 +169,7 @@ impl Publisher {
                 qos: QoS::AtLeastOnce,
                 retain: false,
             };
-            if let Err(err) = self.outbox.send(&self.client, &snap.taps, tick, msg) {
+            if let Err(err) = self.outbox.send(&mut self.client, &snap.taps, tick, msg) {
                 // Unlike a skipped telemetry sample, a lost event is never
                 // repeated, so it is counted and said out loud; the gap in
                 // `seq` tells subscribers.
