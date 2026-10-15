@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::alarms::{AlarmNode, BlockSiteThresholds, Severity};
+use crate::alarms::BlockSiteThresholds;
 use crate::config::PlantConfig;
 use crate::state::{BlockMode, BreakerState, EmsMode, PcsOpState, SiteState};
 use crate::traits::{AuxDemand, Models, PowerLimits};
@@ -16,10 +16,14 @@ use crate::TICK_SECONDS;
 mod alarms;
 mod block;
 mod commands;
+mod event;
+mod fault;
 mod restart;
 
 use block::{step_block, Scratch, TickContext};
 pub use commands::CommandError;
+pub use event::Event;
+pub use fault::{FaultAction, FaultError};
 use restart::dispatchable;
 pub use restart::ReturnPolicy;
 
@@ -44,39 +48,6 @@ pub struct Inputs {
     pub weather: Weather,
     /// Grid frequency at the POI, Hz.
     pub grid_frequency_hz: f64,
-}
-
-/// Discrete events emitted by the kernel: state transitions and alarm
-/// edges. Facts about a tick, emitted exactly once; the shells fan them out.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Event {
-    /// A PCS changed operating state.
-    PcsStateChanged {
-        /// Block index.
-        block: usize,
-        /// Previous state.
-        from: PcsOpState,
-        /// New state.
-        to: PcsOpState,
-    },
-    /// An alarm bit went from clear to set.
-    AlarmRaised {
-        /// Which word.
-        node: AlarmNode,
-        /// Bit position, per `alarms::layout`.
-        bit: u8,
-        /// Read off the bit position.
-        severity: Severity,
-    },
-    /// An alarm bit went from set to clear.
-    AlarmCleared {
-        /// Which word.
-        node: AlarmNode,
-        /// Bit position, per `alarms::layout`.
-        bit: u8,
-        /// Read off the bit position.
-        severity: Severity,
-    },
 }
 
 /// A running simulation: configuration, model bundle, and the state tree.

@@ -13,6 +13,7 @@
 pub mod alarms;
 pub mod checkpoint;
 pub mod config;
+pub mod digest;
 pub mod kernel;
 pub mod rng;
 pub mod state;

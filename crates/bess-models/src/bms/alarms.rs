@@ -161,6 +161,7 @@ mod tests {
             cell_dsoc: 0.01,
             cell_dv_v: 0.002,
             balancing_active: false,
+            self_discharge_excess_per_s: 0.0,
         }
     }
 
