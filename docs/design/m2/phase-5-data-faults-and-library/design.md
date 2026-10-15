@@ -84,12 +84,35 @@ Each decision is proposed here and confirmed or revised in its PR.
   class, and calendar and maintenance cases sit outside the failure gate
   entirely (they are not failures; the gate reads only `taxonomy`-tagged
   fault cases).
+  **Confirmed in PR2, pinned.** The snapshot is EPRI's May 2024 white
+  paper (3002030360), figure 6: controls 46%, balance of system 43%,
+  cells 11% of 26 classified incidents; CALIBRATION.md carries it with
+  the retrieval date and the root-cause figure beside it. Fifteen cases
+  at launch, eleven failures (five `bos`, five `controls`, one `cell`),
+  two calendar, two maintenance. The gate holds each class within 15
+  percentage points of its share, cells the smallest and never empty:
+  one case is about nine points at this size, so one case of drift
+  passes and two do not, which is the accept criterion ("deleting a
+  balance-of-system case or adding three cell cases fails") made exact.
+  Data faults are `controls`, the sensing and communication class; the
+  emulator has one cell story, the leak, so the cell class is one case
+  until the model has another.
 - **D5, assertion digests are per-scenario committed artifacts.** Beside
   each YAML, the digest file CI compares against, regenerated with the
   same loud discipline as golden snapshots. The digest covers final
   state and event-log hash; intermediate trajectories are deliberately
   not asserted (the M1 lesson: hold the contract, not seven hundred
   samples).
+  **Confirmed in PR2, with the run length in the file.** A case states
+  its `length` (schema 1 gains the optional field; an event past it is
+  refused), so the file alone describes the case and the record beside
+  it, `<case>.digest.json`, is what `--record` wrote and `--assert`
+  compares: name, content hash, engine version, seed, start, ticks, the
+  final tree's digest, the event log's count and hash, and the fiscal
+  meter's closed periods, the number a calendar case is about (the
+  second open question, answered yes in that form: the count, not the
+  series). The engine version is part of the record, so a release
+  regenerates every digest loudly, as the annual record is.
 - **D6, the annual record gains an M2 sibling.** `bess-bench` runs the
   year with derating, real prices, and no scenario, regenerating the
   annual record; the M2 CALIBRATION.md entry adds the EPRI library

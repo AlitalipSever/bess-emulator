@@ -65,6 +65,38 @@ its tests, the documents. Where the code parted from this plan:
 Accept: deleting a balance-of-system case or adding three cell cases
 fails CI with the composition numbers in the message.
 
+### As landed (2026-10-15)
+
+Three commits on top of phase 5 PR1: the length and the headless run,
+the library with its gate and the CI step, the documents.
+
+- **`length` is a file field.** The plan had the run length nowhere;
+  the record could have carried it, but then a case would have been a
+  file plus a number elsewhere. Schema 1 gains the optional field, an
+  event past it is refused, and `--assert` and `--record` need it.
+- **`--record` and `--assert`,** not one flag with a write mode: the
+  bench's `--write` and `--check` pattern. Both play headless, no
+  socket bound, through `headless.rs`; the loop is the integration
+  tests' `play`, and data faults are skipped, since the kernel cannot
+  tell.
+- **Fifteen cases, not a dozen:** the EPRI shares at a dozen would have
+  put one class a case short of its band, and the two DST days and the
+  two maintenance stories are the calendar and maintenance scope of the
+  milestone made concrete. Composition and the band are in
+  CALIBRATION.md.
+- **The calendar cases run the whole local day** from local midnight,
+  so their records say 92 and 100 closed periods, which is the point.
+  The simulated March 31 and October 27 are the DST days, because the
+  planner's calendar is the price year's, mapped by month and day.
+- **The runtime budget is measured:** 37 s for the fifteen cases on
+  the development machine in the release profile, the ten-day hot week
+  14 s of it. Inside a minute, so every case runs on every pull request
+  in the calibration job (`scripts/assert-library.sh`); nothing moves to
+  release-tag frequency.
+- **The gate is a crate test,** `bess-scenario/tests/library.rs`,
+  reading `scenarios/` relative to the manifest, so `cargo test
+  --workspace` holds the composition without the headless runs.
+
 ## PR3: release v0.5.0
 
 - Annual record regenerated (D6); CALIBRATION.md M2 entry (composition
@@ -84,9 +116,11 @@ the M1.5 release path.
 
 ## Open questions
 
-- Launch library size: a dozen is the proposal; the EPRI shares may
-  force more cases to make the smallest class nonzero without breaking
-  the ratio, resolved when the snapshot is pinned (design D4).
-- Whether `--assert` should also compare the revenue meter's period
-  series for the calendar cases (leans yes: it is small, and DST is the
-  point of those cases).
+Settled on 2026-10-15, in PR2:
+
+- **Launch library size: fifteen,** eleven failures and four outside the
+  gate; the cell class is one case at the EPRI share (design D4).
+- **`--assert` compares the fiscal meter's closed periods,** the count
+  rather than the series: the DST cases' 92 and 100 are what the series
+  would say, in one number a reader can check against the case's
+  header.

@@ -51,6 +51,7 @@ Every field, its type and its rule:
 | `seed` | integer, u64 | optional |
 | `start` | string | optional; `YYYY-MM-DDThh:mm:ssZ`, UTC only, no offset, no fraction; converted with `bess_data::calendar::days_from_civil` |
 | `speed` | number | optional; 1 to 3600 inclusive, the shell's own clamp made a rule |
+| `length` | string | optional; ISO 8601 duration as `at`, at least PT1S, past every event's `at`; how long a headless run plays (phase 5) |
 | `events` | list | may be empty (an empty scenario is the plain run with a name) |
 | `events[].at` | string | ISO 8601 duration, `PnDTnHnMnS` with any subset of the parts, whole seconds only; `P1W` is accepted as seven days; months and years are refused (a DST year makes them ambiguous) |
 | `events[].target` | string | a state-tree path (D2); present on a physical event, absent on a data event |
