@@ -42,6 +42,9 @@ Without Docker (Rust toolchain required):
 cargo run --release -p bess-emulator
 ```
 
+Add `--scenario <file>` to play a scenario file from tick 0; `--help` lists
+the seed, start and speed flags, which a file's own values win over.
+
 ## Surfaces
 
 | Surface | Where | What |

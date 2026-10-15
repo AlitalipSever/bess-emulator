@@ -15,6 +15,7 @@ mod modbus;
 mod mqtt;
 mod sim;
 
+use std::path::Path;
 use std::process::ExitCode;
 
 use clap::Parser;
@@ -62,17 +63,30 @@ fn main() -> ExitCode {
 }
 
 async fn run(args: cli::Args) -> Result<(), Box<dyn std::error::Error>> {
-    let params = bess_scenario::RunParams {
-        seed: args.seed,
-        start_unix_s: args.start_unix,
-        speed: args.speed,
+    // The file is read and checked before anything binds a socket, so a
+    // refused scenario is a process that never started.
+    let scenario = match &args.scenario {
+        Some(path) => Some(load_scenario(path)?),
+        None => None,
     };
-    let (handle, sim_task) = sim::spawn(params, None);
+    let params = cli::run_params::resolve(&args, scenario.as_ref())?;
+    let resolved = scenario.map(|scenario| scenario.resolve(params));
+    if let Some(resolved) = &resolved {
+        let content_hash = format!("{:#018x}", resolved.id.content_hash);
+        info!(
+            scenario = %resolved.id.name,
+            content_hash,
+            events = resolved.schedule.len(),
+            "scenario loaded"
+        );
+    }
+    let (handle, sim_task) = sim::spawn(params, resolved);
 
     info!(
         site = "GW-01",
-        seed = args.seed,
-        speed = args.speed,
+        seed = params.seed,
+        start_unix_s = params.start_unix_s,
+        speed = params.speed,
         "starting emulator (kernel {})",
         bess_core::version()
     );
@@ -100,4 +114,14 @@ async fn run(args: cli::Args) -> Result<(), Box<dyn std::error::Error>> {
     }
     sim_task.abort();
     Ok(())
+}
+
+/// Read and validate a scenario file against the reference site. The error
+/// names the file, then the position and the reason as the parser gives
+/// them.
+fn load_scenario(path: &Path) -> Result<bess_scenario::Scenario, String> {
+    let bytes = std::fs::read(path)
+        .map_err(|err| format!("cannot read scenario {}: {err}", path.display()))?;
+    bess_scenario::load(&bytes, &bess_core::PlantConfig::gw01())
+        .map_err(|err| format!("scenario {}: {err}", path.display()))
 }

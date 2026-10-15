@@ -83,6 +83,7 @@ pub struct DataFault {
     pub fault: DataFaultKind,
     /// How long, seconds; `None` where the fault takes none or runs to the
     /// end of the run.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_s: Option<u64>,
     /// The point prefix (`*` for the whole surface), where the fault takes
     /// one.
