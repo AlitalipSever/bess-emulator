@@ -9,6 +9,7 @@ mod cli;
 mod events;
 #[cfg(test)]
 mod fixtures;
+mod headless;
 mod http;
 mod map;
 mod modbus;
@@ -19,6 +20,7 @@ mod tap;
 use std::path::Path;
 use std::process::ExitCode;
 
+use bess_scenario::{Resolved, RunParams};
 use clap::Parser;
 use tracing::{error, info};
 
@@ -44,6 +46,25 @@ fn main() -> ExitCode {
         };
     }
 
+    // The file is read and checked before anything binds a socket, so a
+    // refused scenario is a process that never started.
+    let (params, resolved) = match prepare(&args) {
+        Ok(prepared) => prepared,
+        Err(err) => {
+            error!("{err}");
+            return ExitCode::FAILURE;
+        }
+    };
+    if args.record.is_some() || args.assert.is_some() {
+        return match headless(&args, resolved.as_ref()) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                error!("{err}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -54,7 +75,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(run(args)) {
+    match runtime.block_on(run(args, params, resolved)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             error!("{err}");
@@ -63,14 +84,14 @@ fn main() -> ExitCode {
     }
 }
 
-async fn run(args: cli::Args) -> Result<(), Box<dyn std::error::Error>> {
-    // The file is read and checked before anything binds a socket, so a
-    // refused scenario is a process that never started.
+/// The run's parameters and the scenario, if the command line names one.
+fn prepare(args: &cli::Args) -> Result<(RunParams, Option<Resolved>), String> {
     let scenario = match &args.scenario {
         Some(path) => Some(load_scenario(path)?),
         None => None,
     };
-    let params = cli::run_params::resolve(&args, scenario.as_ref())?;
+    let params =
+        cli::run_params::resolve(args, scenario.as_ref()).map_err(|err| err.to_string())?;
     let resolved = scenario.map(|scenario| scenario.resolve(params));
     if let Some(resolved) = &resolved {
         let content_hash = format!("{:#018x}", resolved.id.content_hash);
@@ -81,6 +102,37 @@ async fn run(args: cli::Args) -> Result<(), Box<dyn std::error::Error>> {
             "scenario loaded"
         );
     }
+    Ok((params, resolved))
+}
+
+/// `--record` or `--assert`: the headless run and its verdict.
+fn headless(args: &cli::Args, resolved: Option<&Resolved>) -> Result<(), String> {
+    let resolved = resolved.ok_or("a headless run needs --scenario")?;
+    let started = std::time::Instant::now();
+    let digest = headless::run(resolved)?;
+    info!(
+        ticks = digest.ticks,
+        seconds = started.elapsed().as_secs_f64(),
+        state_digest = %digest.state_digest,
+        events = digest.event_log.count,
+        "headless run finished"
+    );
+    if let Some(path) = &args.record {
+        headless::record(path, &digest)?;
+        info!("digest written to {}", path.display());
+    }
+    if let Some(path) = &args.assert {
+        headless::assert(path, &digest)?;
+        info!("digest matches {}", path.display());
+    }
+    Ok(())
+}
+
+async fn run(
+    args: cli::Args,
+    params: RunParams,
+    resolved: Option<Resolved>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let (handle, sim_task) = sim::spawn(params, resolved);
 
     info!(

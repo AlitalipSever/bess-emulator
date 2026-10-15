@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use bess_core::kernel::FaultAction;
-use bess_core::Simulation;
+use bess_core::{Simulation, TICK_SECONDS};
 use bess_scenario::{DataFaultKind, Due, Player, Resolved, Scheduled, Target};
 use serde_json::{json, Value};
 use tracing::{info, warn};
@@ -102,6 +102,7 @@ impl Active {
             "seed": params.seed,
             "start_unix_s": params.start_unix_s,
             "speed": params.speed,
+            "length_s": self.resolved.ticks.map(|t| t * TICK_SECONDS),
             "fired": progress.fired,
             "pending": progress.pending,
             "next": schedule.get(progress.fired).map(|s| event_value(s, false)),

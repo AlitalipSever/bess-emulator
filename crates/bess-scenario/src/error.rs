@@ -79,6 +79,15 @@ pub enum Reason {
         /// Which rule it breaks.
         why: &'static str,
     },
+    /// `length` is PT0S.
+    #[error("length must be at least PT1S")]
+    ZeroLength,
+    /// An event is at or past the file's `length`, so it would never fire.
+    #[error("this offset is at or past the file's length of {length_s} s, so the event would never fire")]
+    EventAfterLength {
+        /// The file's length, seconds.
+        length_s: u64,
+    },
     /// `speed` is outside the shell's clamp.
     #[error("speed {0} is outside 1 to 3600")]
     SpeedOutOfRange(f64),

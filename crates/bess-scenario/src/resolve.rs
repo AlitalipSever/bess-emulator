@@ -39,6 +39,8 @@ pub struct Resolved {
     pub id: ScenarioId,
     /// What the run uses.
     pub params: RunParams,
+    /// How many ticks a headless run plays, when the file states a length.
+    pub ticks: Option<u64>,
     /// Every event, sorted by (tick, file index).
     pub schedule: Vec<Scheduled>,
 }
@@ -118,6 +120,7 @@ impl Scenario {
         Resolved {
             id: self.id,
             params,
+            ticks: self.length_s.map(|s| s / TICK_SECONDS),
             schedule,
         }
     }
