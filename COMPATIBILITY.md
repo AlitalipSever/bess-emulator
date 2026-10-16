@@ -170,6 +170,34 @@ so each such point states which container it speaks for:
   ordered relative to each other: the retained word may arrive first. These
   topics and fields follow the same rules as points: renaming is major,
   adding a field is minor.
+- **Data faults, MQTT and Modbus:** a scenario's data events corrupt what
+  these two surfaces say, never the plant: REST, the WebSocket stream,
+  Prometheus and the checkpoint stay truthful, so the gap between what
+  the plant did and what SCADA saw is visible. On MQTT a `dropout` stops
+  publishing for its duration while the client stays connected (the
+  retained words stay in the broker), and the messages the device would
+  have sent are stored in order; when the dropout ends every `event`
+  word is published again, as after a reconnect, so a word that changed
+  in the silence reaches the broker; a `backfill_burst` replays that
+  store ahead of anything live (live messages wait behind it), each
+  message with the `ts` and the `seq` it was born with, none retained,
+  a few hundred per second. A `freeze` repeats the value
+  a selected point had when it began, with the current `ts`; a
+  `unit_error` multiplies a selected quantity by `10^exponent`; a
+  `nan_burst` writes the literal `NaN` as the value, which is not JSON,
+  as a device's printf would; a `timestamp_drift` adds the drift so far
+  to the `ts` of every message, cadence points, words and events alike,
+  and steps back to the plant's time when it ends; a `chatter` flaps the
+  lowest bit of the selected alarm words, retained like any change,
+  while the events subtree carries only what the kernel did. On Modbus a
+  `dropout` resets every session on its next request and accepts and
+  closes new connections at once for its duration; a `freeze` holds the
+  selected registers; a `unit_error` scales the quantity before
+  encoding, saturating at the register's range; a `chatter` flips bit 0
+  of the selected alarm-word registers. `points` selects `*`, `site`,
+  `block[N]` or `block[N].pcs`; the control registers are never touched,
+  a unit error and a NaN burst reach only the cadence points, a chatter
+  only the alarm words.
 - **REST (`/api/v1/...`):** versioned by URL path. Fields may be added to
   responses at any time; fields are only removed with a path version bump.
   `POST /api/v1/alarms/reset` takes `{"scope": "site"}`,

@@ -23,6 +23,7 @@ pub use error::{LoadError, Position, Reason};
 pub use player::{Player, Progress};
 pub use resolve::{ppm_per_day, Due, Resolved, ResumeError, RunParams, Scheduled};
 pub use scenario::{DataFault, DataFaultKind, Fault, PendingAction, Scenario, ScenarioEvent};
+pub use schema::selector::Selector;
 pub use schema::target::Target;
 pub use schema::{Rate, Surface, Taxonomy};
 

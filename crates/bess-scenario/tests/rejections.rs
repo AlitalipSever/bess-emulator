@@ -202,6 +202,44 @@ fn durations_and_parameters() {
     ));
 }
 
+/// A selector is a tree path the surfaces publish points under, or `*`;
+/// a backfill burst needs a dropout on its surface that has ended by then,
+/// wherever in the file the dropout is listed.
+#[test]
+fn points_and_backfill_follow_the_phase_5_rules() {
+    let e = refuse_events(
+        "  - at: PT1H\n    surface: mqtt\n    fault: freeze\n    duration: PT1M\n    points: block[2].container[0].hvac\n",
+    );
+    assert!(matches!(e.reason, Reason::BadPoints(_)), "{e}");
+    assert_eq!(e.position, event(0, "points", 4));
+    assert!(e
+        .to_string()
+        .contains("points block[2].container[0].hvac: points are selected with"));
+    let e = refuse_events(
+        "  - at: PT1H\n    surface: modbus\n    fault: unit_error\n    points: block[25]\n",
+    );
+    assert!(matches!(e.reason, Reason::BadPoints(_)), "{e}");
+
+    let dropout = "  - at: PT1H\n    surface: mqtt\n    fault: dropout\n    duration: PT20M\n";
+    let burst = |at: &str, surface: &str| {
+        format!("  - at: {at}\n    surface: {surface}\n    fault: backfill_burst\n")
+    };
+    let e = refuse_events(&burst("PT2H", "mqtt"));
+    assert_eq!(e.reason, Reason::BackfillWithoutDropout);
+    assert_eq!(e.position, event(0, "at", 4));
+    // During the dropout, and on the other surface, it has nothing either.
+    let e = refuse_events(&format!("{dropout}{}", burst("PT1H10M", "mqtt")));
+    assert_eq!(e.reason, Reason::BackfillWithoutDropout);
+    assert_eq!(e.position, event(1, "at", 8));
+    // At the dropout's end it replays, and the dropout may be listed after.
+    for text in [
+        format!("{dropout}{}", burst("PT1H20M", "mqtt")),
+        format!("{}{dropout}", burst("PT2H", "mqtt")),
+    ] {
+        assert!(load(format!("{HEAD}{text}").as_bytes(), &PlantConfig::gw01()).is_ok());
+    }
+}
+
 #[test]
 fn one_target_one_action_per_tick_in_time_order() {
     let hvac = "    target: block[2].container[0].hvac\n";

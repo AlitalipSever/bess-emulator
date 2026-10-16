@@ -12,6 +12,46 @@ Three PRs, each landing green.
 Accept: the dropout-with-backfill integration test passes, and the state
 digest of a heavily faulted run equals the clean run's.
 
+### As landed (2026-10-15)
+
+Three commits on top of phase 4 PR2: the crate's two rules, the tap with
+its tests, the documents. Where the code parted from this plan:
+
+- **Two load rules, not only rejections of the matrix:** `points` has a
+  grammar (D2) and a backfill burst needs a dropout that has ended (D1);
+  the matrix rejections themselves landed in phase 4 PR1.
+- **No surface-seeded PRNG.** Every fault is a function of its
+  parameters and the tick, so there is nothing to draw; the property
+  the architecture claims holds by construction and by the test
+  `the_kernel_cannot_tell_a_data_fault_happened`, which plays a story
+  with all seven kinds over its physical events through the task's own
+  `Active` and compares tree and log with the physical story's.
+- **The capture is the task's.** A freeze's values are taken when the
+  event fires, before the tick steps, not on the first read inside the
+  window: deterministic in simulation time, and the same values serve
+  both surfaces (Modbus re-encodes them).
+- **The Modbus dropout is a transport.** tokio-modbus closes a
+  connection only when its stream errors, so the session runs over
+  `Wire`, a `TcpStream` whose reads and writes answer `ConnectionReset`
+  while the window is open; a new connection gets `Ok(None)` from
+  `on_connected`, accepted and closed. A true refusal would mean
+  unbinding the listener, which no device does.
+- **The MQTT dropout keeps the broker session.** The client stays
+  connected and publishes nothing; a device that lost its uplink would
+  drop off the broker too (and trigger a last will), which is a
+  refinement for when a scenario needs the broker's view.
+- **Chatter publishes what a wake sees.** The square wave is exact on
+  Modbus (every read computes it); on MQTT an edge goes out when the
+  publisher's wall-second wake observes a flip state different from the
+  last published, so at high acceleration a fast chatter publishes fewer
+  edges than it has, like cadence points collapse at speed. The events
+  subtree stays the kernel's: a fake `raised` would need a fake `seq`.
+- **The property test and the two integration tests** cost about 13
+  seconds together, the integration tests at 1x so a second is a tick:
+  the dropout with backfill over the test broker (silence, then the
+  burst, born inside the silence, in order, ahead of the live stream)
+  and the Modbus dropout over real sockets.
+
 ## PR2: the library and the gate
 
 - `scenarios/` with its README contract and the launch cases (physical,

@@ -17,6 +17,7 @@ fn snapshot() -> Snapshot {
         holding_regs: Vec::new(),
         speed: 60.0,
         scenario: None,
+        taps: Arc::default(),
     }
 }
 

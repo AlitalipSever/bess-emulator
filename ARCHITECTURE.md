@@ -278,8 +278,10 @@ places, deliberately:
   dropouts, frozen values, timestamp drift, unit errors, NaN bursts, alarm
   chatter, restart backfill. The physics keeps running correctly; only the
   observation is corrupted, exactly as in reality. Declared and validated
-  in the file format since phase 4 and scheduled by the player; executed
-  by the shells from phase 5.
+  in the file format since phase 4, scheduled by the player, and executed
+  by the taps on the MQTT and Modbus read paths since phase 5; REST and
+  the WebSocket stream stay truthful on purpose, so a user can see the gap
+  between what the plant did and what SCADA saw.
 
 Beyond faults: calendar events (DST days with 23/25 hours and 92/100
 quarter-hour market periods, a classic pipeline killer that replay makes

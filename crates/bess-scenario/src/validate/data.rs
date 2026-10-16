@@ -2,14 +2,21 @@
 //! rule, and the parameters with their defaults. Checked for presence and
 //! range only; phase 5 gives them meaning.
 
+use bess_core::PlantConfig;
+
 use super::{only_taken, Refusal};
 use crate::error::Reason;
 use crate::scenario::{DataFault, DataFaultKind};
+use crate::schema::selector::Selector;
 use crate::schema::{duration, EventSpec, Surface};
 
 /// The (surface, fault) matrix of design D4, the duration rule and the
 /// parameters; defaults applied.
-pub(super) fn data(spec: &EventSpec, surface: Surface) -> Result<DataFault, Refusal> {
+pub(super) fn data(
+    spec: &EventSpec,
+    surface: Surface,
+    cfg: &PlantConfig,
+) -> Result<DataFault, Refusal> {
     use DataFaultKind as K;
     let kind = K::from_name(&spec.fault)
         .ok_or_else(|| ("fault", Reason::UnknownDataFault(spec.fault.clone())))?;
@@ -69,13 +76,18 @@ pub(super) fn data(spec: &EventSpec, surface: Surface) -> Result<DataFault, Refu
         )
     };
 
+    let points = match (&spec.points, takes.contains(&"points")) {
+        (Some(text), true) => {
+            Some(Selector::parse(text, cfg).map_err(|e| ("points", Reason::BadPoints(e)))?)
+        }
+        (None, true) => Some(Selector::All),
+        (_, false) => None,
+    };
     let mut fault = DataFault {
         surface,
         fault: kind,
         duration_s,
-        points: takes
-            .contains(&"points")
-            .then(|| spec.points.clone().unwrap_or_else(|| "*".to_owned())),
+        points,
         exponent: None,
         rate_per_min: None,
         drift_s_per_h: None,

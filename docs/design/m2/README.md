@@ -257,6 +257,20 @@ v0.4.0 can trip over.
   415 and 503 as COMPATIBILITY.md lists them.
 - **`/health` gains `scenario`** (phase 4 PR2): `{"name", "content_hash"}`
   for a run started under a file, null otherwise.
+- **Data faults execute** (phase 5 PR1). The seven data faults a file may
+  schedule now reach MQTT and Modbus through the taps on their read paths:
+  dropout, freeze, unit error, chatter on both; timestamp drift, NaN
+  burst and backfill burst on MQTT. What each does to the wire is in
+  COMPATIBILITY.md; REST, the stream, Prometheus and the checkpoint stay
+  truthful. A NaN burst writes the literal `NaN` into a payload, which is
+  not JSON: a subscriber that parses strictly will choke, which is the
+  fault. The kernel cannot tell: a run with every data fault laid over it
+  produces the tree and the log the physical events alone produce.
+- **File-format rules tightened** (phase 5 PR1), additions to schema 1
+  that refuse files nobody could have run: a `duration` is at least
+  PT1S; `points` is `*`, `site`, `block[N]` or `block[N].pcs`, no longer
+  any string; a `backfill_burst` needs a `dropout` on its surface that
+  has ended by its offset.
 
 ## Open questions
 

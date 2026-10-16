@@ -19,6 +19,7 @@ use tokio::time::Instant;
 use tracing::info;
 
 use crate::map::{self, Point};
+use crate::tap::Taps;
 use scenario::Active;
 
 /// Highest allowed acceleration factor.
@@ -76,6 +77,9 @@ pub struct Snapshot {
     /// scenario. The same `Arc` from tick to tick until something fires,
     /// so the per-tick clone stays one pointer.
     pub scenario: Option<Arc<Value>>,
+    /// The scenario's data faults as the surfaces read them (`tap.rs`);
+    /// empty without a scenario. Replaced when a window opens.
+    pub taps: Arc<Taps>,
 }
 
 /// The events one tick emitted, numbered by their place in the kernel's log.
@@ -135,7 +139,7 @@ pub fn start(
     let points = Arc::new(map::build_points(sim.config()));
     let (cmd_tx, mut cmd_rx) = mpsc::channel::<Command>(64);
     let (events_tx, _) = broadcast::channel(EVENT_BACKLOG);
-    let story = scenario.map(|resolved| Active::new(Arc::new(resolved)));
+    let story = scenario.map(|resolved| Active::new(Arc::new(resolved), Arc::clone(&points)));
     let mut task = Task {
         status: story.as_ref().map(|active| Arc::new(active.status())),
         sim,
@@ -221,7 +225,7 @@ impl Task {
                     speed = self.speed,
                     "scenario loaded; the run starts over at tick 0"
                 );
-                let active = Active::new(resolved);
+                let active = Active::new(resolved, Arc::clone(&self.points));
                 let status = Arc::new(active.status());
                 self.story = Some(active);
                 self.status = Some(Arc::clone(&status));
@@ -271,6 +275,7 @@ impl Task {
             holding_regs,
             speed: self.speed,
             scenario: self.status.clone(),
+            taps: self.story.as_ref().map_or_else(Arc::default, Active::taps),
         })
     }
 }

@@ -94,6 +94,13 @@ pub enum Reason {
     /// `target` does not resolve against this site.
     #[error(transparent)]
     BadTarget(#[from] TargetError),
+    /// `points` does not select anything the surfaces publish.
+    #[error("points {0}")]
+    BadPoints(TargetError),
+    /// A backfill burst has nothing to replay: no dropout on its surface
+    /// has ended by its offset.
+    #[error("a backfill burst replays what a dropout buffered; it needs a `dropout` on the same surface that has ended by this offset")]
+    BackfillWithoutDropout,
     /// The fault does not apply to the target's kind.
     #[error("{kind} takes {allowed}, not {fault:?}")]
     FaultNotForTarget {

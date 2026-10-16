@@ -15,6 +15,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_saphyr::Spanned;
 
 pub mod duration;
+pub mod selector;
 pub mod target;
 
 /// A whole scenario file.

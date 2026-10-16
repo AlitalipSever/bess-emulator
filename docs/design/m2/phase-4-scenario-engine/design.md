@@ -58,7 +58,7 @@ Every field, its type and its rule:
 | `events[].fault` | string | one of the names in D3 for the target's kind, or in D4 for the surface |
 | `events[].duration` | string | ISO 8601 duration as `at`, at least PT1S; required, optional or forbidden per fault (D4) |
 | `events[].rate_pct_per_month` | number or `[lo, hi]` | `self_discharge` only; 0.1 to 100; a range draws uniformly at load |
-| `events[].points` | string | data faults `freeze`, `unit_error`, `nan_burst`, `chatter`; a path prefix per phase 5 D2, `*` for the whole surface; default `*` |
+| `events[].points` | string | data faults `freeze`, `unit_error`, `nan_burst`, `chatter`; `*` for the whole surface, or `site`, `block[N]`, `block[N].pcs` (phase 5 D2); default `*` |
 | `events[].exponent` | integer | `unit_error` only; the power of ten; default 3; must not be 0 |
 | `events[].rate_per_min` | number | `chatter` only; flaps per minute, 0.1 to 60 |
 | `events[].drift_s_per_h` | number | `timestamp_drift` only; seconds of device-clock drift per hour, nonzero |

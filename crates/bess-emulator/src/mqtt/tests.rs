@@ -15,6 +15,9 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tokio::time::{timeout_at, Instant};
 
+use bess_core::PlantConfig;
+use bess_scenario::{load, RunParams};
+
 use super::{due, publish};
 use crate::fixtures;
 use crate::sim::{self, Command};
@@ -236,4 +239,72 @@ fn a_cadence_class_is_due_first_at_once_then_by_period() {
     assert!(due(None, 1_767_225_600, 60));
     assert!(!due(Some(1_767_225_600), 1_767_225_659, 60));
     assert!(due(Some(1_767_225_600), 1_767_225_660, 60));
+}
+
+/// The pipeline trap the data faults exist to teach: a dropout is silence,
+/// and the backfill burst that follows replays what the device stored, old
+/// device timestamps arriving in a burst under monotone receive times, in
+/// order and ahead of anything live.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_dropout_is_silence_and_the_backfill_replays_it_late() {
+    const STORY: &[u8] = br"
+schema: 1
+name: dropout-backfill
+events:
+  - at: PT3S
+    surface: mqtt
+    fault: dropout
+    duration: PT4S
+  - at: PT7S
+    surface: mqtt
+    fault: backfill_burst
+";
+    let (port, mut rx) = broker(None).await;
+    let params = RunParams {
+        seed: 7,
+        start_unix_s: 1_767_225_600,
+        speed: 1.0,
+    };
+    let resolved = load(STORY, &PlantConfig::gw01()).unwrap().resolve(params);
+    let (handle, _sim) = sim::start(fixtures::tripped_plant(), 1.0, Some(resolved));
+    tokio::spawn(publish("127.0.0.1".into(), port, handle));
+    let deadline = Instant::now() + Duration::from_secs(40);
+
+    // The tick counter, one message a simulated second at 1x: its value,
+    // its device timestamp and when the broker got it.
+    let topic = "bess/gw01/site/sim/tick";
+    let mut seen: Vec<(i64, i64, Instant)> = Vec::new();
+    while seen.len() < 13 {
+        let msg = timeout_at(deadline, rx.recv())
+            .await
+            .expect("the stream stopped")
+            .expect("broker stopped");
+        if msg.topic == topic {
+            let payload: Value = serde_json::from_str(&msg.payload).unwrap();
+            let value = payload["value"].as_f64().unwrap() as i64;
+            seen.push((value, payload["ts"].as_i64().unwrap(), Instant::now()));
+        }
+    }
+    let values: Vec<i64> = seen.iter().map(|s| s.0).collect();
+    assert!(
+        seen.windows(2).all(|w| w[0].0 < w[1].0 && w[0].1 < w[1].1),
+        "in order, replay first: {values:?}"
+    );
+    // The silence: the longest gap between two arrivals is the dropout.
+    let (silence, gap) = seen
+        .windows(2)
+        .map(|w| w[1].2 - w[0].2)
+        .enumerate()
+        .max_by_key(|(_, gap)| *gap)
+        .unwrap();
+    assert!(gap >= Duration::from_secs(3), "no silence: {values:?}");
+    // Then the burst: what the dropout stored arrives at once, born a
+    // second after the last live message, not after the silence.
+    let burst = &seen[silence + 1..];
+    assert!(burst.len() >= 4, "{values:?}");
+    assert!(
+        burst[3].2 - burst[0].2 < Duration::from_millis(1500),
+        "{values:?}"
+    );
+    assert!(burst[0].1 <= seen[silence].1 + 2, "{values:?}");
 }
