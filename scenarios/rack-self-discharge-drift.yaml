@@ -1,0 +1,17 @@
+# One cell in one rack leaks thirty percent a month, ten times the
+# healthy drift. The bleed resistors cannot keep up: the rack's spread
+# widens day by day, reaches the imbalance warning on the fifth day
+# (CALIBRATION.md, the self-discharge table), and stays there while its
+# eleven neighbours stay quiet. The BMS does not know a cell leaks; it
+# sees the spread.
+schema: 1
+name: rack-self-discharge-drift
+taxonomy: cell
+seed: 7
+start: 2026-04-11T00:00:00Z
+length: P6D
+events:
+  - at: PT1H
+    target: block[4].container[0].rack[3]
+    fault: self_discharge
+    rate_pct_per_month: 30

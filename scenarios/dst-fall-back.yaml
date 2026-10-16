@@ -1,0 +1,13 @@
+# The 25-hour local day. On the simulated October 27 the Berlin clock
+# falls back from 03:00 to 02:00, so the local day has 25 hours and the
+# 02:xx quarter-hours happen twice. The run starts at local midnight
+# (22:00 UTC the night before) and plays the whole local day: 25 ranked
+# hours, 100 closed quarter-hours. A pipeline that keys periods by local
+# clock meets its duplicate here.
+schema: 1
+name: dst-fall-back
+taxonomy: calendar
+seed: 7
+start: 2026-10-26T22:00:00Z
+length: PT25H
+events: []

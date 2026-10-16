@@ -102,6 +102,7 @@ mod tests {
                 start_unix_s: 0,
                 speed: 1.0,
             },
+            ticks: None,
             schedule: ticks.iter().enumerate().map(|(i, &t)| at(i, t)).collect(),
         }
     }

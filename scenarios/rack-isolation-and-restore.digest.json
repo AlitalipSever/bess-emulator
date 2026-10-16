@@ -1,0 +1,14 @@
+{
+  "scenario": "rack-isolation-and-restore",
+  "content_hash": "0xa9ffff2f10b3685e",
+  "engine_version": "0.4.0",
+  "seed": 7,
+  "start_unix_s": 1775779200,
+  "ticks": 172800,
+  "state_digest": "0x164a5469f7b3a85a",
+  "event_log": {
+    "count": 416,
+    "digest": "0x7215a8f63913fdda"
+  },
+  "revenue_periods_closed": 192
+}

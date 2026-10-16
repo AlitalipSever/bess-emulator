@@ -219,8 +219,8 @@ so each such point states which container it speaks for:
   does not have; 415 for another content type; 503 when the simulation
   task is gone. `GET /api/v1/scenario` answers `{"loaded": false}` when
   no scenario is in force, otherwise `{"loaded": true, "name",
-  "content_hash", "seed", "start_unix_s", "speed", "tick", "fired",
-  "pending", "next", "events"}`: `content_hash` is the FNV-1a 64 of the
+  "content_hash", "seed", "start_unix_s", "speed", "length_s", "tick",
+  "fired", "pending", "next", "events"}`: `content_hash` is the FNV-1a 64 of the
   file's bytes as `0x` and sixteen hex digits, `fired` and `pending`
   count events, `next` is the next event or null, and `events` is the
   whole schedule in firing order, each `{"index", "at_s", "tick",

@@ -316,8 +316,12 @@ schedule is resolved, from a stream seeded by the run's seed and the
 event's index, so the schedule is fixed before the first tick and
 `GET /api/v1/scenario` shows every drawn value. Scenario file + seed =
 reproduction; the checkpoint carries the file's name and hash, so a resume
-refuses another story. In CI (phase 5):
-`bess-emulator --scenario s.yaml --assert digest.json`.
+refuses another story. A file may state its `length`, and then
+`bess-emulator --scenario s.yaml --assert s.digest.json` plays it headless
+for that long and holds the final tree, the event log and the fiscal
+meter's closed periods to the committed record; `scenarios/` is the
+library of such cases, its failure mix held to the EPRI incident record
+by a test (CALIBRATION.md, M2).
 
 ## Shells
 

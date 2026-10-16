@@ -1,0 +1,14 @@
+{
+  "scenario": "clock-drift-and-nan",
+  "content_hash": "0x50b4c17e5539a6a8",
+  "engine_version": "0.4.0",
+  "seed": 7,
+  "start_unix_s": 1784016000,
+  "ticks": 28800,
+  "state_digest": "0x3810a781ea862d92",
+  "event_log": {
+    "count": 82,
+    "digest": "0x12c2101c57840a69"
+  },
+  "revenue_periods_closed": 32
+}

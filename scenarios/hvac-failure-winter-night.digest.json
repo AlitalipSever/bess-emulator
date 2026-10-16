@@ -1,0 +1,14 @@
+{
+  "scenario": "hvac-failure-winter-night",
+  "content_hash": "0xa614b8beb16c2b4f",
+  "engine_version": "0.4.0",
+  "seed": 7,
+  "start_unix_s": 1768932000,
+  "ticks": 86400,
+  "state_digest": "0xf14218cf1125ce69",
+  "event_log": {
+    "count": 1686,
+    "digest": "0x1bb1447b95be176e"
+  },
+  "revenue_periods_closed": 96
+}

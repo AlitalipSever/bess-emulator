@@ -1,0 +1,14 @@
+{
+  "scenario": "hvac-failure-hot-week",
+  "content_hash": "0xeb863f99caa1a701",
+  "engine_version": "0.4.0",
+  "seed": 42,
+  "start_unix_s": 1783900800,
+  "ticks": 864000,
+  "state_digest": "0xb2d5ff86375e5ef8",
+  "event_log": {
+    "count": 1717,
+    "digest": "0x80a9acc36ffe9f67"
+  },
+  "revenue_periods_closed": 960
+}

@@ -55,6 +55,14 @@ pub(crate) fn validate(
             return Err(at(speed, Reason::SpeedOutOfRange(speed.value)));
         }
     }
+    let length_s = match &file.length {
+        Some(length) => match duration::parse(&length.value) {
+            Ok(0) => return Err(at(length, Reason::ZeroLength)),
+            Ok(seconds) => Some(seconds),
+            Err(e) => return Err(at(length, e.into())),
+        },
+        None => None,
+    };
 
     let mut events = Vec::with_capacity(file.events.len());
     let mut last_on: HashMap<Target, (usize, u64)> = HashMap::new();
@@ -65,6 +73,9 @@ pub(crate) fn validate(
             reason,
         };
         let event = event(index, &spanned.value, cfg).map_err(refuse)?;
+        if let Some(length_s) = length_s.filter(|&length_s| event.at_s >= length_s) {
+            return Err(refuse(("at", Reason::EventAfterLength { length_s })));
+        }
         if let Fault::Physical { target, .. } = event.fault {
             if let Some(&(other, other_at)) = last_on.get(&target) {
                 if event.at_s == other_at {
@@ -100,6 +111,7 @@ pub(crate) fn validate(
         seed: file.seed,
         start_unix_s,
         speed: file.speed.map(|s| s.value),
+        length_s,
         events,
     })
 }

@@ -1,0 +1,13 @@
+# The 23-hour local day. The replayed year's calendar is 2024's, mapped
+# onto the simulated date by month and day, so the simulated March 31 is
+# the day the Berlin clock jumps from 02:00 to 03:00. The run starts at
+# local midnight (23:00 UTC the night before) and plays the whole local
+# day: the planner ranks 23 hours, and the fiscal meter closes 92
+# quarter-hours, not 96. Nothing fails; the calendar is the story.
+schema: 1
+name: dst-spring-forward
+taxonomy: calendar
+seed: 7
+start: 2026-03-30T23:00:00Z
+length: PT23H
+events: []

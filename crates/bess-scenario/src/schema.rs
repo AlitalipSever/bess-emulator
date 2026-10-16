@@ -32,6 +32,8 @@ pub(crate) struct File {
     pub start: Option<Spanned<String>>,
     #[serde(default)]
     pub speed: Option<Spanned<f64>>,
+    #[serde(default)]
+    pub length: Option<Spanned<String>>,
     pub events: Vec<Spanned<EventSpec>>,
 }
 

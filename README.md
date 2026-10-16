@@ -17,7 +17,8 @@ Think of it as a local, controllable stand-in for a battery plant:
   Built for CI regression tests and reproducible bug reports.
 - **Fault and scenario injection.** Communication dropouts, frozen values, alarm
   storms, timestamp drift, protection trips, maintenance outages: the data your
-  pipeline meets in production, on demand.
+  pipeline meets in production, on demand, from a YAML file, with the failure
+  mix held to the public incident record.
 - **Runs anywhere.** One Rust core; ships as a Docker service with protocol
   endpoints, and as a fully client-side browser build with an explorable 3D view
   of the plant.
@@ -42,8 +43,20 @@ Without Docker (Rust toolchain required):
 cargo run --release -p bess-emulator
 ```
 
-Add `--scenario <file>` to play a scenario file from tick 0; `--help` lists
-the seed, start and speed flags, which a file's own values win over.
+Then make something go wrong:
+
+```sh
+cargo run --release -p bess-emulator -- --scenario scenarios/hvac-failure-both-units.yaml
+```
+
+Block 2 loses both its cooling units on the hottest afternoon of the year,
+under full discharge: within minutes the derate bits raise, the block
+misses its setpoint and the site reports its limit, on MQTT, on Modbus, in
+the stream and on `GET /api/v1/scenario`, which narrates the story. The
+[scenario library](scenarios/README.md) has fifteen such cases, each a
+reproducible YAML file with its taxonomy tag and its committed digest;
+`--help` lists the seed, start and speed flags, which a file's own values
+win over, and `--assert` plays a case headless against its record.
 
 ## Surfaces
 

@@ -1,0 +1,19 @@
+# The site's protection trips during the evening discharge: the HV
+# breaker opens, the point of interconnection reads zero, the house load
+# moves to the station-service meter. The site reset ten minutes later
+# closes the breaker and starts the staggered return, block k released
+# k x 30 s later, so the available power climbs back over ten minutes
+# and the partial-availability bit stays up until the last block is in.
+schema: 1
+name: protection-trip-staggered-return
+taxonomy: bos
+seed: 7
+start: 2026-07-14T18:00:00Z
+length: PT2H
+events:
+  - at: PT20M
+    target: site
+    fault: protection_trip
+  - at: PT30M
+    target: site
+    fault: alarm_reset

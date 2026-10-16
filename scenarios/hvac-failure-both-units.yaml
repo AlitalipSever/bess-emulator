@@ -1,0 +1,24 @@
+# Both HVAC units of block 2 fail at once on the warmest afternoon of
+# the replayed year, with the plant asked for full discharge by the
+# plan: the phase 2 causal chain, failure, derate, setpoint miss, site
+# limit, minutes apart. The units are repaired after two hours and the
+# block cools back into its window.
+schema: 1
+name: hvac-failure-both-units
+taxonomy: bos
+seed: 7
+start: 2026-07-14T13:00:00Z
+length: PT6H
+events:
+  - at: PT1H
+    target: block[2].container[0].hvac
+    fault: failure
+  - at: PT1H
+    target: block[2].container[1].hvac
+    fault: failure
+  - at: PT3H
+    target: block[2].container[0].hvac
+    fault: repair
+  - at: PT3H
+    target: block[2].container[1].hvac
+    fault: repair

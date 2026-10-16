@@ -1,0 +1,34 @@
+# A container's cooling fails in the hottest week of the replayed year.
+# Block 2's racks warm up through the afternoon of the 13th, the derate
+# bits raise, the block misses its setpoint, the site reports its limit;
+# the repair comes on the 14th, after the hottest afternoon. Two days
+# later one rack starts to leak, and on day 9 it is isolated. The MQTT
+# dropout in the first afternoon, with the backfill twenty minutes
+# later, is the data-side trap a subscriber meets at the same time.
+schema: 1
+name: hvac-failure-hot-week
+taxonomy: bos
+seed: 42
+start: 2026-07-13T00:00:00Z
+length: P10D
+events:
+  - at: PT14H
+    target: block[2].container[0].hvac
+    fault: failure
+  - at: PT38H
+    target: block[2].container[0].hvac
+    fault: repair
+  - at: P2D
+    target: block[2].container[1].rack[5]
+    fault: self_discharge
+    rate_pct_per_month: [10, 30]
+  - at: P9DT6H
+    target: block[2].container[1].rack[5]
+    fault: isolate
+  - at: PT14H20M
+    surface: mqtt
+    fault: dropout
+    duration: PT20M
+  - at: PT14H40M
+    surface: mqtt
+    fault: backfill_burst

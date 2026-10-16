@@ -1,0 +1,14 @@
+{
+  "scenario": "dst-spring-forward",
+  "content_hash": "0x160ae17c7f66eb55",
+  "engine_version": "0.4.0",
+  "seed": 7,
+  "start_unix_s": 1774911600,
+  "ticks": 82800,
+  "state_digest": "0xf786a620c7bc486d",
+  "event_log": {
+    "count": 164,
+    "digest": "0xc24e82e47ccbec31"
+  },
+  "revenue_periods_closed": 92
+}

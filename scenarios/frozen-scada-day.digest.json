@@ -1,0 +1,14 @@
+{
+  "scenario": "frozen-scada-day",
+  "content_hash": "0x6cbf4716bd3bef5b",
+  "engine_version": "0.4.0",
+  "seed": 7,
+  "start_unix_s": 1775779200,
+  "ticks": 86400,
+  "state_digest": "0x038b20bdd77bbfa3",
+  "event_log": {
+    "count": 164,
+    "digest": "0x8c110a13687d7e2d"
+  },
+  "revenue_periods_closed": 96
+}

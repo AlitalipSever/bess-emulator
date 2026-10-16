@@ -1,0 +1,18 @@
+# A rack is isolated for a day of cycling and restored the next morning:
+# its contactor opens, it stops charging and discharging while its
+# eleven neighbours carry the container, and it comes back with the
+# state of charge it was left with, so the spread it rejoins is the
+# one it missed.
+schema: 1
+name: rack-isolation-and-restore
+taxonomy: maintenance
+seed: 7
+start: 2026-04-10T00:00:00Z
+length: P2D
+events:
+  - at: PT7H
+    target: block[1].container[0].rack[6]
+    fault: isolate
+  - at: P1DT7H
+    target: block[1].container[0].rack[6]
+    fault: restore

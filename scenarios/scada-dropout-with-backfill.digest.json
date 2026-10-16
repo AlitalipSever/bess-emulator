@@ -1,0 +1,14 @@
+{
+  "scenario": "scada-dropout-with-backfill",
+  "content_hash": "0x26041346b3ae116e",
+  "engine_version": "0.4.0",
+  "seed": 7,
+  "start_unix_s": 1784037600,
+  "ticks": 7200,
+  "state_digest": "0x2eb8bd6021fe20e9",
+  "event_log": {
+    "count": 0,
+    "digest": "0x0000000000000000"
+  },
+  "revenue_periods_closed": 8
+}

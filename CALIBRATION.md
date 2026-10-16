@@ -617,6 +617,68 @@ energy account shows. There is no cell undervoltage: the model has no
 per-cell voltage limit, so an emptied weak cell is visible only through
 the imbalance bits.
 
+## M2 (v0.5.0): the scenario library against the incident record
+
+The roadmap's M2 gate reads "injected failure types and frequencies
+follow the public EPRI failure incident taxonomy (controls and
+balance-of-system dominant, cells rare)". What is calibrated is the mix
+of stories the library ships, not a simulation measurement: the gate is
+a distribution check over the taxonomy tags of `scenarios/`, held by
+`bess-scenario`'s `library` test on every build.
+
+**The snapshot.** EPRI, *Insights from EPRI's Battery Energy Storage
+Systems (BESS) Failure Incident Database: Analysis of Failure Root
+Cause*, white paper 3002030360, May 2024, written with PNNL and TWAICE.
+At the time of writing the database held 81 incidents, of which 26 had
+enough public information to assign a root cause and a failed element;
+two carried dual classifications, so the shares are over 28. Retrieved
+2026-10-15 from EPRI's public download of the paper. Figure 6, the
+failed element:
+
+| Failed element | Incidents | Share |
+|---|---|---|
+| Controls (BMS, EMS, plant controllers, sensing, communication) | 13 | 46% |
+| Balance of system (PCS, cabling, enclosures, HVAC, fire suppression) | 12 | 43% |
+| Cells and modules | 3 | 11% |
+
+Figure 4, the root cause, for the record: integration, assembly and
+construction 10 (36%), operation 8 (29%), design 6 (21%), manufacturing
+4 (14%). The library tags by failed element, which is what a story
+about a plant can show; the root cause of a failure is history a
+scenario file does not carry. The database has grown since the paper;
+its live page is an application without a printable snapshot, so the
+paper's analysis is the pin, and the next pin is the next published
+analysis.
+
+**The library.** Fifteen cases on 2026-10-15, eleven of them failures:
+
+| Class | Cases | Share | Snapshot | Distance |
+|---|---|---|---|---|
+| `bos` | 5 | 45% | 43% | 2 points |
+| `controls` | 5 | 45% | 46% | 1 point |
+| `cell` | 1 | 9% | 11% | 2 points |
+
+Two calendar cases (the DST days) and two maintenance cases sit outside
+the gate, since they are not failures. The gate holds each class within
+15 percentage points of its snapshot share, the cell class smallest and
+never empty: with a dozen failure cases one case is about nine points,
+so the band admits one case of drift and refuses two. Deleting a `bos`
+case leaves 4 of 10 (40%), inside; adding three `cell` cases makes
+4 of 14 (29%), eighteen points out, refused with the composition in the
+message. The library's mapping of the emulator's faults onto the
+classes: HVAC failures, PCS and protection trips are balance of system;
+every data fault (dropout, freeze, unit error, chatter, clock drift,
+NaN burst, backfill) is controls, the sensing and communication class;
+the self-discharge leak is the one cell story the model can tell.
+
+**The runtime budget.** Every case plays headless against its committed
+record in CI (`scripts/assert-library.sh`, the calibration job). On the
+development machine (Apple M-series, release profile) the fifteen cases
+take 37 s together, the ten-day hot week 14 s and the six-day leak 9 s
+of it; the kernel steps about 60,000 ticks per second. Under a minute
+is inside the budget, so nothing moves to release-tag frequency; the
+decision is revisited when the library doubles.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

@@ -202,6 +202,28 @@ fn durations_and_parameters() {
     ));
 }
 
+/// A file that states how long it is cannot be shorter than its events,
+/// and cannot be nothing long.
+#[test]
+fn the_length_bounds_the_events() {
+    let e = refuse("schema: 1\nname: r\nlength: PT0S\nevents: []\n");
+    assert_eq!(e.reason, Reason::ZeroLength);
+    assert_eq!(e.position, Position::Line { line: 3, column: 9 });
+    let e = refuse("schema: 1\nname: r\nlength: P1M\nevents: []\n");
+    assert!(matches!(e.reason, Reason::BadDuration(_)));
+
+    let text = "schema: 1\nname: r\nlength: PT1H\nevents:\n  - at: PT1H\n    target: site\n    fault: protection_trip\n";
+    let e = refuse(text);
+    assert_eq!(e.reason, Reason::EventAfterLength { length_s: 3600 });
+    assert_eq!(e.position, event(0, "at", 5));
+    let s = load(
+        text.replace("at: PT1H", "at: PT59M59S").as_bytes(),
+        &PlantConfig::gw01(),
+    )
+    .unwrap();
+    assert_eq!(s.length_s, Some(3600));
+}
+
 /// A selector is a tree path the surfaces publish points under, or `*`;
 /// a backfill burst needs a dropout on its surface that has ended by then,
 /// wherever in the file the dropout is listed.

@@ -1,0 +1,25 @@
+# Block 2's alarm words flap twenty times a minute for an hour on both
+# surfaces: a loose sensor contact or a controller that cannot decide.
+# The retained MQTT words and the Modbus alarm registers show the
+# storm; the events subtree and the kernel's log do not, because the
+# plant raised nothing. An alarm pipeline that counts edges, or pages on
+# every raise, learns the difference here.
+schema: 1
+name: alarm-chatter-storm
+taxonomy: controls
+seed: 7
+start: 2026-07-14T14:00:00Z
+length: PT2H
+events:
+  - at: PT30M
+    surface: mqtt
+    fault: chatter
+    duration: PT1H
+    points: block[2]
+    rate_per_min: 20
+  - at: PT30M
+    surface: modbus
+    fault: chatter
+    duration: PT1H
+    points: block[2]
+    rate_per_min: 20

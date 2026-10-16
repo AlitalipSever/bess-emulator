@@ -1,0 +1,18 @@
+# A container loses its HVAC unit, heater included, on a January night.
+# Its racks cool below the charging band over the hours before the
+# morning charge, so the cold derate limits what the block can take
+# while every other container heats as usual. The unit is repaired at
+# noon.
+schema: 1
+name: hvac-failure-winter-night
+taxonomy: bos
+seed: 7
+start: 2026-01-20T18:00:00Z
+length: P1D
+events:
+  - at: PT2H
+    target: block[7].container[1].hvac
+    fault: failure
+  - at: PT18H
+    target: block[7].container[1].hvac
+    fault: repair

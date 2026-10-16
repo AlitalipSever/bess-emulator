@@ -36,6 +36,22 @@ pub struct Args {
     #[arg(long, value_name = "PATH")]
     pub scenario: Option<PathBuf>,
 
+    /// Play the scenario headless, no socket bound, as fast as the machine
+    /// allows, for the file's `length`, and write the digest of what it
+    /// left to this path: a library case's committed record.
+    #[arg(long, value_name = "PATH", requires = "scenario")]
+    pub record: Option<PathBuf>,
+
+    /// Play the scenario headless and compare its digest with the record
+    /// at this path; exit nonzero on drift. What CI runs over the library.
+    #[arg(
+        long,
+        value_name = "PATH",
+        requires = "scenario",
+        conflicts_with = "record"
+    )]
+    pub assert: Option<PathBuf>,
+
     /// Modbus TCP listen address.
     #[arg(long, default_value = "127.0.0.1:1502")]
     pub modbus: SocketAddr,

@@ -266,6 +266,18 @@ v0.4.0 can trip over.
   not JSON: a subscriber that parses strictly will choke, which is the
   fault. The kernel cannot tell: a run with every data fault laid over it
   produces the tree and the log the physical events alone produce.
+- **`length`** (phase 5 PR2), an optional top-level field of schema 1:
+  how long the story is, an ISO 8601 duration past every event's `at`.
+  `GET /api/v1/scenario` shows it as `length_s`.
+- **`--record` and `--assert`** (phase 5 PR2): play a file headless for
+  its length, no socket bound, and write or hold the digest of what it
+  left: the final tree, the event log's count and hash, the fiscal
+  meter's closed periods, under the engine version. A drifted record
+  names its fields; the exit is nonzero.
+- **`scenarios/`** (phase 5 PR2): fifteen cases with their records and
+  the library's contract in its README; `bess-scenario`'s `library`
+  test holds the failure mix to the EPRI snapshot in CALIBRATION.md,
+  and CI plays every case against its record on every pull request.
 - **File-format rules tightened** (phase 5 PR1), additions to schema 1
   that refuse files nobody could have run: a `duration` is at least
   PT1S; `points` is `*`, `site`, `block[N]` or `block[N].pcs`, no longer
@@ -285,8 +297,10 @@ v0.4.0 can trip over.
 - ~~Day-ahead price source and license for the 2024 reference year, SMARD
   versus ENTSO-E transparency.~~ Resolved in phase 3 PR2: SMARD, CC BY
   4.0, bundled with attribution.
-- EPRI database snapshot: exact category shares and retrieval date
-  (phase 5).
+- ~~EPRI database snapshot: exact category shares and retrieval date
+  (phase 5).~~ Pinned in phase 5 PR2: the May 2024 white paper's 26
+  classified incidents, controls 46%, balance of system 43%, cells 11%,
+  retrieved 2026-10-15; CALIBRATION.md has the table.
 - ~~Whether the WASM shell gets scenario loading in M2 or later.~~ Later,
   with the next view iteration (phase 4 PR2). The crate compiles for
   wasm32 and CI checks it on every change, so the door is open when a

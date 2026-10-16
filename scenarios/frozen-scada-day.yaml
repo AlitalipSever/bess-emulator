@@ -1,0 +1,22 @@
+# Block 3's telemetry freezes for a day on both surfaces while the block
+# keeps cycling: MQTT repeats the values it had at 06:00 under advancing
+# timestamps, the Modbus registers hold. Everything else moves. The
+# plant's REST summary and the stream tell the truth, so the gap between
+# the plant and what SCADA saw is there to measure.
+schema: 1
+name: frozen-scada-day
+taxonomy: controls
+seed: 7
+start: 2026-04-10T00:00:00Z
+length: P1D
+events:
+  - at: PT6H
+    surface: mqtt
+    fault: freeze
+    duration: PT16H
+    points: block[3]
+  - at: PT6H
+    surface: modbus
+    fault: freeze
+    duration: PT16H
+    points: block[3]
