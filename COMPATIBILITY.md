@@ -11,12 +11,13 @@ map reaches version 1.0. Until then (0.x releases), any register, topic, or
 endpoint may change in any release; breaking changes are called out in the
 release notes.
 
-Two of those changes are already known and scheduled, which is the honest
-reason this page still says pre-1.0. M2 gives meaning to the rack alarm bits
-that read zero through map 0.2.0 (map 0.3.0, below), and M3 replaces the
-three-value PCS state with a five-state machine. Both reinterpret a published point, which is a major
-change under the rules below, so both happen before the contract takes effect
-rather than after it. [ROADMAP.md](ROADMAP.md) records what 1.0 has to pass.
+One such change is still known and scheduled, which is the honest reason
+this page still says pre-1.0: M3 replaces the three-value PCS state with a
+five-state machine, which reinterprets a published point, a major change
+under the rules below, so it happens before the contract takes effect
+rather than after it. The other one announced since M1, the rack alarm
+bits that read zero through map 0.2.0, shipped in M2 as map 0.3.0 (below).
+[ROADMAP.md](ROADMAP.md) records what 1.0 has to pass.
 
 ## The signal map is an API
 
@@ -53,7 +54,7 @@ check which contract it is talking to without fetching this file.
 |---|---|---|
 | 0.1.0 | crate v0.2.0 | The first published map. It carried no version number; it is recorded here as 0.1.0 so the sequence has a beginning. |
 | 0.2.0 | crate v0.3.0 | Additions only: the five itemized house-load points at site 32 to 41, and per block `container.air_temp_c` and `hvac.state` in the two slots each block had free. Nothing moved, nothing was renamed. The file gained its version comment line. |
-| 0.3.0 | crate v0.5.0 (unreleased) | **Breaking:** `blockNN.alarm_bits` (base+6) and `site.alarm_count` (input 31) stop reading zero. The rack words behind the first now have a layout (see Alarm words below), and the second counts every set bit on site, rack, block and site words alike. Both, being alarm points, move from class `medium` to the new class `event`. **Additions:** `site.alarm_bits` (42), `site.event_counter` (43), and a second per-block range at 2000 + 10 x block carrying `block_alarm_bits`, `racks_derated`, `cell_dv_mv` and `mode` (M2 phase 3); `site.meter.station_service_kwh` (44, M2 phase 3); the fiscal meter's `site.revenue.period_import_kwh`, `site.revenue.period_export_kwh` and `site.revenue.periods_closed` (46, 48, 50, M2 phase 3), the last closed quarter-hour and the period count. **Changed values, same points:** `site.available_discharge_kw` and `site.available_charge_kw` (8, 10) now exclude blocks in maintenance, in fault or not yet returned after a trip, and read zero while the HV breaker is open; `site.poi.active_power_w` and the two POI meters read zero and stand still while the breaker is open, the house load moving to `site.meter.station_service_kwh`. **Corrected:** the scale column of `site.available_discharge_kw`, `site.available_charge_kw`, `site.meter.export_kwh`, `site.meter.import_kwh` and `blockNN.pcs.p_ac_kw` / `p_dc_kw` read 0.001, relative to watts, while the unit column said kW or kWh; it now reads 1, relative to the named unit. The registers carry the same counts as before. The reference file now lists rows in address order, holding registers last. Drafted in M2 phase 2; later M2 additions join this row until the release. |
+| 0.3.0 | crate v0.5.0 | **Breaking:** `blockNN.alarm_bits` (base+6) and `site.alarm_count` (input 31) stop reading zero. The rack words behind the first now have a layout (see Alarm words below), and the second counts every set bit on site, rack, block and site words alike. Both, being alarm points, move from class `medium` to the new class `event`. **Additions:** `site.alarm_bits` (42), `site.event_counter` (43), and a second per-block range at 2000 + 10 x block carrying `block_alarm_bits`, `racks_derated`, `cell_dv_mv` and `mode` (M2 phase 3); `site.meter.station_service_kwh` (44, M2 phase 3); the fiscal meter's `site.revenue.period_import_kwh`, `site.revenue.period_export_kwh` and `site.revenue.periods_closed` (46, 48, 50, M2 phase 3), the last closed quarter-hour and the period count. **Changed values, same points:** `site.available_discharge_kw` and `site.available_charge_kw` (8, 10) now exclude blocks in maintenance, in fault or not yet returned after a trip, and read zero while the HV breaker is open; `site.poi.active_power_w` and the two POI meters read zero and stand still while the breaker is open, the house load moving to `site.meter.station_service_kwh`. **Corrected:** the scale column of `site.available_discharge_kw`, `site.available_charge_kw`, `site.meter.export_kwh`, `site.meter.import_kwh` and `blockNN.pcs.p_ac_kw` / `p_dc_kw` read 0.001, relative to watts, while the unit column said kW or kWh; it now reads 1, relative to the named unit. The registers carry the same counts as before. The reference file now lists rows in address order, holding registers last. Drafted in M2 phase 2; phases 4 and 5 (the scenario engine, the data faults) added no point, since the plant's registers do not know they are in a story. |
 
 ## Deprecation process (from map 1.0)
 

@@ -1,9 +1,12 @@
 # M2: BMS, alarms, and the scenario engine
 
-Status: draft for review, pre-implementation. ROADMAP.md defines the goal
-and the calibration gate; this folder fixes the architecture, the decisions,
-and the work breakdown, one phase per subfolder. The layout follows
-[docs/design/README.md](../README.md), introduced with this milestone.
+Status: shipped as v0.5.0 (2026-10-15). ROADMAP.md defines the goal and
+the calibration gate; this folder fixes the architecture, the decisions,
+and the work breakdown, one phase per subfolder, each phase's documents
+marked with what was actually built. The layout follows
+[docs/design/README.md](../README.md), introduced with this milestone. The
+release note is drafted in [release-notes.md](release-notes.md) from the
+inventory below.
 
 ## Goal
 

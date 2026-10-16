@@ -13,7 +13,7 @@ scheduled. Architecture and rationale live in
 | M0.5 | PCS partial-load efficiency curve (pulled forward from M3) | done (v0.2.0) |
 | M1 | Thermal + weather | done (v0.3.0) |
 | M1.5 | View mini-iteration: real solar position, weather-driven scenery, time controls | done (v0.4.0) |
-| M2 | BMS, alarms, scenario engine | planned |
+| M2 | BMS, alarms, scenario engine | done (v0.5.0) |
 | M2.5 | SoC realism mini-iteration: OCV hysteresis, reported SoC, measurement imperfections | planned |
 | M3 | PCS + electrical | planned |
 | M4 | EMS + market signals | planned |
@@ -207,9 +207,12 @@ plant and said so. Every test in that crate asks whether a number is right;
 none can ask whether anything is visible. A view layer's last gate is a
 person looking at it.
 
-## M2: BMS, alarms, and the scenario engine
+## M2: BMS, alarms, and the scenario engine (done, v0.5.0)
 
 **Goal:** the plant learns to misbehave, on demand and reproducibly.
+Shipped as v0.5.0; what was actually built, phase by phase, is in the
+milestone's design folder, and the release-note inventory in its README
+is the record of every change an integrator can trip over.
 
 Detailed design: [docs/design/m2/](docs/design/m2/), one folder per phase,
 in the layout [docs/design/README.md](docs/design/README.md) fixes from

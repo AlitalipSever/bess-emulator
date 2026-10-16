@@ -121,11 +121,26 @@ from the crate name to the product name on the way out.
 
 ## Status
 
-Pre-alpha, and measured rather than described. Four milestones have shipped:
+Pre-alpha, and measured rather than described. Five milestones have shipped:
 M0, the walking skeleton, as v0.1.0; the M0.5 mini-iteration, a partial-load
 conversion efficiency curve fitted to the CEC inverter database, as v0.2.0;
-M1, thermal and weather, as v0.3.0; and the M1.5 view mini-iteration as
-v0.4.0, which put M1 on the screen.
+M1, thermal and weather, as v0.3.0; the M1.5 view mini-iteration as
+v0.4.0, which put M1 on the screen; and M2, BMS, alarms and the scenario
+engine, as v0.5.0.
+
+What M2 changed is that the plant can misbehave, on demand and
+reproducibly. Racks derate with cell temperature, drift apart and balance;
+three alarm words with real causality behind them publish on every
+surface, report by exception; a block goes into maintenance, a converter
+trips, the site trips and comes back block by block; the planner ranks
+real day-ahead prices over real local days, DST days included, and a
+fiscal meter closes the quarter-hours. A YAML scenario schedules any of
+it, and the data faults with it: dropouts with backfill, frozen values,
+unit errors, alarm chatter, clock drift and NaN bursts, on MQTT and
+Modbus, while REST and the stream keep telling the truth. The library's
+failure mix is held to the public incident record. The annual round trip
+moved from **84.22%** to **83.66%**, almost all of it the market rule
+meeting real prices, itemized in [CALIBRATION.md](CALIBRATION.md).
 
 What M1 changed is the efficiency story. The site replays a full year of
 hourly DWD observations from Lindenberg (Mark), 2024. Heat leaves a rack into
