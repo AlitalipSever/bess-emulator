@@ -19,6 +19,10 @@
 use bess_core::Simulation;
 use bess_models::HistoricalWeather;
 
+use crate::alarms::Journal;
+
+use super::record;
+
 /// A jump in progress.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FastForward {
@@ -55,19 +59,20 @@ impl FastForward {
     ///
     /// The budget is in ticks rather than wall time because the browser has
     /// no monotonic clock without a shim, and a tick count is the same
-    /// quantity on both targets anyway.
+    /// quantity on both targets anyway. Every tick's events go to the
+    /// journal, so a jump leaves the same record a watched run would.
     pub fn advance(
         self,
         sim: &mut Simulation,
         weather: &HistoricalWeather,
+        journal: &mut Journal,
         budget_ticks: u64,
     ) -> bool {
         for _ in 0..budget_ticks {
             if sim.unix_time_s() >= self.target_unix_s {
                 return true;
             }
-            let inputs = weather.inputs_at(sim.unix_time_s());
-            sim.step(&inputs);
+            record::step(sim, weather, journal);
         }
         sim.unix_time_s() >= self.target_unix_s
     }
@@ -76,6 +81,7 @@ impl FastForward {
 #[cfg(test)]
 mod tests {
     use super::FastForward;
+    use crate::alarms::Journal;
     use bess_core::{PlantConfig, Simulation};
     use bess_models::{gw01_models, gw01_weather};
 
@@ -107,7 +113,7 @@ mod tests {
         // Deliberately awkward budgets, so the split across frames cannot be
         // what makes it come out right.
         let mut frames = 0;
-        while !jump.advance(&mut jumped, &weather, 997) {
+        while !jump.advance(&mut jumped, &weather, &mut Journal::new(), 997) {
             frames += 1;
             assert!(frames < 1_000, "the jump never arrived");
         }
@@ -124,14 +130,14 @@ mod tests {
         let jump = FastForward::toward(&sim, target).expect("a forward jump");
         assert!(jump.progress(&sim).abs() < 1e-6);
 
-        jump.advance(&mut sim, &weather, 7_200);
+        jump.advance(&mut sim, &weather, &mut Journal::new(), 7_200);
         let halfway = jump.progress(&sim);
         assert!(
             (halfway - 0.5).abs() < 0.01,
             "half a jump reported {halfway:.3}"
         );
 
-        while !jump.advance(&mut sim, &weather, 10_000) {}
+        while !jump.advance(&mut sim, &weather, &mut Journal::new(), 10_000) {}
         assert!((jump.progress(&sim) - 1.0).abs() < 1e-6);
     }
 
@@ -151,7 +157,7 @@ mod tests {
         let weather = gw01_weather();
         let mut sim = plant();
         let jump = FastForward::toward(&sim, target).expect("a forward jump");
-        assert!(jump.advance(&mut sim, &weather, 500_000));
+        assert!(jump.advance(&mut sim, &weather, &mut Journal::new(), 500_000));
         assert_eq!(sim.unix_time_s(), target);
     }
 }

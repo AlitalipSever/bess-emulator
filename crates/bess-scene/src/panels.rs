@@ -3,9 +3,11 @@
 //! [`ViewerCommand`]s; they never touch the kernel.
 //!
 //! - [`site`]     readouts: what the plant and the weather are doing
+//! - [`alarms`]   what is in alarm, and the journal of what happened
 //! - [`controls`] the parts that issue commands
 //! - [`detail`]   the selected object
 
+pub mod alarms;
 pub mod controls;
 pub mod detail;
 pub mod site;
@@ -13,6 +15,7 @@ pub mod site;
 use bess_core::state::SiteState;
 use egui::Color32;
 
+use crate::alarms::{Filter, Journal, SeenMark};
 use crate::clock;
 use crate::layout::Selection;
 use crate::scenery::Scenery;
@@ -46,6 +49,8 @@ pub struct PanelInput<'a> {
     pub stops: &'a [Stop],
     /// The object selected in the scene.
     pub selection: Option<Selection>,
+    /// The events the viewer has seen.
+    pub journal: &'a Journal,
 }
 
 /// UI scratch state that outlives a frame: slider positions, and where the
@@ -65,6 +70,11 @@ pub struct PanelState {
     /// this; the panel only shows it, and hides the date controls while it
     /// is set so a second jump cannot be started on top of the first.
     pub jump_progress: Option<f32>,
+    /// Which alarm rows are shown.
+    pub alarm_filter: Filter,
+    /// The event count when the alarm section was last open. The viewer
+    /// resets it when the plant is replaced.
+    pub alarms_seen: SeenMark,
 }
 
 impl Default for PanelState {
@@ -76,6 +86,8 @@ impl Default for PanelState {
             day: 14,
             hour: 9,
             jump_progress: None,
+            alarm_filter: Filter::default(),
+            alarms_seen: SeenMark::default(),
         }
     }
 }
@@ -106,32 +118,41 @@ pub fn side_panel(
     let mut commands = Vec::new();
     let now = input.state.unix_time_s();
     egui::Panel::right(egui::Id::new("site_panel"))
-        .default_size(330.0)
+        .default_size(380.0)
         .show(ui, |ui| {
-            ui.add_space(6.0);
-            ui.heading(&input.state.meta.site_id);
-            ui.label(clock::format_utc(now));
-            ui.separator();
+            // The alarm tables made the panel taller than a laptop screen;
+            // the whole column scrolls rather than pushing the controls off.
+            egui::ScrollArea::vertical()
+                .id_salt("site_panel_scroll")
+                .show(ui, |ui| {
+                    ui.add_space(6.0);
+                    ui.heading(&input.state.meta.site_id);
+                    ui.label(clock::format_utc(now));
+                    ui.separator();
 
-            site::electrical(ui, input.state);
-            ui.separator();
-            site::weather_and_thermal(ui, input.state, input.scenery);
+                    site::electrical(ui, input.state);
+                    ui.separator();
+                    site::weather_and_thermal(ui, input.state, input.scenery);
 
-            ui.separator();
-            controls::dispatch(ui, ui_state, &mut commands);
+                    ui.separator();
+                    alarms::section(ui, input.state, input.journal, ui_state);
 
-            ui.separator();
-            controls::time_travel(ui, now, ui_state, &mut commands);
-            controls::stops(ui, now, input.stops, ui_state, &mut commands);
+                    ui.separator();
+                    controls::dispatch(ui, ui_state, &mut commands);
 
-            ui.separator();
-            match input.selection {
-                None => ui.weak("Click a container, a PCS skid, or the transformer."),
-                Some(sel) => {
-                    detail::selection_detail(ui, input.state, sel);
-                    ui.label("")
-                }
-            };
+                    ui.separator();
+                    controls::time_travel(ui, now, ui_state, &mut commands);
+                    controls::stops(ui, now, input.stops, ui_state, &mut commands);
+
+                    ui.separator();
+                    match input.selection {
+                        None => ui.weak("Click a container, a PCS skid, or the transformer."),
+                        Some(sel) => {
+                            detail::selection_detail(ui, input.state, sel);
+                            ui.label("")
+                        }
+                    };
+                });
         });
     commands
 }
