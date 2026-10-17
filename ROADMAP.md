@@ -15,6 +15,7 @@ scheduled. Architecture and rationale live in
 | M1.5 | View mini-iteration: real solar position, weather-driven scenery, time controls | done (v0.4.0) |
 | M2 | BMS, alarms, scenario engine | done (v0.5.0) |
 | M2.5 | SoC realism mini-iteration: OCV hysteresis, reported SoC, measurement imperfections | planned |
+| M2.6 | Alarm view mini-iteration: alarms on screen, the scenario library in the browser | proposed |
 | M3 | PCS + electrical | planned |
 | M4 | EMS + market signals | planned |
 | M5 | Degradation | planned |
@@ -271,6 +272,35 @@ a published LFP curve pair; estimator drift and correction jumps land
 inside published observation bands, or a stated sanity bound where no
 source exists at this scale; metering error stays inside the claimed IEC
 accuracy classes.
+
+## M2.6: Alarm view mini-iteration
+
+A mini-iteration in the M0.5/M1.5 pattern, proposed 2026-10-17 after M2
+shipped: M2 put every alarm on the native surfaces and none of it on the
+screen. It deepens the view layer only; no kernel model changes, so M2.5
+and M3 are untouched. It does not depend on M2.5 and may ship before it
+(the design folder's first open question).
+
+Detailed design: [docs/design/m2_6/](docs/design/m2_6/).
+
+Scope, in two phases:
+
+- **Alarms on screen.** An alarm summary and an alarm journal in the
+  viewer's panel, in the shape operator tools give them; severity shown
+  in the 3D scene where the cause lives (container, converter skid,
+  substation); a row selects its object and a selected object lists its
+  alarms; the operator reset from the viewer. One naming helper moves
+  into `bess-core` so the viewer and the native surfaces spell a node
+  the same way.
+- **The library in the browser.** The fifteen library cases embedded in
+  the browser module with a picker and a progress strip; one run loop
+  that fires what is due during live stepping and jumps alike; a small
+  JS door so a host page can start a case or hand in a file; the browser
+  module named in COMPATIBILITY.md.
+
+**Gate:** no calibration gate, for the M1.5 reason. In its place: a
+library case played through the viewer's loop ends at the digest the
+headless run committed, and the kernel-side gates come back unmoved.
 
 ## M3: PCS + electrical
 
