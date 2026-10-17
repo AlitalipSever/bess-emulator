@@ -1,6 +1,6 @@
 # M2.6: alarm view mini-iteration
 
-Status: approved on 2026-10-17, in progress (phase 1 PR1). A mini-iteration in
+Status: approved on 2026-10-17, in progress (phase 1 PR2). A mini-iteration in
 the M0.5/M1.5/M2.5 tradition: it deepens the view layer and nothing else,
 so M2.5's one-module discipline and M3's scope are untouched. The
 decisions it needs before implementation starts are listed at the end.
@@ -140,6 +140,20 @@ Filled as PRs land.
   `Palette` gains `warning` and `out_of_service`, and
   `FastForward::advance` takes the journal. Code that builds these by
   struct literal or calls `advance` needs the new argument.
+- **Phase 1 PR2, severity in the scene.** The container diode shows the
+  loudest tone of its racks and no longer blinks; a PCS skid diode shows
+  the block word, a beacon on the transformer the site word, and a failed
+  HVAC unit carries an amber mark. Trips red, warnings amber, a rack
+  isolated or a block in maintenance muted blue-grey.
+- **Phase 1 PR2, rows and objects linked, and the reset.** A node in the
+  summary or the journal selects its object in the scene; the selected
+  object lists its alarms. The operator reset is in the viewer: site in
+  the alarm section, block on the PCS skid, rack on its row, each
+  enabled only while something in scope is latched, with the answer
+  shown beside the site button.
+- **Phase 1 PR2, source-level breaks in `bess-scene`:** `ViewerCommand`
+  gains `ResetAlarms(ResetScope)`; `PanelState` gains `select_request`
+  and `reset_answer`; `selection_detail` takes the command list.
 
 ## Open questions, and the decisions needed before implementation
 

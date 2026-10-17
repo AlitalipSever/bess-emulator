@@ -6,18 +6,20 @@
 //! - [`jump`]    moving the plant to another moment, and what that costs
 //! - [`presets`] days worth jumping to, derived from the dataset
 //! - [`record`]  one tick, with its events kept in the alarm journal
+//! - [`sky`]     the observed hour, in the terms the scene draws
 
 pub mod jump;
 pub mod presets;
 pub mod record;
+pub mod sky;
 
 use bess_core::{PlantConfig, Simulation};
-use bess_models::{gw01_models, gw01_weather, HistoricalWeather, HourSample, PrecipForm};
+use bess_models::{gw01_models, gw01_weather, HistoricalWeather};
 
 use crate::alarms::{self, Journal};
 use crate::panels::{self, PanelState};
 use crate::scene::SceneView;
-use crate::scenery::{Observed, Precip, Scenery};
+use crate::scenery::Scenery;
 use crate::sun::sun_position;
 use crate::ViewerCommand;
 
@@ -95,11 +97,6 @@ impl ViewerApp {
 }
 
 impl ViewerApp {
-    /// What the sky is doing right now, from the replayed observations.
-    ///
-    /// This is the only place the two halves meet: `bess-scene` does not name
-    /// a `bess-data` type, and `bess-data` has never heard of a scene. The
-    /// viewer owns both, so the translation is its job.
     /// Throw the plant away and build a fresh one on another date.
     ///
     /// The seed and the configuration are the ones this session started
@@ -115,53 +112,14 @@ impl ViewerApp {
         // and the bookmark in it do too.
         self.journal.clear();
         self.panel.alarms_seen = alarms::SeenMark::default();
+        self.panel.reset_answer = None;
     }
 
+    /// What the sky is doing right now, from the replayed observations.
     fn scenery(&self) -> Scenery {
         let now = self.sim.unix_time_s();
         let elevation = sun_position(now, self.sim.config().location).elevation_deg;
-        Scenery::from_observed(&observed_from(&self.weather.hour_at(now)), elevation)
-    }
-}
-
-/// One observed hour, in the terms the scene uses.
-///
-/// A free function with a test rather than six lines inside a method that
-/// needs a GL context to reach. Six field-to-field assignments is exactly the
-/// shape that silently swaps two of them, and the register map's review found
-/// that same defect the same way.
-fn observed_from(sample: &HourSample) -> Observed {
-    Observed {
-        cloud_okta: sample.cloud_okta,
-        irradiance_wm2: sample.ghi_wm2,
-        precip_mm_h: sample.precip_mm,
-        precip: precip_of(sample.precip_form, sample.temp_c),
-        wind_ms: sample.wind_ms,
-        wind_dir_deg: sample.wind_dir_deg,
-    }
-}
-
-/// The dataset's precipitation code, as the scene draws it.
-///
-/// One judgement call: DWD reports a form of "unknown" for hours where
-/// something fell and nobody classified it. Rather than drop those hours or
-/// guess a form, they follow the temperature, which is the same thing an
-/// observer would have done.
-fn precip_of(form: PrecipForm, temp_c: f32) -> Precip {
-    match form {
-        PrecipForm::NoPrecip => Precip::None,
-        PrecipForm::Rain => Precip::Rain,
-        PrecipForm::Snow => Precip::Snow,
-        PrecipForm::Mixed => Precip::Sleet,
-        PrecipForm::Unknown => {
-            if temp_c <= 0.5 {
-                Precip::Snow
-            } else if temp_c <= 2.5 {
-                Precip::Sleet
-            } else {
-                Precip::Rain
-            }
-        }
+        Scenery::from_observed(&sky::observed_from(&self.weather.hour_at(now)), elevation)
     }
 }
 
@@ -219,7 +177,22 @@ impl eframe::App for ViewerApp {
                 ViewerCommand::FastForwardTo(unix_s) => {
                     self.jump = FastForward::toward(&self.sim, unix_s);
                 }
+                ViewerCommand::ResetAlarms(scope) => {
+                    // The kernel's own door, the one REST uses. The clears
+                    // go out with the next tick, and the journal shows them.
+                    let outcome = self.sim.reset_alarms(scope).map_err(|e| e.to_string());
+                    self.panel.reset_answer = Some(panels::ResetAnswer {
+                        scope,
+                        unix_time_s: self.sim.unix_time_s(),
+                        outcome,
+                    });
+                }
             }
+        }
+        // A row asked for its object: the scene's selection is the one
+        // place a selection lives, so the request moves there.
+        if let Some(sel) = self.panel.select_request.take() {
+            self.scene.selection = Some(sel);
         }
 
         egui::CentralPanel::no_frame().show(ui, |ui| {
@@ -231,57 +204,5 @@ impl eframe::App for ViewerApp {
         if let Some(gl) = gl {
             self.scene.destroy(gl);
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{observed_from, precip_of};
-    use crate::scenery::Precip;
-    use bess_models::{HourSample, PrecipForm};
-
-    /// Every field a different value, so a swapped pair cannot hide behind a
-    /// coincidence. The precipitation form is the one field that is derived
-    /// rather than copied, and it is pinned separately below.
-    fn distinct() -> HourSample {
-        HourSample {
-            temp_c: 11.0,
-            rel_humidity_pct: 22.0,
-            ghi_wm2: 333.0,
-            precip_mm: 4.4,
-            precip_form: PrecipForm::Rain,
-            wind_ms: 5.5,
-            wind_dir_deg: 66.0,
-            cloud_okta: 7,
-        }
-    }
-
-    #[test]
-    fn every_observed_field_comes_from_its_own_measurement() {
-        let o = observed_from(&distinct());
-        assert_eq!(o.cloud_okta, 7);
-        assert!((o.irradiance_wm2 - 333.0).abs() < f32::EPSILON);
-        assert!((o.precip_mm_h - 4.4).abs() < f32::EPSILON);
-        assert!((o.wind_ms - 5.5).abs() < f32::EPSILON);
-        assert!((o.wind_dir_deg - 66.0).abs() < f32::EPSILON);
-        assert_eq!(o.precip, Precip::Rain);
-        // Humidity has no consumer in the scene and must not have quietly
-        // acquired one by landing in a field that belongs to something else.
-        let mut humid = distinct();
-        humid.rel_humidity_pct = 99.0;
-        assert_eq!(observed_from(&humid), o);
-    }
-
-    #[test]
-    fn an_unclassified_hour_follows_the_temperature() {
-        let unknown = |temp_c| precip_of(PrecipForm::Unknown, temp_c);
-        assert_eq!(unknown(-4.0), Precip::Snow);
-        assert_eq!(unknown(1.5), Precip::Sleet);
-        assert_eq!(unknown(9.0), Precip::Rain);
-        // A classified hour is never second-guessed, however cold it is.
-        assert_eq!(precip_of(PrecipForm::Rain, -10.0), Precip::Rain);
-        assert_eq!(precip_of(PrecipForm::Snow, 20.0), Precip::Snow);
-        assert_eq!(precip_of(PrecipForm::Mixed, 20.0), Precip::Sleet);
-        assert_eq!(precip_of(PrecipForm::NoPrecip, 5.0), Precip::None);
     }
 }

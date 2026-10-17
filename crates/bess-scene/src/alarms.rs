@@ -12,13 +12,15 @@
 //! - [`journal`] the bounded ring of events the viewer has seen
 //! - [`row`]     how an event reads as a journal row
 //! - [`filter`]  which rows the panel shows
+//! - [`link`]    between a row and the object in the scene
 
 pub mod filter;
 pub mod journal;
+pub mod link;
 pub mod row;
 
 use bess_core::alarms::layout::{block, rack, site};
-use bess_core::alarms::{has_bit, AlarmNode, Severity};
+use bess_core::alarms::{has_bit, AlarmNode, ResetScope, Severity, TRIP_MASK};
 use bess_core::state::SiteState;
 
 use crate::style::Palette;
@@ -138,6 +140,35 @@ fn push_word(out: &mut Vec<ActiveAlarm>, node: AlarmNode, word: u32) {
     );
 }
 
+/// Whether a reset over `scope` has a latched bit to clear: a trip in the
+/// scope's words, which includes a PCS in fault since its mirror bit sits in
+/// the trip byte. The reset buttons are enabled on this and nothing else.
+pub fn latched(state: &SiteState, scope: ResetScope) -> bool {
+    let block_latched = |b: &bess_core::state::BlockState| {
+        b.alarm_bits & TRIP_MASK != 0
+            || b.containers
+                .iter()
+                .flat_map(|c| c.racks.iter())
+                .any(|r| r.alarm_bits & TRIP_MASK != 0)
+    };
+    match scope {
+        ResetScope::Site => {
+            state.alarm_bits & TRIP_MASK != 0 || state.blocks.iter().any(block_latched)
+        }
+        ResetScope::Block(b) => state.blocks.get(b).is_some_and(block_latched),
+        ResetScope::Rack {
+            block,
+            container,
+            rack,
+        } => state
+            .blocks
+            .get(block)
+            .and_then(|b| b.containers.get(container))
+            .and_then(|c| c.racks.get(rack))
+            .is_some_and(|r| r.alarm_bits & TRIP_MASK != 0),
+    }
+}
+
 /// The block a node belongs to, `None` for the site.
 pub fn block_of(node: AlarmNode) -> Option<usize> {
     match node {
@@ -187,6 +218,31 @@ mod tests {
             .map(|(p, n)| ((*p).to_owned(), (*n).to_owned()))
             .collect();
         assert_eq!(names, want);
+    }
+
+    #[test]
+    fn a_reset_is_offered_only_where_something_latched() {
+        let mut s = site_state();
+        let rack_scope = ResetScope::Rack {
+            block: 2,
+            container: 1,
+            rack: 5,
+        };
+        assert!(!latched(&s, ResetScope::Site));
+        // A warning is not latched.
+        s.blocks[2].containers[1].racks[5].alarm_bits = 1 << rack::DERATE_ACTIVE;
+        assert!(!latched(&s, rack_scope));
+        s.blocks[2].containers[1].racks[5].alarm_bits |= 1 << rack::OVER_TEMP_TRIP;
+        assert!(latched(&s, rack_scope));
+        assert!(latched(&s, ResetScope::Block(2)));
+        assert!(!latched(&s, ResetScope::Block(3)));
+        assert!(latched(&s, ResetScope::Site));
+        // A PCS in fault is latched through its mirror bit.
+        s.blocks[2].containers[1].racks[5].alarm_bits = 0;
+        s.blocks[3].alarm_bits = 1 << block::PCS_FAULT;
+        assert!(latched(&s, ResetScope::Block(3)));
+        // A scope the site does not have has nothing to reset.
+        assert!(!latched(&s, ResetScope::Block(99)));
     }
 
     #[test]

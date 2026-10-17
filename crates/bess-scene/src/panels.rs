@@ -12,6 +12,7 @@ pub mod controls;
 pub mod detail;
 pub mod site;
 
+use bess_core::alarms::{AlarmNode, ResetScope};
 use bess_core::state::SiteState;
 use egui::Color32;
 
@@ -53,6 +54,18 @@ pub struct PanelInput<'a> {
     pub journal: &'a Journal,
 }
 
+/// What the last operator reset answered: the bits whose cause was still
+/// present, which the next tick raises again.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResetAnswer {
+    /// What was reset.
+    pub scope: ResetScope,
+    /// Simulation time of the reset, unix seconds.
+    pub unix_time_s: i64,
+    /// The bits still present, or why the reset was refused.
+    pub outcome: Result<Vec<(AlarmNode, u8)>, String>,
+}
+
 /// UI scratch state that outlives a frame: slider positions, and where the
 /// date fields are pointing.
 pub struct PanelState {
@@ -75,6 +88,11 @@ pub struct PanelState {
     /// The event count when the alarm section was last open. The viewer
     /// resets it when the plant is replaced.
     pub alarms_seen: SeenMark,
+    /// An object a row asked the scene to select this frame. The viewer
+    /// moves it into the scene's selection and clears it.
+    pub select_request: Option<Selection>,
+    /// The last reset's answer, shown until the next reset or restart.
+    pub reset_answer: Option<ResetAnswer>,
 }
 
 impl Default for PanelState {
@@ -88,6 +106,8 @@ impl Default for PanelState {
             jump_progress: None,
             alarm_filter: Filter::default(),
             alarms_seen: SeenMark::default(),
+            select_request: None,
+            reset_answer: None,
         }
     }
 }
@@ -135,7 +155,7 @@ pub fn side_panel(
                     site::weather_and_thermal(ui, input.state, input.scenery);
 
                     ui.separator();
-                    alarms::section(ui, input.state, input.journal, ui_state);
+                    alarms::section(ui, input.state, input.journal, ui_state, &mut commands);
 
                     ui.separator();
                     controls::dispatch(ui, ui_state, &mut commands);
@@ -148,7 +168,7 @@ pub fn side_panel(
                     match input.selection {
                         None => ui.weak("Click a container, a PCS skid, or the transformer."),
                         Some(sel) => {
-                            detail::selection_detail(ui, input.state, sel);
+                            detail::selection_detail(ui, input.state, sel, &mut commands);
                             ui.label("")
                         }
                     };
