@@ -2,6 +2,9 @@ FROM rust:1.97-slim AS build
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
+# The scenario library is compiled into bess-scenario (include_str!), so
+# the build needs the files, not only the crates.
+COPY scenarios ./scenarios
 RUN cargo build --release -p bess-emulator
 
 FROM debian:bookworm-slim

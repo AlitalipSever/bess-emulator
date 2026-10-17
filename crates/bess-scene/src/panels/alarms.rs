@@ -32,10 +32,14 @@ pub(crate) fn color(tone: Tone) -> Color32 {
 }
 
 /// The collapsible alarm section.
+///
+/// `story_start` is the start of the case being played, if any: times then
+/// read as offsets from it (`T+01:02:03`), with the UTC time on hover.
 pub fn section(
     ui: &mut egui::Ui,
     state: &SiteState,
     journal: &Journal,
+    story_start: Option<i64>,
     ui_state: &mut PanelState,
     commands: &mut Vec<ViewerCommand>,
 ) {
@@ -59,9 +63,9 @@ pub fn section(
             filters(ui, state.blocks.len(), ui_state);
             ui.add_space(4.0);
             reset_site(ui, state, ui_state, commands);
-            summary(ui, &active, journal, ui_state);
+            summary(ui, &active, journal, story_start, ui_state);
             ui.add_space(6.0);
-            journal_table(ui, journal, ui_state);
+            journal_table(ui, journal, story_start, ui_state);
         });
     if header.body_returned.is_some() {
         // Open and drawn: everything up to now has been in front of them.
@@ -131,10 +135,26 @@ fn reset_answer(ui: &mut egui::Ui, answer: &ResetAnswer) {
     ui.label(RichText::new(text).small());
 }
 
+/// A time cell: the UTC row time, or the offset into the story with the
+/// UTC time on hover.
+fn time_cell(ui: &mut egui::Ui, unix_time_s: i64, story_start: Option<i64>) {
+    match story_start {
+        Some(start) if unix_time_s >= start => {
+            let offset = clock::format_offset((unix_time_s - start) as u64);
+            ui.label(offset)
+                .on_hover_text(clock::format_utc(unix_time_s));
+        }
+        _ => {
+            ui.label(clock::format_row(unix_time_s));
+        }
+    }
+}
+
 fn summary(
     ui: &mut egui::Ui,
     active: &[alarms::ActiveAlarm],
     journal: &Journal,
+    story_start: Option<i64>,
     ui_state: &mut PanelState,
 ) {
     let shown: Vec<_> = active
@@ -169,9 +189,11 @@ fn summary(
                         }
                         ui.label(alarm.name());
                         match journal.raised_at(alarm.node, alarm.bit) {
-                            Some(t) => ui.label(clock::format_row(t)),
-                            None => ui.weak("before the journal"),
-                        };
+                            Some(t) => time_cell(ui, t, story_start),
+                            None => {
+                                ui.weak("before the journal");
+                            }
+                        }
                         ui.end_row();
                     }
                 });
@@ -181,7 +203,12 @@ fn summary(
     }
 }
 
-fn journal_table(ui: &mut egui::Ui, journal: &Journal, ui_state: &mut PanelState) {
+fn journal_table(
+    ui: &mut egui::Ui,
+    journal: &Journal,
+    story_start: Option<i64>,
+    ui_state: &mut PanelState,
+) {
     let shown: Vec<&Entry> = journal
         .iter_newest_first()
         .filter(|e| ui_state.alarm_filter.admits_event(&e.event))
@@ -206,7 +233,7 @@ fn journal_table(ui: &mut egui::Ui, journal: &Journal, ui_state: &mut PanelState
                 .start_row(range.start)
                 .show(ui, |ui| {
                     for entry in &shown[range] {
-                        if journal_row(ui, entry) {
+                        if journal_row(ui, entry, story_start) {
                             select = Some(link::object_of_event(&entry.event));
                         }
                         ui.end_row();
@@ -219,10 +246,10 @@ fn journal_table(ui: &mut egui::Ui, journal: &Journal, ui_state: &mut PanelState
 }
 
 /// One journal row; true when its node was clicked.
-fn journal_row(ui: &mut egui::Ui, entry: &Entry) -> bool {
+fn journal_row(ui: &mut egui::Ui, entry: &Entry, story_start: Option<i64>) -> bool {
     let event = &entry.event;
     ui.weak(entry.seq.to_string());
-    ui.label(clock::format_row(entry.unix_time_s));
+    time_cell(ui, entry.unix_time_s, story_start);
     let clicked = ui.link(row::node_path(event)).clicked();
     let kind = row::kind(event);
     let what = row::what(event);

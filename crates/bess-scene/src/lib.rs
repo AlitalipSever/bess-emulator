@@ -62,4 +62,12 @@ pub enum ViewerCommand {
     /// The operator reset, the HMI button: clear the latched bits in the
     /// scope through the kernel's own door, the one REST uses.
     ResetAlarms(ResetScope),
+    /// Throw the plant away and play the library case of this name, as a
+    /// REST load does.
+    StartScenario(&'static str),
+    /// Run forward to the tick of the story's next event; it fires on the
+    /// frame after landing.
+    RunToNextEvent,
+    /// Run forward to the end of the story's stated length.
+    RunToEnd,
 }

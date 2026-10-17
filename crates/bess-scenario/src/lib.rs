@@ -8,11 +8,14 @@
 //! through `Simulation::apply`; data faults are scheduled here and executed
 //! by the shells from phase 5. The crate never steps a simulation and does
 //! no IO beyond the bytes it is handed: the same purity as the kernel.
+//! [`library`] carries the repository's cases, embedded at build time, so a
+//! shell without a file system (the browser) can play them.
 
 use bess_core::digest::fnv1a_64;
 use bess_core::PlantConfig;
 
 mod error;
+pub mod library;
 mod player;
 mod resolve;
 mod scenario;
@@ -20,7 +23,7 @@ pub mod schema;
 mod validate;
 
 pub use error::{LoadError, Position, Reason};
-pub use player::{Player, Progress};
+pub use player::{Fired, Player, Progress, Refused};
 pub use resolve::{ppm_per_day, Due, Resolved, ResumeError, RunParams, Scheduled};
 pub use scenario::{DataFault, DataFaultKind, Fault, PendingAction, Scenario, ScenarioEvent};
 pub use schema::selector::Selector;

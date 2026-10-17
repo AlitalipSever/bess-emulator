@@ -27,8 +27,9 @@ jobs:
       - name: Tests (physics invariants, determinism, calibration gate)
         run: cargo test --workspace
       # The viewer is behind `sim`, which only the wasm32 build turns on, so
-      # the workspace run above never compiles its tests. This one does.
-      - name: Viewer tests
+      # the workspace run above never compiles its tests. This one does,
+      # including the library played through the viewer's own loop.
+      - name: Viewer tests, and the library through the viewer's loop
         run: cargo test -p bess-scene --features sim
       - name: Browser build stays green, and the scenario crate with it
         run: |

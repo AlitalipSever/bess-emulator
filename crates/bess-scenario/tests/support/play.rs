@@ -5,7 +5,7 @@
 use bess_core::kernel::Event;
 use bess_core::Simulation;
 use bess_models::gw01_weather;
-use bess_scenario::{Due, Player};
+use bess_scenario::Player;
 
 /// Play `ticks` ticks; the events each tick emitted, with the tick.
 pub fn play(sim: &mut Simulation, player: &mut Player, ticks: u64) -> Vec<(u64, Event)> {
@@ -13,11 +13,8 @@ pub fn play(sim: &mut Simulation, player: &mut Player, ticks: u64) -> Vec<(u64, 
     let mut log = Vec::new();
     for _ in 0..ticks {
         let tick = sim.state().tick;
-        for scheduled in player.due(tick) {
-            if let Due::Physical(action) = scheduled.due {
-                sim.apply(action).expect("validated against this site");
-            }
-        }
+        let fired = player.fire_due(sim);
+        assert!(fired.refused.is_none(), "validated against this site");
         let events = sim.step(&weather.inputs_at(sim.unix_time_s()));
         log.extend(events.iter().map(|e| (tick, *e)));
     }

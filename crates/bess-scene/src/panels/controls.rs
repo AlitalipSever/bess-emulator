@@ -40,9 +40,14 @@ pub fn dispatch(ui: &mut egui::Ui, ui_state: &mut PanelState, commands: &mut Vec
 }
 
 /// Going somewhere else in the year.
+///
+/// While a case plays, a restart leaves it: a schedule is offsets from a
+/// start, and a plant restarted elsewhere is not the file's run. The button
+/// says so rather than refusing. Running forward keeps the case.
 pub fn time_travel(
     ui: &mut egui::Ui,
     now_unix_s: i64,
+    in_story: bool,
     ui_state: &mut PanelState,
     commands: &mut Vec<ViewerCommand>,
 ) {
@@ -60,7 +65,12 @@ pub fn time_travel(
     });
     let target = unix_from_civil(year, ui_state.month, ui_state.day, ui_state.hour, 0, 0);
     ui.horizontal(|ui| {
-        if ui.button("Restart there").clicked() {
+        let restart = if in_story {
+            "Restart there, leaving the story"
+        } else {
+            "Restart there"
+        };
+        if ui.button(restart).clicked() {
             commands.push(ViewerCommand::RestartAt(target));
         }
         let forwards = target > now_unix_s;
@@ -87,6 +97,7 @@ pub fn stops(
     ui: &mut egui::Ui,
     now_unix_s: i64,
     offered: &[Stop],
+    in_story: bool,
     ui_state: &mut PanelState,
     commands: &mut Vec<ViewerCommand>,
 ) {
@@ -97,7 +108,13 @@ pub fn stops(
     ui.add_space(4.0);
     ui.horizontal_wrapped(|ui| {
         for stop in offered {
-            if ui.button(stop.label).clicked() {
+            let button = ui.button(stop.label);
+            let button = if in_story {
+                button.on_hover_text("Restarts on that day, leaving the story")
+            } else {
+                button
+            };
+            if button.clicked() {
                 ui_state.month = stop.month;
                 ui_state.day = stop.day;
                 ui_state.hour = stop.hour;

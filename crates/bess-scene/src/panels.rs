@@ -4,12 +4,14 @@
 //!
 //! - [`site`]     readouts: what the plant and the weather are doing
 //! - [`alarms`]   what is in alarm, and the journal of what happened
+//! - [`scenario`] the library, and the progress of the case being played
 //! - [`controls`] the parts that issue commands
 //! - [`detail`]   the selected object
 
 pub mod alarms;
 pub mod controls;
 pub mod detail;
+pub mod scenario;
 pub mod site;
 
 use bess_core::alarms::{AlarmNode, ResetScope};
@@ -52,6 +54,10 @@ pub struct PanelInput<'a> {
     pub selection: Option<Selection>,
     /// The events the viewer has seen.
     pub journal: &'a Journal,
+    /// The cases the viewer can play; empty where it cannot.
+    pub library: &'a [scenario::CaseListing],
+    /// The case being played, and where it is.
+    pub story: Option<(&'a scenario::StoryView, scenario::StoryNow)>,
 }
 
 /// What the last operator reset answered: the bits whose cause was still
@@ -93,6 +99,8 @@ pub struct PanelState {
     pub select_request: Option<Selection>,
     /// The last reset's answer, shown until the next reset or restart.
     pub reset_answer: Option<ResetAnswer>,
+    /// Fold the scenario library on the next frame: a case was started.
+    pub fold_library: bool,
 }
 
 impl Default for PanelState {
@@ -108,6 +116,7 @@ impl Default for PanelState {
             alarms_seen: SeenMark::default(),
             select_request: None,
             reset_answer: None,
+            fold_library: false,
         }
     }
 }
@@ -155,14 +164,29 @@ pub fn side_panel(
                     site::weather_and_thermal(ui, input.state, input.scenery);
 
                     ui.separator();
-                    alarms::section(ui, input.state, input.journal, ui_state, &mut commands);
+                    if !input.library.is_empty() || input.story.is_some() {
+                        scenario::section(ui, input.library, input.story, ui_state, &mut commands);
+                        ui.separator();
+                    }
+                    // While a case plays, times also read as offsets from
+                    // its start, the way the library's files speak.
+                    let story_start = input.story.map(|(_, n)| now - n.elapsed_s as i64);
+                    alarms::section(
+                        ui,
+                        input.state,
+                        input.journal,
+                        story_start,
+                        ui_state,
+                        &mut commands,
+                    );
 
                     ui.separator();
                     controls::dispatch(ui, ui_state, &mut commands);
 
                     ui.separator();
-                    controls::time_travel(ui, now, ui_state, &mut commands);
-                    controls::stops(ui, now, input.stops, ui_state, &mut commands);
+                    let in_story = input.story.is_some();
+                    controls::time_travel(ui, now, in_story, ui_state, &mut commands);
+                    controls::stops(ui, now, input.stops, in_story, ui_state, &mut commands);
 
                     ui.separator();
                     match input.selection {

@@ -44,28 +44,30 @@ impl Active {
         Arc::clone(&self.taps)
     }
 
-    /// Hand the kernel what is due before it steps the next tick; whether
-    /// anything fired.
+    /// Hand the kernel what is due before it steps the next tick, through
+    /// the player's one door for it, and open the data faults' windows on
+    /// the tap; whether anything fired.
     pub fn fire_due(&mut self, sim: &mut Simulation) -> bool {
         let tick = sim.state().tick;
-        let due = self.player.due(tick);
-        for scheduled in due {
+        let fired = self.player.fire_due(sim);
+        for scheduled in fired.due {
             let event = scheduled.index;
             match &scheduled.due {
-                Due::Physical(action) => match sim.apply(*action) {
-                    Ok(changed) => info!(
-                        event,
-                        tick,
-                        target = %Target::of(action),
-                        fault = action.name(),
-                        changed,
-                        "scenario: fault applied"
-                    ),
-                    // The file was validated against this site at load, so
-                    // a refusal here is a bug, not an operator mistake; the
-                    // run goes on without the action.
-                    Err(err) => warn!(event, tick, "scenario: fault refused: {err}"),
-                },
+                // The file was validated against this site at load, so a
+                // refusal here is a bug, not an operator mistake; the run
+                // goes on without the action.
+                Due::Physical(_) if fired.refused.is_some_and(|r| r.index == event) => {
+                    if let Some(refused) = fired.refused {
+                        warn!(event, tick, "scenario: fault refused: {}", refused.error);
+                    }
+                }
+                Due::Physical(action) => info!(
+                    event,
+                    tick,
+                    target = %Target::of(action),
+                    fault = action.name(),
+                    "scenario: fault applied"
+                ),
                 Due::Data(fault) => {
                     // A freeze holds what the points read now; the other
                     // windows are a function of the tick alone.
@@ -84,7 +86,7 @@ impl Active {
                 }
             }
         }
-        !due.is_empty()
+        !fired.due.is_empty()
     }
 
     /// The status: identity, parameters, progress, and the whole schedule in

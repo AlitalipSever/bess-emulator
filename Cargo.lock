@@ -581,10 +581,12 @@ dependencies = [
  "bess-core",
  "bess-data",
  "bess-models",
+ "bess-scenario",
  "bytemuck",
  "eframe",
  "egui",
  "log",
+ "serde_json",
 ]
 
 [[package]]
