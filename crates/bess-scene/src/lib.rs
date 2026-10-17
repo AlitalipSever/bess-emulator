@@ -42,6 +42,8 @@ pub mod sun;
 #[cfg(feature = "sim")]
 pub mod viewer;
 
+use bess_core::alarms::ResetScope;
+
 /// Commands the view emits toward whoever owns the simulation (the viewer
 /// app natively, the wasm shell in the browser).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -57,4 +59,7 @@ pub enum ViewerCommand {
     /// tick in between. Refused if it does not go forwards: the kernel has
     /// no inverse, so going back means restarting there.
     FastForwardTo(i64),
+    /// The operator reset, the HMI button: clear the latched bits in the
+    /// scope through the kernel's own door, the one REST uses.
+    ResetAlarms(ResetScope),
 }

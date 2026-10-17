@@ -2,31 +2,43 @@
 //! happened, in the shape the alarm-management standards give the two
 //! displays (ISA-18.2 and IEC 62682 name them summary and journal).
 //!
+//! A node in either table is a link that selects the object holding it in
+//! the scene; the site reset sits in the section header, the block and rack
+//! resets on the selected object ([`super::detail`]).
+//!
 //! The summary is derived from the words this frame
 //! ([`crate::alarms::active`]); the journal is the viewer's ring of the
 //! events it saw. Everything this file claims is computed in
 //! [`crate::alarms`] and tested there; this file only draws it.
 
-use bess_core::kernel::Event;
+use bess_core::alarms::ResetScope;
+use bess_core::kernel::{Event, FaultAction};
 use bess_core::state::SiteState;
 use egui::{Color32, RichText};
 
-use crate::alarms::{self, row, Entry, Journal, Tone};
+use crate::alarms::{self, link, row, Entry, Journal, Tone};
 use crate::clock;
 use crate::style::Palette;
+use crate::ViewerCommand;
 
-use super::PanelState;
+use super::{PanelState, ResetAnswer};
 
 /// Rows shown before a table scrolls.
 const VISIBLE_ROWS: f32 = 8.0;
 
-fn color(tone: Tone) -> Color32 {
+pub(crate) fn color(tone: Tone) -> Color32 {
     let [r, g, b] = tone.color(&Palette::default());
     Color32::from_rgb((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8)
 }
 
 /// The collapsible alarm section.
-pub fn section(ui: &mut egui::Ui, state: &SiteState, journal: &Journal, ui_state: &mut PanelState) {
+pub fn section(
+    ui: &mut egui::Ui,
+    state: &SiteState,
+    journal: &Journal,
+    ui_state: &mut PanelState,
+    commands: &mut Vec<ViewerCommand>,
+) {
     let active = alarms::active(state);
     let count = state.event_log.count;
     let unseen = ui_state.alarms_seen.unseen(count);
@@ -46,6 +58,7 @@ pub fn section(ui: &mut egui::Ui, state: &SiteState, journal: &Journal, ui_state
         .show(ui, |ui| {
             filters(ui, state.blocks.len(), ui_state);
             ui.add_space(4.0);
+            reset_site(ui, state, ui_state, commands);
             summary(ui, &active, journal, ui_state);
             ui.add_space(6.0);
             journal_table(ui, journal, ui_state);
@@ -78,17 +91,58 @@ fn filters(ui: &mut egui::Ui, blocks: usize, ui_state: &mut PanelState) {
     });
 }
 
+/// The site reset, and what the last reset answered.
+fn reset_site(
+    ui: &mut egui::Ui,
+    state: &SiteState,
+    ui_state: &PanelState,
+    commands: &mut Vec<ViewerCommand>,
+) {
+    ui.horizontal(|ui| {
+        let latched = alarms::latched(state, ResetScope::Site);
+        if ui
+            .add_enabled(latched, egui::Button::new("Reset site"))
+            .on_hover_text("Clear every latched bit on site and take every PCS out of fault")
+            .on_disabled_hover_text("Nothing is latched")
+            .clicked()
+        {
+            commands.push(ViewerCommand::ResetAlarms(ResetScope::Site));
+        }
+        if let Some(answer) = &ui_state.reset_answer {
+            reset_answer(ui, answer);
+        }
+    });
+}
+
+fn reset_answer(ui: &mut egui::Ui, answer: &ResetAnswer) {
+    let scope = FaultAction::AlarmReset(answer.scope).node_path();
+    let at = clock::format_row(answer.unix_time_s);
+    let text = match &answer.outcome {
+        Ok(still) if still.is_empty() => format!("{scope} reset at {at}, nothing still present"),
+        Ok(still) => {
+            let names: Vec<String> = still.iter().map(|(n, b)| n.alarm_name(*b)).collect();
+            format!(
+                "{scope} reset at {at}; still present, raising again: {}",
+                names.join(", ")
+            )
+        }
+        Err(why) => format!("{scope} reset refused: {why}"),
+    };
+    ui.label(RichText::new(text).small());
+}
+
 fn summary(
     ui: &mut egui::Ui,
     active: &[alarms::ActiveAlarm],
     journal: &Journal,
-    ui_state: &PanelState,
+    ui_state: &mut PanelState,
 ) {
     let shown: Vec<_> = active
         .iter()
         .copied()
         .filter(|a| ui_state.alarm_filter.admits_alarm(*a))
         .collect();
+    let mut select = None;
     ui.label(if shown.len() == active.len() {
         "Active now".to_owned()
     } else {
@@ -110,7 +164,9 @@ fn summary(
                 .show(ui, |ui| {
                     for alarm in &shown[range] {
                         ui.colored_label(color(alarm.tone()), alarm.severity().name());
-                        ui.label(alarm.node.path());
+                        if ui.link(alarm.node.path()).clicked() {
+                            select = Some(link::object_of(alarm.node));
+                        }
                         ui.label(alarm.name());
                         match journal.raised_at(alarm.node, alarm.bit) {
                             Some(t) => ui.label(clock::format_row(t)),
@@ -120,9 +176,12 @@ fn summary(
                     }
                 });
         });
+    if select.is_some() {
+        ui_state.select_request = select;
+    }
 }
 
-fn journal_table(ui: &mut egui::Ui, journal: &Journal, ui_state: &PanelState) {
+fn journal_table(ui: &mut egui::Ui, journal: &Journal, ui_state: &mut PanelState) {
     let shown: Vec<&Entry> = journal
         .iter_newest_first()
         .filter(|e| ui_state.alarm_filter.admits_event(&e.event))
@@ -135,6 +194,7 @@ fn journal_table(ui: &mut egui::Ui, journal: &Journal, ui_state: &PanelState) {
         ui.weak("No events yet.");
         return;
     }
+    let mut select = None;
     let row_h = ui.spacing().interact_size.y;
     egui::ScrollArea::vertical()
         .id_salt("alarm_journal")
@@ -146,18 +206,24 @@ fn journal_table(ui: &mut egui::Ui, journal: &Journal, ui_state: &PanelState) {
                 .start_row(range.start)
                 .show(ui, |ui| {
                     for entry in &shown[range] {
-                        journal_row(ui, entry);
+                        if journal_row(ui, entry) {
+                            select = Some(link::object_of_event(&entry.event));
+                        }
                         ui.end_row();
                     }
                 });
         });
+    if select.is_some() {
+        ui_state.select_request = select;
+    }
 }
 
-fn journal_row(ui: &mut egui::Ui, entry: &Entry) {
+/// One journal row; true when its node was clicked.
+fn journal_row(ui: &mut egui::Ui, entry: &Entry) -> bool {
     let event = &entry.event;
     ui.weak(entry.seq.to_string());
     ui.label(clock::format_row(entry.unix_time_s));
-    ui.label(row::node_path(event));
+    let clicked = ui.link(row::node_path(event)).clicked();
     let kind = row::kind(event);
     let what = row::what(event);
     match *event {
@@ -174,4 +240,5 @@ fn journal_row(ui: &mut egui::Ui, entry: &Entry) {
             ui.label(what);
         }
     }
+    clicked
 }

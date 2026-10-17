@@ -1,6 +1,6 @@
-//! What the plant is doing right now: state-of-charge gauges, status
-//! indicators, running fans, energy moving along the electrical path, night
-//! lighting, and the selection frame.
+//! What the plant is doing right now: state-of-charge gauges, running fans,
+//! energy moving along the electrical path, night lighting, and the
+//! selection frame. The alarm indications are in [`super::status`].
 //!
 //! Everything here is a function of the state tree and the frame clock. The
 //! geometry it decorates is built once in [`super::site`].
@@ -10,7 +10,7 @@ use bess_core::state::{HvacMode, PcsOpState, SiteState};
 use crate::layout::{Selection, SiteLayout, CONTAINER_SIZE, GANTRY_H, GANTRY_X, TRANSFORMER_X};
 use crate::style::{Palette, Style};
 
-use super::push;
+use super::{push, status};
 
 /// Point on a polyline at normalized position `t` (0..1), by arc length.
 fn lerp_poly(points: &[[f32; 3]], t: f32) -> [f32; 3] {
@@ -107,11 +107,6 @@ pub fn build_dynamic(out: &mut Vec<f32>, inp: &DynamicInput) {
     } = inp;
     let anim = *anim_s;
     let pulse = (anim * 2.4).sin() * 0.5 + 0.5;
-    let blink = if (anim * 2.2).fract() < 0.5 {
-        1.0f32
-    } else {
-        0.25
-    };
 
     for (b, block_l) in layout.blocks.iter().enumerate() {
         let Some(block_s) = state.blocks.get(b) else {
@@ -132,7 +127,6 @@ pub fn build_dynamic(out: &mut Vec<f32>, inp: &DynamicInput) {
             };
             let n = cont_s.racks.len().max(1) as f32;
             let soc = cont_s.racks.iter().map(|r| r.soc as f32).sum::<f32>() / n;
-            let alarmed = cont_s.racks.iter().any(|r| r.alarm_bits != 0);
             let (x, z) = (cc[0], cc[2]);
             let gauge_z = z + d * (CONTAINER_SIZE[2] / 2.0 + 0.05);
 
@@ -148,9 +142,10 @@ pub fn build_dynamic(out: &mut Vec<f32>, inp: &DynamicInput) {
                 fill_em,
             );
 
-            // status LED above the gauge
-            let led_color = if alarmed { palette.alarm } else { fill_color };
-            let led_em = if alarmed || active { blink } else { 0.35 };
+            // status diode above the gauge: the worst of the racks' words,
+            // steady; with nothing to report it echoes the gauge
+            let (led_color, led_em) =
+                status::lamp(status::container_tone(b, c, cont_s), fill_color, palette);
             push(
                 out,
                 [x + 2.6, 2.62, gauge_z],
@@ -182,6 +177,8 @@ pub fn build_dynamic(out: &mut Vec<f32>, inp: &DynamicInput) {
                 }
             }
         }
+
+        status::push_block(out, b, block_l, block_s, s, palette);
 
         // PCS fan on the grille face while converting
         if block_s.pcs.op_state == PcsOpState::Run {
@@ -243,6 +240,8 @@ pub fn build_dynamic(out: &mut Vec<f32>, inp: &DynamicInput) {
             push(out, p, [0.16, 0.16, 0.16], color, 0.5 + 0.5 * strength);
         }
     }
+
+    status::push_site(out, state, s, palette);
 
     // light mast heads glow after sundown
     for m in &layout.masts {
