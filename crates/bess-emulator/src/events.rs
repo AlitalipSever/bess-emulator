@@ -5,99 +5,31 @@
 //! names nodes the same way, so a consumer reading one surface can match
 //! what another said.
 
-use bess_core::alarms::{layout, AlarmNode, ResetScope, Severity};
+use bess_core::alarms::{AlarmNode, Severity};
 use bess_core::kernel::{Event, FaultAction};
-use bess_core::state::PcsOpState;
 use serde_json::{json, Value};
 
 /// Path of an alarm node as topics and payloads spell it: `site`, `block02`,
-/// `block02/container1/rack05`.
+/// `block02/container1/rack05`. The spelling lives in `bess-core`, so the
+/// browser viewer holds the same strings.
 pub fn node_path(node: AlarmNode) -> String {
-    match node {
-        AlarmNode::Site => "site".to_owned(),
-        AlarmNode::Block { block } => format!("block{block:02}"),
-        AlarmNode::Rack {
-            block,
-            container,
-            rack,
-        } => format!("block{block:02}/container{container}/rack{rack:02}"),
-    }
+    node.path()
 }
 
-/// Published name of a bit, `rack.derate_active`. A position the layout
-/// leaves free reads `rack.bit11`; the kernel never raises one, but a name
-/// that fails loudly is better than an event that cannot be published.
+/// Published name of a bit, `rack.derate_active`, or `rack.bit11` for a
+/// position the layout leaves free.
 pub fn alarm_name(node: AlarmNode, bit: u8) -> String {
-    layout::name(node, bit).unwrap_or_else(|| {
-        let word = match node {
-            AlarmNode::Site => "site",
-            AlarmNode::Block { .. } => "block",
-            AlarmNode::Rack { .. } => "rack",
-        };
-        format!("{word}.bit{bit}")
-    })
+    node.alarm_name(bit)
 }
 
 /// Published name of a severity.
 pub fn severity_name(severity: Severity) -> &'static str {
-    match severity {
-        Severity::Warning => "warning",
-        Severity::Trip => "trip",
-    }
+    severity.name()
 }
 
-/// Path of the node a fault action acted on, in `node_path`'s spelling. An
-/// HVAC unit has no alarm word of its own, so it is spelled as the tree
-/// addresses it, `block02/container0/hvac`, beside the rack paths.
+/// Path of the node a fault action acted on, in `node_path`'s spelling.
 pub fn fault_path(action: &FaultAction) -> String {
-    match *action {
-        FaultAction::HvacFailure { block, container }
-        | FaultAction::HvacRepair { block, container } => {
-            format!("block{block:02}/container{container}/hvac")
-        }
-        FaultAction::PcsTrip { block }
-        | FaultAction::BlockMaintenanceEnter { block }
-        | FaultAction::BlockMaintenanceExit { block }
-        | FaultAction::AlarmReset(ResetScope::Block(block)) => {
-            node_path(AlarmNode::Block { block })
-        }
-        FaultAction::ProtectionTrip | FaultAction::AlarmReset(ResetScope::Site) => {
-            node_path(AlarmNode::Site)
-        }
-        FaultAction::RackSelfDischarge {
-            block,
-            container,
-            rack,
-            ..
-        }
-        | FaultAction::RackIsolate {
-            block,
-            container,
-            rack,
-        }
-        | FaultAction::RackRestore {
-            block,
-            container,
-            rack,
-        }
-        | FaultAction::AlarmReset(ResetScope::Rack {
-            block,
-            container,
-            rack,
-        }) => node_path(AlarmNode::Rack {
-            block,
-            container,
-            rack,
-        }),
-    }
-}
-
-fn pcs_state_name(state: PcsOpState) -> &'static str {
-    match state {
-        PcsOpState::Standby => "standby",
-        PcsOpState::Run => "run",
-        PcsOpState::Fault => "fault",
-    }
+    action.node_path()
 }
 
 /// MQTT topic of an event under `prefix` (which ends in `/`): the events
@@ -147,8 +79,8 @@ pub fn payload(event: &Event, seq: u64, ts: i64) -> Value {
             "ts": ts,
             "node": node_path(AlarmNode::Block { block }),
             "event": "pcs_state",
-            "from": pcs_state_name(from),
-            "to": pcs_state_name(to),
+            "from": from.name(),
+            "to": to.name(),
         }),
         Event::FaultApplied(action) => {
             let mut v = json!({

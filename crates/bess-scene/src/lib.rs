@@ -9,6 +9,7 @@
 //! `Simulation` and mediates between it and the view.
 //!
 //! Module map:
+//! - `alarms`    what is active, the journal of what happened (pure)
 //! - `math`      camera matrices and rays (pure)
 //! - `clock`     civil date arithmetic for the simulated clock (pure)
 //! - `sun`       solar position and the lighting derived from it (pure);
@@ -22,8 +23,9 @@
 //! - `renderer`  the only module with GL calls (and the only unsafe one)
 //! - `camera`    orbit / pan / fly control
 //! - `scene`     egui widget tying camera, picking and renderer together
-//! - `panels`    site and selection panels
+//! - `panels`    site, alarm and selection panels
 
+pub mod alarms;
 pub mod camera;
 pub mod clock;
 pub mod instances;

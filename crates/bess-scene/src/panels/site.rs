@@ -80,9 +80,11 @@ pub fn electrical(ui: &mut egui::Ui, state: &SiteState) {
         ui.label("Frequency");
         ui.label(format!("{:.3} Hz", sub.frequency_hz));
         ui.end_row();
+        // Words, not arrows: egui's bundled fonts have no arrow glyphs and
+        // drew two empty boxes here.
         ui.label("Meters");
         ui.label(format!(
-            "\u{2191} {:.1} / \u{2193} {:.1} MWh",
+            "export {:.1} / import {:.1} MWh",
             sub.export_wh / 1.0e6,
             sub.import_wh / 1.0e6
         ));

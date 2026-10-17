@@ -38,6 +38,12 @@ pub fn format_utc(unix_time_s: i64) -> String {
     format!("{y:04}-{mo:02}-{d:02} {h:02}:{mi:02}:{s:02} UTC")
 }
 
+/// `MM-DD HH:MM:SS` for table rows, where the year is in the header.
+pub fn format_row(unix_time_s: i64) -> String {
+    let (_, mo, d, h, mi, s) = civil_from_unix(unix_time_s);
+    format!("{mo:02}-{d:02} {h:02}:{mi:02}:{s:02}")
+}
+
 /// Unix timestamp of a civil UTC date and time. The inverse of
 /// [`civil_from_unix`], after the same algorithm.
 ///
@@ -65,7 +71,7 @@ pub fn unix_from_civil(
 
 #[cfg(test)]
 mod tests {
-    use super::{civil_from_unix, format_utc, unix_from_civil};
+    use super::{civil_from_unix, format_row, format_utc, unix_from_civil};
 
     /// 2026-01-01 00:00:00 UTC.
     const NEW_YEAR: i64 = 1_767_225_600;
@@ -77,6 +83,7 @@ mod tests {
         assert_eq!(format_utc(NEW_YEAR), "2026-01-01 00:00:00 UTC");
         let t = NEW_YEAR + 194 * 86_400 + 10 * 3600 + 30 * 60;
         assert_eq!(format_utc(t), "2026-07-14 10:30:00 UTC");
+        assert_eq!(format_row(t + 7), "07-14 10:30:07");
     }
 
     #[test]

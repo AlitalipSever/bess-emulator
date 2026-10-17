@@ -14,6 +14,7 @@
 
 pub mod layout;
 pub mod log;
+mod names;
 pub mod thresholds;
 
 use serde::{Deserialize, Serialize};
