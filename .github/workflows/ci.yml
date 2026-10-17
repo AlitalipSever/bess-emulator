@@ -21,9 +21,15 @@ jobs:
       - name: Format
         run: cargo fmt --all --check
       - name: Lint (warnings are errors in CI)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: |
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo clippy -p bess-scene --features sim --all-targets -- -D warnings
       - name: Tests (physics invariants, determinism, calibration gate)
         run: cargo test --workspace
+      # The viewer is behind `sim`, which only the wasm32 build turns on, so
+      # the workspace run above never compiles its tests. This one does.
+      - name: Viewer tests
+        run: cargo test -p bess-scene --features sim
       - name: Browser build stays green, and the scenario crate with it
         run: |
           cargo check -p bess-wasm --target wasm32-unknown-unknown
