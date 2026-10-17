@@ -11,11 +11,12 @@ bess-core = { workspace = true }
 bess-data = { workspace = true }
 serde = { workspace = true }
 serde-saphyr = { version = "2", default-features = false, features = ["deserialize"] }
+# The status JSON, one builder for REST and the browser module's door.
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 bess-models = { workspace = true }
-serde_json = { workspace = true }
 
 [lints]
 workspace = true

@@ -8,10 +8,9 @@
 
 use std::sync::Arc;
 
-use bess_core::kernel::FaultAction;
-use bess_core::{Simulation, TICK_SECONDS};
-use bess_scenario::{DataFaultKind, Due, Player, Resolved, Scheduled, Target};
-use serde_json::{json, Value};
+use bess_core::Simulation;
+use bess_scenario::{status, DataFaultKind, Due, Player, Resolved, Target};
+use serde_json::Value;
 use tracing::{info, warn};
 
 use crate::map::Point;
@@ -91,63 +90,12 @@ impl Active {
 
     /// The status: identity, parameters, progress, and the whole schedule in
     /// firing order with every drawn value visible (D7), each event marked
-    /// fired or not. The tick is the snapshot's.
+    /// fired or not. Built by `bess_scenario::status`, which the browser
+    /// module's door uses too, so the two cannot drift. The tick is the
+    /// snapshot's.
     pub fn status(&self) -> Value {
-        let progress = self.player.progress();
-        let schedule = self.player.schedule();
-        let id = &self.resolved.id;
-        let params = self.resolved.params;
-        json!({
-            "loaded": true,
-            "name": id.name,
-            "content_hash": format!("{:#018x}", id.content_hash),
-            "seed": params.seed,
-            "start_unix_s": params.start_unix_s,
-            "speed": params.speed,
-            "length_s": self.resolved.ticks.map(|t| t * TICK_SECONDS),
-            "fired": progress.fired,
-            "pending": progress.pending,
-            "next": schedule.get(progress.fired).map(|s| event_value(s, false)),
-            "events": schedule
-                .iter()
-                .enumerate()
-                .map(|(i, s)| event_value(s, i < progress.fired))
-                .collect::<Vec<_>>(),
-        })
+        status::of(&self.resolved, &self.player)
     }
-}
-
-/// One scheduled event: its place in the file and in time, what it does,
-/// and whether it has fired. A physical event names its target as the file
-/// spells it and carries its drawn rate; a data event carries its
-/// parameters as validated, defaults applied.
-fn event_value(scheduled: &Scheduled, fired: bool) -> Value {
-    let mut value = match &scheduled.due {
-        Due::Physical(action) => {
-            let mut v = json!({
-                "kind": "physical",
-                "target": Target::of(action).to_string(),
-                "fault": action.name(),
-            });
-            if let FaultAction::RackSelfDischarge {
-                excess_ppm_per_day, ..
-            } = action
-            {
-                v["rate_ppm_per_day"] = json!(excess_ppm_per_day);
-            }
-            v
-        }
-        Due::Data(fault) => {
-            let mut v = serde_json::to_value(fault).expect("a data fault is plain data");
-            v["kind"] = json!("data");
-            v
-        }
-    };
-    value["index"] = json!(scheduled.index);
-    value["at_s"] = json!(scheduled.at_s);
-    value["tick"] = json!(scheduled.tick);
-    value["fired"] = json!(fired);
-    value
 }
 
 #[cfg(test)]

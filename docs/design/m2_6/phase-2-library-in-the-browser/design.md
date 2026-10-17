@@ -33,7 +33,8 @@ Each decision is proposed here and confirmed or revised in its PR.
   the parser (`granit-parser`), its error rendering
   (`annotate-snippets`, `unicode-width`), the derived deserializers
   and the panel code. The table option would remove the parser and
-  with it `load_scenario_yaml`.
+  with it `load_scenario_yaml`. **Decided by the maintainer on
+  2026-10-17:** the size is not a concern; the parser stays.
 
 - **D2, one run loop, one helper.** `viewer/run.rs` (architecture.md)
   and `Player::fire_due` in `bess-scenario`, adopted by the three native
@@ -121,6 +122,16 @@ Each decision is proposed here and confirmed or revised in its PR.
   exists to prevent); a callback or event stream into JS (a data bridge,
   refused since M0).
 
+  **Confirmed in PR2, one addition.** `scenarios()` does not need a
+  running viewer: it builds the catalogue from the embedded files for
+  GW-01, so a host page that starts the canvas lazily (the study page
+  does) can list the cases first. The other three reach the session
+  through `WebRunner::app_mut`, which needs `App::as_any_mut`; before
+  `start` they throw "the viewer is not running". Seen in a plain page
+  over the browser build: `fired` read 0 at tick 0, 1 at tick 2162 and
+  2 by tick 5258, `start_scenario("no-such")` threw with the library's
+  names, and an off-site file threw with its position.
+
 - **D7, a case's headline is its header comment.** The library contract
   requires every case to "state what it demonstrates in its header
   comment"; `library` reads the leading comment block, joins its lines,
@@ -154,6 +165,10 @@ Each decision is proposed here and confirmed or revised in its PR.
   physics-free as it claimed. The npm package follows the crate version
   through `scripts/publish-npm.sh`, which the maintainer runs.
 
+  **Confirmed in PR2.** 0.6.0; the fifteen records and
+  `calibration/m1-annual.json` regenerated, and the diff is
+  `engine_version` alone. M2.5's README moves to v0.7.0.
+
 - **D10, no new dependency (needs the maintainer's confirmation).** One
   candidate considered and declined:
 
@@ -166,6 +181,9 @@ Each decision is proposed here and confirmed or revised in its PR.
   dev-dependency of the crate, so no new crate enters the workspace or
   the browser build (`bess-core` already links it for the checkpoint).
 
+  **Confirmed in PR2.** No crate added; `serde_json` moved from a dev to
+  a normal dependency of `bess-scenario`.
+
 - **D11, COMPATIBILITY.md names the browser module.** A short section
   under "Other surfaces": the npm package `bess-emulator` exposes
   `WebHandle`; its methods and their JSON shapes are the contract;
@@ -174,6 +192,8 @@ Each decision is proposed here and confirmed or revised in its PR.
   are not a contract and change without notice. The section exists
   because a host page is about to wire itself to the door, and a
   surface someone wires to is an API.
+
+  **Confirmed in PR2.** A bullet under "Other surfaces", from v0.6.0.
 
 - **D12, `ViewerCommand` grows by four variants** (`StartScenario`,
   `LoadScenarioYaml`, `RunToNextEvent`, `RunToEnd`), a source-level break

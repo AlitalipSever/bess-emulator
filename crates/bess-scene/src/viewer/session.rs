@@ -7,7 +7,7 @@
 
 use bess_core::{PlantConfig, Simulation};
 use bess_models::{gw01_models, gw01_weather, HistoricalWeather};
-use bess_scenario::{library, RunParams, Scenario};
+use bess_scenario::{library, status, RunParams, Scenario};
 
 use crate::alarms::{Journal, SeenMark};
 use crate::panels::scenario::{CaseListing, StoryNow, StoryView};
@@ -232,6 +232,26 @@ impl Session {
         self.journal.clear();
         self.panel.alarms_seen = SeenMark::default();
         self.panel.reset_answer = None;
+    }
+
+    /// The embedded library as JSON: an array of `{name, taxonomy,
+    /// length_s, headline}`, the browser door's `scenarios()`.
+    pub fn scenarios_json(&self) -> String {
+        library::catalogue(self.run.sim.config()).to_string()
+    }
+
+    /// The story's status as JSON, in the shape `GET /api/v1/scenario`
+    /// publishes, built by the same function; `{"loaded":false}` when no
+    /// case plays. The browser door's `scenario_status()`.
+    pub fn scenario_status_json(&self) -> String {
+        match &self.run.story {
+            Some(story) => status::with_tick(
+                &status::of(&story.resolved, &story.player),
+                self.run.sim.state().tick,
+            ),
+            None => status::not_loaded(),
+        }
+        .to_string()
     }
 
     /// The case being played and where it is, for the strip.

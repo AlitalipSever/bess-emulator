@@ -35,6 +35,13 @@ pub fn listing(cfg: &PlantConfig) -> Vec<CaseListing> {
         .collect()
 }
 
+/// The library as the browser door's `scenarios()` publishes it, for GW-01.
+/// Needs no running viewer, so a host page can list the cases before the
+/// canvas starts.
+pub fn catalogue_json() -> String {
+    bess_scenario::library::catalogue(&PlantConfig::gw01()).to_string()
+}
+
 /// A resolved case as the strip shows it.
 pub fn story_view(
     resolved: &Resolved,

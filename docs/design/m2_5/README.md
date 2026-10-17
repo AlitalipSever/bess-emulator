@@ -45,7 +45,8 @@ Per phase, each against public data, recorded in CALIBRATION.md:
 
 ## Versioning
 
-- **Crate:** v0.6.0 at iteration end.
+- **Crate:** v0.7.0 at iteration end. (v0.6.0 went to M2.6, the alarm
+  view mini-iteration, which shipped first.)
 - **Signal map:** the headline change is a meaning change: the published
   SoC becomes the BMS's reported estimate, the internal truth leaves the
   SCADA surfaces (research profile and bench keep it). That is the
@@ -56,7 +57,7 @@ Per phase, each against public data, recorded in CALIBRATION.md:
   estimator state (phase 2). Phase 3 targets no bump: its offset walks
   are derived, not stored (its design D5).
 
-## Release-note inventory for v0.6.0
+## Release-note inventory for v0.7.0
 
 Filled as PRs land.
 
