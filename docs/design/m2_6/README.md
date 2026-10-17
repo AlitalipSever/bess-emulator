@@ -1,6 +1,6 @@
 # M2.6: alarm view mini-iteration
 
-Status: approved on 2026-10-17, in progress (phase 1 PR2). A mini-iteration in
+Status: approved on 2026-10-17, in progress (phase 2 PR1). A mini-iteration in
 the M0.5/M1.5/M2.5 tradition: it deepens the view layer and nothing else,
 so M2.5's one-module discipline and M3's scope are untouched. The
 decisions it needs before implementation starts are listed at the end.
@@ -154,6 +154,31 @@ Filled as PRs land.
 - **Phase 1 PR2, source-level breaks in `bess-scene`:** `ViewerCommand`
   gains `ResetAlarms(ResetScope)`; `PanelState` gains `select_request`
   and `reset_answer`; `selection_detail` takes the command list.
+- **Phase 2 PR1, the library in the viewer.** All fifteen cases are
+  compiled into the module. The side panel lists them by taxonomy and
+  starts one with a click. While a case plays, a strip shows its
+  headline, the elapsed offset against its length, what has fired and
+  what is next, on a painted timeline, with run-to-next-event and
+  run-to-end. Data faults are listed as acting on MQTT and Modbus only.
+  Alarm times read as offsets from the case's start. Every case up to
+  two days, played through the viewer's loop, lands on its committed
+  digest.
+- **Phase 2 PR1, one firing helper.** `Player::fire_due` in
+  `bess-scenario` replaces the three hand-written fire-then-step loops
+  (shell, headless run, test helper). Nothing on the wire changes.
+- **Phase 2 PR1, module size:** `bess_wasm_bg.wasm` 4.54 MB to 5.47 MB
+  raw, 1.59 MB to 1.82 MB brotli. Above the half-megabyte threshold of
+  phase 2 D1, so the maintainer decides.
+- **Phase 2 PR1, source-level breaks in `bess-scene`:**
+  - `ViewerCommand` gains `StartScenario`, `RunToNextEvent` and `RunToEnd`.
+  - `FastForward::advance` takes a `Run`.
+  - `PanelInput` gains `library` and `story`.
+  - `alarms::section`, `controls::time_travel` and `controls::stops` take
+    the story state.
+  - `ViewerApp`'s internals moved into `Session`.
+  - `bess-scenario` becomes a dependency behind `sim`.
+- **Phase 2 PR1, build:** the Dockerfile copies `scenarios/`. CI runs the
+  viewer's tests, which it never did.
 
 ## Open questions, and the decisions needed before implementation
 

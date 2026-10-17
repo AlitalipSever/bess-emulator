@@ -175,3 +175,33 @@ data, which is the M0 rule and stays one.
   produced: the library's records are the proof, on every pull request.
 - The status a host page reads is the status REST publishes, built by
   one function.
+
+## As built (PR1)
+
+- **`Session`.** `ViewerApp` was a `Simulation` and a `SceneView` in one
+  struct, and the scene needs a GL context, so nothing the viewer did
+  could be tested without one. Everything except drawing moved into
+  `viewer/session.rs`: the run, the journal, the clock, the jump, the
+  library listing and the commands. `ViewerApp` is a `Session` and a
+  `SceneView`, and the door's methods are `Session` methods.
+- **`viewer/library.rs`** turns the engine's types into the panel's
+  plain rows (`CaseListing`, `StoryView`), so `panels/scenario.rs`
+  builds without `sim` and names no `bess-scenario` type.
+- **The Docker build** copies `scenarios/`, because `bess-scenario` now
+  compiles the files in.
+- **CI never ran the viewer's tests.** `sim` is turned on only by
+  `bess-wasm`, and only for wasm32, so `cargo test --workspace` built
+  `bess-scene` without the viewer module: the fast-forward tests from
+  M1.5 had not run in CI since they landed. A lint step and a test step
+  with `--features sim` were added (phase 1 PR1, merged forward), and
+  the library-through-`Run` gate runs there.
+- **A finding about the library, not fixed here.** Played in the
+  viewer, `hvac-failure-both-units` does not show the chain its header
+  promises. The plan does not discharge between 13:00 and 16:00 UTC on
+  the replayed day, the units are repaired at 16:00, and discharge
+  starts at 18:00, so `power_limited` and `setpoint_not_met` rise from
+  an emptying plant rather than from heat. `pcs-trip-and-reset` trips a
+  converter in standby rather than mid-discharge for the same reason.
+  The records are faithful to the files; the files' timing predates
+  the SMARD plan of M2 phase 3. Re-timing them changes their digests
+  and is a library change of its own.

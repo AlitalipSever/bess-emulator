@@ -99,6 +99,8 @@ pub struct PanelState {
     pub select_request: Option<Selection>,
     /// The last reset's answer, shown until the next reset or restart.
     pub reset_answer: Option<ResetAnswer>,
+    /// Fold the scenario library on the next frame: a case was started.
+    pub fold_library: bool,
 }
 
 impl Default for PanelState {
@@ -114,6 +116,7 @@ impl Default for PanelState {
             alarms_seen: SeenMark::default(),
             select_request: None,
             reset_answer: None,
+            fold_library: false,
         }
     }
 }

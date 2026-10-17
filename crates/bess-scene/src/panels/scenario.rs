@@ -73,7 +73,7 @@ pub fn section(
     ui: &mut egui::Ui,
     library: &[CaseListing],
     story: Option<(&StoryView, StoryNow)>,
-    ui_state: &PanelState,
+    ui_state: &mut PanelState,
     commands: &mut Vec<ViewerCommand>,
 ) {
     egui::CollapsingHeader::new(RichText::new("Scenarios").strong())
@@ -215,50 +215,67 @@ fn picker(
     ui: &mut egui::Ui,
     library: &[CaseListing],
     open: bool,
-    ui_state: &PanelState,
+    ui_state: &mut PanelState,
     commands: &mut Vec<ViewerCommand>,
 ) {
+    // Starting a case folds the list away, so the strip and the alarms it is
+    // about to raise are what the person sees next.
+    let fold = std::mem::take(&mut ui_state.fold_library);
     egui::CollapsingHeader::new(format!("Library ({} cases)", library.len()))
         .id_salt("scenario_library")
         .default_open(open)
+        .open(fold.then_some(false))
         .show(ui, |ui| {
             ui.weak(
                 RichText::new("Starting a case throws the plant away and builds the file's run.")
                     .small(),
             );
-            let mut group = "";
+            // The taxonomy heading sits in the name column, so it never
+            // sets the width of the button column.
             egui::Grid::new("scenario_library_rows")
                 .num_columns(3)
                 .show(ui, |ui| {
-                    for case in library {
-                        if case.taxonomy != group {
-                            group = case.taxonomy;
-                            ui.strong(group);
+                    for (i, case) in library.iter().enumerate() {
+                        if i == 0 || library[i - 1].taxonomy != case.taxonomy {
+                            ui.label("");
+                            ui.strong(case.taxonomy);
                             ui.end_row();
                         }
-                        let start = ui.add_enabled(
-                            ui_state.jump_progress.is_none(),
-                            egui::Button::new("Start").small(),
-                        );
-                        if start.clicked() {
-                            commands.push(ViewerCommand::StartScenario(case.name));
-                        }
-                        ui.label(case.name).on_hover_text(&case.headline);
-                        let length = case.length_s.map_or(String::new(), clock::format_length);
-                        if case.wire_events == case.events && case.events > 0 {
-                            ui.weak(format!("{length}, on the wire"))
-                                .on_hover_text(format!("Every event acts {WIRE_NOTE}."));
-                        } else if case.wire_events > 0 {
-                            ui.weak(format!("{length}, {} on the wire", case.wire_events))
-                                .on_hover_text(format!(
-                                    "{} of {} events act {WIRE_NOTE}.",
-                                    case.wire_events, case.events
-                                ));
-                        } else {
-                            ui.weak(length);
-                        }
+                        row(ui, case, ui_state, commands);
                         ui.end_row();
                     }
                 });
         });
+}
+
+/// One case in the picker: start button, name with its headline on hover,
+/// length and what acts on the wire.
+fn row(
+    ui: &mut egui::Ui,
+    case: &CaseListing,
+    ui_state: &mut PanelState,
+    commands: &mut Vec<ViewerCommand>,
+) {
+    let start = ui.add_enabled(
+        ui_state.jump_progress.is_none(),
+        egui::Button::new("Start").small(),
+    );
+    if start.clicked() {
+        commands.push(ViewerCommand::StartScenario(case.name));
+        ui_state.fold_library = true;
+    }
+    ui.label(case.name).on_hover_text(&case.headline);
+    let length = case.length_s.map_or(String::new(), clock::format_length);
+    if case.wire_events == case.events && case.events > 0 {
+        ui.weak(format!("{length}, on the wire"))
+            .on_hover_text(format!("Every event acts {WIRE_NOTE}."));
+    } else if case.wire_events > 0 {
+        ui.weak(format!("{length}, {} on the wire", case.wire_events))
+            .on_hover_text(format!(
+                "{} of {} events act {WIRE_NOTE}.",
+                case.wire_events, case.events
+            ));
+    } else {
+        ui.weak(length);
+    }
 }

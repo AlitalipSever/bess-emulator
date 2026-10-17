@@ -60,9 +60,9 @@ pub fn format_offset(seconds: u64) -> String {
     }
 }
 
-/// A length, as the picker shows it: `2 h`, `25 h`, `10 d`.
+/// A length, as the picker shows it: `2 h`, `25 h`, `1 d`, `10 d`.
 pub fn format_length(seconds: u64) -> String {
-    if seconds >= 2 * 86_400 && seconds.is_multiple_of(86_400) {
+    if seconds >= 86_400 && seconds.is_multiple_of(86_400) {
         format!("{} d", seconds / 86_400)
     } else if seconds.is_multiple_of(3600) {
         format!("{} h", seconds / 3600)
@@ -118,7 +118,7 @@ mod tests {
         assert_eq!(format_length(7200), "2 h");
         assert_eq!(format_length(90_000), "25 h");
         assert_eq!(format_length(864_000), "10 d");
-        assert_eq!(format_length(86_400), "24 h");
+        assert_eq!(format_length(86_400), "1 d");
     }
 
     #[test]
