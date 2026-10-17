@@ -241,6 +241,20 @@ so each such point states which container it speaks for:
   `events`, every event since the previous message in the MQTT payload
   shape, and `events_lost_ticks` when the stream fell further behind than the
   emulator buffers.
+- **Browser module (npm `bess-emulator`, from v0.6.0):** the package
+  exposes `WebHandle`, and its methods and their JSON shapes are the
+  contract: `new()`, `start(canvas)`, `destroy()`, and the scenario door
+  `scenarios()` (a JSON array of `{"name", "taxonomy", "length_s",
+  "headline"}`, the embedded library in its order, callable before
+  `start`), `start_scenario(name)` and `load_scenario_yaml(text)` (they
+  start the plant over under a library case or a file's text, with the
+  same semantics as `POST /api/v1/scenario`, and throw a string naming
+  the refusal and its position), and `scenario_status()` (the
+  `GET /api/v1/scenario` object above, built by the same function, as a
+  JSON string). Adding a method or a JSON field is minor; changing a
+  signature, removing a method or removing a field is major. The egui
+  panels, their layout and the 3D scene are not a contract and change
+  without notice; the module never hands plant data to the page.
 - **Checkpoint format:** a tagged, versioned envelope, format 8 since M2
   phase 4 (v0.4.0 wrote format 3). Loaders reject unknown versions
   loudly; a version bump is documented in release notes.

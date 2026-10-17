@@ -1,7 +1,7 @@
 {
   "scenario": "dst-spring-forward",
   "content_hash": "0x160ae17c7f66eb55",
-  "engine_version": "0.5.0",
+  "engine_version": "0.6.0",
   "seed": 7,
   "start_unix_s": 1774911600,
   "ticks": 82800,

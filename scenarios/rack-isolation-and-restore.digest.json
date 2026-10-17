@@ -1,7 +1,7 @@
 {
   "scenario": "rack-isolation-and-restore",
   "content_hash": "0xa9ffff2f10b3685e",
-  "engine_version": "0.5.0",
+  "engine_version": "0.6.0",
   "seed": 7,
   "start_unix_s": 1775779200,
   "ticks": 172800,

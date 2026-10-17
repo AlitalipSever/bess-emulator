@@ -1,7 +1,7 @@
 {
   "scenario": "hvac-failure-both-units",
   "content_hash": "0xe75c312cc51007b6",
-  "engine_version": "0.5.0",
+  "engine_version": "0.6.0",
   "seed": 7,
   "start_unix_s": 1784034000,
   "ticks": 21600,

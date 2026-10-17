@@ -115,18 +115,44 @@ cargo run --release -p bess-scene --features sim --example viewer
 Orbit with the mouse (right-drag or shift-drag pans, scroll zooms), switch
 to fly mode to move freely over the site (WASD + QE, shift = fast), and
 click a container, a PCS skid, or the transformer to open its panel. The
-browser build is `wasm-pack build crates/bess-wasm --target web`; the npm
+side panel lists the active alarms by node and severity and the journal
+of what raised and cleared; a row selects its object in the scene, and
+the scene shows severity where the cause lives. The scenario library is
+compiled in: pick a case, start it, and follow it on a progress strip,
+running to the next event or to the end. The browser
+build is `wasm-pack build crates/bess-wasm --target web`; the npm
 package is built and published by `scripts/publish-npm.sh`, which renames it
 from the crate name to the product name on the way out.
 
+A page that embeds the browser build can play the library itself:
+
+```js
+const handle = new WebHandle();
+await handle.start(canvas);
+handle.start_scenario("pcs-trip-and-reset");
+const status = JSON.parse(handle.scenario_status()); // GET /api/v1/scenario's shape
+```
+
+`scenarios()` lists the cases (it works before `start`), and
+`load_scenario_yaml(text)` plays a file of the page's own.
+[COMPATIBILITY.md](COMPATIBILITY.md) states the rules for these methods.
+
 ## Status
 
-Pre-alpha, and measured rather than described. Five milestones have shipped:
+Pre-alpha, and measured rather than described. Six milestones have shipped:
 M0, the walking skeleton, as v0.1.0; the M0.5 mini-iteration, a partial-load
 conversion efficiency curve fitted to the CEC inverter database, as v0.2.0;
 M1, thermal and weather, as v0.3.0; the M1.5 view mini-iteration as
-v0.4.0, which put M1 on the screen; and M2, BMS, alarms and the scenario
-engine, as v0.5.0.
+v0.4.0, which put M1 on the screen; M2, BMS, alarms and the scenario
+engine, as v0.5.0; and the M2.6 view mini-iteration as v0.6.0, which put
+M2's alarms and its scenario library on the screen, in the browser too.
+
+M2.6 added no physics. The viewer shows what is in alarm, by node and
+severity, and the journal of what raised and cleared, numbered as MQTT
+numbers it; the scene colours the container, the converter skid and the
+substation by the word that speaks for them; the operator reset is a
+button. The fifteen library cases are compiled into the browser module,
+and a case played there lands on the digest CI holds it to.
 
 What M2 changed is that the plant can misbehave, on demand and
 reproducibly. Racks derate with cell temperature, drift apart and balance;
