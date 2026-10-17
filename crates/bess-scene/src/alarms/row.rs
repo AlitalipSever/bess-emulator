@@ -26,13 +26,14 @@ pub fn node_path(event: &Event) -> String {
 }
 
 /// What happened: the alarm name, the PCS transition, or the fault name.
+/// Plain ASCII, because egui's bundled fonts have no arrow glyphs.
 pub fn what(event: &Event) -> String {
     match event {
         Event::AlarmRaised { node, bit, .. } | Event::AlarmCleared { node, bit, .. } => {
             node.alarm_name(*bit)
         }
         Event::PcsStateChanged { from, to, .. } => {
-            format!("pcs {} \u{2192} {}", from.name(), to.name())
+            format!("{} -> {}", from.name(), to.name())
         }
         Event::FaultApplied(action) => action.name().to_owned(),
     }
@@ -107,7 +108,7 @@ mod tests {
         };
         assert_eq!(kind(&pcs), "pcs_state");
         assert_eq!(node_path(&pcs), "block07");
-        assert_eq!(what(&pcs), "pcs run \u{2192} fault");
+        assert_eq!(what(&pcs), "run -> fault");
         assert_eq!(severity(&pcs), None);
 
         let trip = Event::FaultApplied(FaultAction::ProtectionTrip);

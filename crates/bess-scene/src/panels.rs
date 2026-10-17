@@ -118,7 +118,7 @@ pub fn side_panel(
     let mut commands = Vec::new();
     let now = input.state.unix_time_s();
     egui::Panel::right(egui::Id::new("site_panel"))
-        .default_size(330.0)
+        .default_size(380.0)
         .show(ui, |ui| {
             // The alarm tables made the panel taller than a laptop screen;
             // the whole column scrolls rather than pushing the controls off.

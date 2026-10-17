@@ -40,8 +40,10 @@ maintenance) in a muted out-of-service tone.
   weather rows and the controls, open by default. The summary's columns
   are severity, node, name and raised time; the journal's are `seq`,
   time, node, kind and what, where a PCS transition reads
-  `pcs run → fault`. Rows are laid out through `ScrollArea::show_rows`,
-  eight visible before a table scrolls. The side panel as a whole now
+  `run -> fault` (ASCII: egui's bundled fonts have no arrow glyph, which
+  is also why the meters row now says export and import). Rows are laid
+  out through `ScrollArea::show_rows`, eight visible before a table
+  scrolls; the side panel opens at 380 px instead of 330. The side panel as a whole now
   scrolls, because the two tables made it taller than a laptop screen.
 
 - **D2, the spelling of a node moves to `bess-core`.** `AlarmNode::path()`
