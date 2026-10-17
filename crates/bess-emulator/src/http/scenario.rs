@@ -41,9 +41,7 @@ fn media_type(headers: &HeaderMap) -> Option<String> {
 
 /// The status with the tick it describes.
 fn with_tick(status: &Value, tick: u64) -> Value {
-    let mut status = status.clone();
-    status["tick"] = json!(tick);
-    status
+    bess_scenario::status::with_tick(status, tick)
 }
 
 pub(super) async fn load(
@@ -105,7 +103,7 @@ pub(super) async fn status(State(handle): State<SimHandle>) -> impl IntoResponse
     let snap = handle.snapshot.borrow().clone();
     Json(match &snap.scenario {
         Some(status) => with_tick(status, snap.state.tick),
-        None => json!({"loaded": false}),
+        None => bess_scenario::status::not_loaded(),
     })
 }
 

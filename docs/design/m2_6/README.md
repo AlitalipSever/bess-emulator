@@ -1,6 +1,7 @@
 # M2.6: alarm view mini-iteration
 
-Status: approved on 2026-10-17, in progress (phase 1 PR2). A mini-iteration in
+Status: done, released as v0.6.0 (the tag and the npm publish are the
+maintainer's). Approved on 2026-10-17. A mini-iteration in
 the M0.5/M1.5/M2.5 tradition: it deepens the view layer and nothing else,
 so M2.5's one-module discipline and M3's scope are untouched. The
 decisions it needs before implementation starts are listed at the end.
@@ -154,6 +155,44 @@ Filled as PRs land.
 - **Phase 1 PR2, source-level breaks in `bess-scene`:** `ViewerCommand`
   gains `ResetAlarms(ResetScope)`; `PanelState` gains `select_request`
   and `reset_answer`; `selection_detail` takes the command list.
+- **Phase 2 PR1, the library in the viewer.** All fifteen cases are
+  compiled into the module. The side panel lists them by taxonomy and
+  starts one with a click. While a case plays, a strip shows its
+  headline, the elapsed offset against its length, what has fired and
+  what is next, on a painted timeline, with run-to-next-event and
+  run-to-end. Data faults are listed as acting on MQTT and Modbus only.
+  Alarm times read as offsets from the case's start. Every case up to
+  two days, played through the viewer's loop, lands on its committed
+  digest.
+- **Phase 2 PR1, one firing helper.** `Player::fire_due` in
+  `bess-scenario` replaces the three hand-written fire-then-step loops
+  (shell, headless run, test helper). Nothing on the wire changes.
+- **Phase 2 PR1, module size:** `bess_wasm_bg.wasm` 4.54 MB to 5.47 MB
+  raw, 1.59 MB to 1.82 MB brotli. Above the half-megabyte threshold of
+  phase 2 D1; the maintainer accepted it on 2026-10-17.
+- **Phase 2 PR1, source-level breaks in `bess-scene`:**
+  - `ViewerCommand` gains `StartScenario`, `RunToNextEvent` and `RunToEnd`.
+  - `FastForward::advance` takes a `Run`.
+  - `PanelInput` gains `library` and `story`.
+  - `alarms::section`, `controls::time_travel` and `controls::stops` take
+    the story state.
+  - `ViewerApp`'s internals moved into `Session`.
+  - `bess-scenario` becomes a dependency behind `sim`.
+- **Phase 2 PR1, build:** the Dockerfile copies `scenarios/`. CI runs the
+  viewer's tests, which it never did.
+- **Phase 2 PR2, the JS door.** `WebHandle` gains `scenarios()` (works
+  before `start`), `start_scenario(name)`, `load_scenario_yaml(text)` and
+  `scenario_status()`, JSON strings in and out. COMPATIBILITY.md names
+  the browser module's contract for the first time.
+- **Phase 2 PR2, one status builder.** `bess_scenario::status` builds
+  `GET /api/v1/scenario`'s answer for REST and for the door; the shell
+  calls it, and its tests hold the shape unchanged. `serde_json` becomes
+  a normal dependency of `bess-scenario` (it was a dev dependency and is
+  a workspace dependency).
+- **Phase 2 PR2, the release.** v0.6.0. The fifteen library records and
+  the annual record regenerated, and the diff is the version string
+  alone. M2.5 moves to v0.7.0. Release notes in
+  [release-notes.md](release-notes.md).
 
 ## Open questions, and the decisions needed before implementation
 

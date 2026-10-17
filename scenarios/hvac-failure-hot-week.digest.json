@@ -1,7 +1,7 @@
 {
   "scenario": "hvac-failure-hot-week",
   "content_hash": "0xeb863f99caa1a701",
-  "engine_version": "0.5.0",
+  "engine_version": "0.6.0",
   "seed": 42,
   "start_unix_s": 1783900800,
   "ticks": 864000,

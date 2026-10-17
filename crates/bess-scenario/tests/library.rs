@@ -106,3 +106,34 @@ fn the_failure_cases_follow_the_epri_shares() {
         "calendar and maintenance cases sit outside the gate: {composition}"
     );
 }
+
+/// The embedded library is the directory: the same names, the same bytes,
+/// and every case with a headline of a readable length.
+#[test]
+fn the_embedded_library_is_the_directory_byte_for_byte() {
+    use bess_scenario::library::{CASES, HEADLINE_MAX};
+    let on_disk: Vec<String> = cases().into_iter().map(|(name, ..)| name).collect();
+    let mut embedded: Vec<String> = CASES.iter().map(|c| c.name.to_owned()).collect();
+    embedded.sort();
+    assert_eq!(
+        embedded, on_disk,
+        "scenarios/ and library::CASES list different cases"
+    );
+    for case in CASES {
+        let bytes = std::fs::read(library().join(format!("{}.yaml", case.name))).unwrap();
+        assert_eq!(
+            case.yaml.as_bytes(),
+            bytes,
+            "{}: embedded bytes differ",
+            case.name
+        );
+        let headline = case.headline();
+        assert!(!headline.is_empty(), "{}: no header comment", case.name);
+        assert!(
+            headline.len() <= HEADLINE_MAX,
+            "{}: headline is {} characters",
+            case.name,
+            headline.len()
+        );
+    }
+}

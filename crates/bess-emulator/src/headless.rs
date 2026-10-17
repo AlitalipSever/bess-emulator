@@ -17,7 +17,7 @@ use std::path::Path;
 use bess_core::checkpoint::state_digest;
 use bess_core::PlantConfig;
 use bess_models::{gw01_models, gw01_weather};
-use bess_scenario::{Due, Player, Resolved};
+use bess_scenario::{Player, Resolved};
 use serde::{Deserialize, Serialize};
 
 /// What a headless run leaves behind: the committed record of a case.
@@ -67,12 +67,8 @@ pub fn run(resolved: &Resolved) -> Result<Record, String> {
     let mut player = Player::new(resolved);
     let weather = gw01_weather();
     for _ in 0..ticks {
-        let tick = sim.state().tick;
-        for scheduled in player.due(tick) {
-            if let Due::Physical(action) = scheduled.due {
-                sim.apply(action)
-                    .map_err(|err| format!("events[{}] refused: {err}", scheduled.index))?;
-            }
+        if let Some(refused) = player.fire_due(&mut sim).refused {
+            return Err(refused.to_string());
         }
         sim.step(&weather.inputs_at(sim.unix_time_s()));
     }

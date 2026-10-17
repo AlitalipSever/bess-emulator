@@ -1,7 +1,7 @@
 {
   "scenario": "pcs-trip-and-reset",
   "content_hash": "0x2ae467b1842dd150",
-  "engine_version": "0.5.0",
+  "engine_version": "0.6.0",
   "seed": 7,
   "start_unix_s": 1784048400,
   "ticks": 10800,

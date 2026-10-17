@@ -11,10 +11,25 @@
 //! const handle = new WebHandle();
 //! await handle.start(document.getElementById("bess-canvas"));
 //! ```
+//!
+//! A host page can also play the scenario library through four optional
+//! methods, JSON strings in and out (COMPATIBILITY.md names them as the
+//! module's contract):
+//!
+//! ```js
+//! const cases = JSON.parse(handle.scenarios());   // works before start()
+//! handle.start_scenario("pcs-trip-and-reset");    // throws with a message
+//! handle.load_scenario_yaml(text);                // throws with the position
+//! const status = JSON.parse(handle.scenario_status());
+//! ```
+//!
+//! The status has the shape `GET /api/v1/scenario` publishes, built by the
+//! same function. The page cannot read plant data: the scene and the
+//! panels stay the only readers of the state tree.
 
 #[cfg(target_arch = "wasm32")]
 mod web {
-    use bess_scene::viewer::ViewerApp;
+    use bess_scene::viewer::{library, Session, ViewerApp};
     use wasm_bindgen::prelude::*;
 
     /// Handle to a running emulator instance on a canvas.
@@ -57,6 +72,44 @@ mod web {
         /// Stop the emulator and free its resources.
         pub fn destroy(&self) {
             self.runner.destroy();
+        }
+
+        /// The embedded scenario library: a JSON array of `{name, taxonomy,
+        /// length_s, headline}`. Works before `start`.
+        pub fn scenarios(&self) -> String {
+            library::catalogue_json()
+        }
+
+        /// Throw the plant away and play the library case `name`, as the
+        /// viewer's own picker does. Throws with a message naming the
+        /// library's cases if there is no such case.
+        pub fn start_scenario(&self, name: &str) -> Result<(), JsValue> {
+            self.with_session(|s| s.start_scenario(name))?
+                .map_err(|e| JsValue::from_str(&e))
+        }
+
+        /// Validate a scenario file's text against the site and play it.
+        /// Throws with the refusal and its position.
+        pub fn load_scenario_yaml(&self, text: &str) -> Result<(), JsValue> {
+            self.with_session(|s| s.load_scenario_yaml(text))?
+                .map_err(|e| JsValue::from_str(&e))
+        }
+
+        /// The case's status at the current tick, as a JSON string in the
+        /// shape of `GET /api/v1/scenario`; `{"loaded":false}` when none
+        /// plays.
+        pub fn scenario_status(&self) -> Result<String, JsValue> {
+            self.with_session(|s| s.scenario_status_json())
+        }
+    }
+
+    impl WebHandle {
+        /// Run `f` on the viewer's session between frames.
+        fn with_session<T>(&self, f: impl FnOnce(&mut Session) -> T) -> Result<T, JsValue> {
+            let mut app = self.runner.app_mut::<ViewerApp>().ok_or_else(|| {
+                JsValue::from_str("the viewer is not running: await start() first")
+            })?;
+            Ok(f(app.session_mut()))
         }
     }
 }

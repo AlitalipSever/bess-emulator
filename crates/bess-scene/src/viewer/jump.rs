@@ -21,7 +21,7 @@ use bess_models::HistoricalWeather;
 
 use crate::alarms::Journal;
 
-use super::record;
+use super::run::Run;
 
 /// A jump in progress.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,22 +59,26 @@ impl FastForward {
     ///
     /// The budget is in ticks rather than wall time because the browser has
     /// no monotonic clock without a shim, and a tick count is the same
-    /// quantity on both targets anyway. Every tick's events go to the
-    /// journal, so a jump leaves the same record a watched run would.
+    /// quantity on both targets anyway. Every tick goes through
+    /// [`Run::tick`], so a story's events fire on their own tick and the
+    /// journal gets the same record a watched run would.
+    ///
+    /// Arrival is checked before firing: a jump that targets an event's tick
+    /// lands just before it, and the event fires on the next frame.
     pub fn advance(
         self,
-        sim: &mut Simulation,
+        run: &mut Run,
         weather: &HistoricalWeather,
         journal: &mut Journal,
         budget_ticks: u64,
     ) -> bool {
         for _ in 0..budget_ticks {
-            if sim.unix_time_s() >= self.target_unix_s {
+            if run.sim.unix_time_s() >= self.target_unix_s {
                 return true;
             }
-            record::step(sim, weather, journal);
+            run.tick(weather, journal);
         }
-        sim.unix_time_s() >= self.target_unix_s
+        run.sim.unix_time_s() >= self.target_unix_s
     }
 }
 
@@ -82,6 +86,7 @@ impl FastForward {
 mod tests {
     use super::FastForward;
     use crate::alarms::Journal;
+    use crate::viewer::run::Run;
     use bess_core::{PlantConfig, Simulation};
     use bess_models::{gw01_models, gw01_weather};
 
@@ -108,8 +113,8 @@ mod tests {
             plain.step(&inputs);
         }
 
-        let mut jumped = plant();
-        let jump = FastForward::toward(&jumped, target).expect("a forward jump");
+        let mut jumped = Run::plain(plant());
+        let jump = FastForward::toward(&jumped.sim, target).expect("a forward jump");
         // Deliberately awkward budgets, so the split across frames cannot be
         // what makes it come out right.
         let mut frames = 0;
@@ -118,27 +123,27 @@ mod tests {
             assert!(frames < 1_000, "the jump never arrived");
         }
 
-        assert_eq!(jumped.unix_time_s(), plain.unix_time_s());
-        assert_eq!(jumped.state(), plain.state());
+        assert_eq!(jumped.sim.unix_time_s(), plain.unix_time_s());
+        assert_eq!(jumped.sim.state(), plain.state());
     }
 
     #[test]
     fn a_jump_reports_where_it_has_got_to() {
         let target = NEW_YEAR + 4 * 3600;
         let weather = gw01_weather();
-        let mut sim = plant();
-        let jump = FastForward::toward(&sim, target).expect("a forward jump");
-        assert!(jump.progress(&sim).abs() < 1e-6);
+        let mut run = Run::plain(plant());
+        let jump = FastForward::toward(&run.sim, target).expect("a forward jump");
+        assert!(jump.progress(&run.sim).abs() < 1e-6);
 
-        jump.advance(&mut sim, &weather, &mut Journal::new(), 7_200);
-        let halfway = jump.progress(&sim);
+        jump.advance(&mut run, &weather, &mut Journal::new(), 7_200);
+        let halfway = jump.progress(&run.sim);
         assert!(
             (halfway - 0.5).abs() < 0.01,
             "half a jump reported {halfway:.3}"
         );
 
-        while !jump.advance(&mut sim, &weather, &mut Journal::new(), 10_000) {}
-        assert!((jump.progress(&sim) - 1.0).abs() < 1e-6);
+        while !jump.advance(&mut run, &weather, &mut Journal::new(), 10_000) {}
+        assert!((jump.progress(&run.sim) - 1.0).abs() < 1e-6);
     }
 
     #[test]
@@ -155,9 +160,9 @@ mod tests {
         // than spend itself, or a short hop would run the plant for hours.
         let target = NEW_YEAR + 120;
         let weather = gw01_weather();
-        let mut sim = plant();
-        let jump = FastForward::toward(&sim, target).expect("a forward jump");
-        assert!(jump.advance(&mut sim, &weather, &mut Journal::new(), 500_000));
-        assert_eq!(sim.unix_time_s(), target);
+        let mut run = Run::plain(plant());
+        let jump = FastForward::toward(&run.sim, target).expect("a forward jump");
+        assert!(jump.advance(&mut run, &weather, &mut Journal::new(), 500_000));
+        assert_eq!(run.sim.unix_time_s(), target);
     }
 }
