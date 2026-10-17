@@ -44,6 +44,33 @@ pub fn format_row(unix_time_s: i64) -> String {
     format!("{mo:02}-{d:02} {h:02}:{mi:02}:{s:02}")
 }
 
+/// An offset from a scenario's start, the way the library's files speak:
+/// `T+02:03:04`, or `T+1d 02:03:04` past a day.
+pub fn format_offset(seconds: u64) -> String {
+    let (d, h, m, s) = (
+        seconds / 86_400,
+        seconds / 3600 % 24,
+        seconds / 60 % 60,
+        seconds % 60,
+    );
+    if d > 0 {
+        format!("T+{d}d {h:02}:{m:02}:{s:02}")
+    } else {
+        format!("T+{h:02}:{m:02}:{s:02}")
+    }
+}
+
+/// A length, as the picker shows it: `2 h`, `25 h`, `10 d`.
+pub fn format_length(seconds: u64) -> String {
+    if seconds >= 2 * 86_400 && seconds.is_multiple_of(86_400) {
+        format!("{} d", seconds / 86_400)
+    } else if seconds.is_multiple_of(3600) {
+        format!("{} h", seconds / 3600)
+    } else {
+        format!("{} min", seconds / 60)
+    }
+}
+
 /// Unix timestamp of a civil UTC date and time. The inverse of
 /// [`civil_from_unix`], after the same algorithm.
 ///
@@ -71,7 +98,9 @@ pub fn unix_from_civil(
 
 #[cfg(test)]
 mod tests {
-    use super::{civil_from_unix, format_row, format_utc, unix_from_civil};
+    use super::{
+        civil_from_unix, format_length, format_offset, format_row, format_utc, unix_from_civil,
+    };
 
     /// 2026-01-01 00:00:00 UTC.
     const NEW_YEAR: i64 = 1_767_225_600;
@@ -84,6 +113,12 @@ mod tests {
         let t = NEW_YEAR + 194 * 86_400 + 10 * 3600 + 30 * 60;
         assert_eq!(format_utc(t), "2026-07-14 10:30:00 UTC");
         assert_eq!(format_row(t + 7), "07-14 10:30:07");
+        assert_eq!(format_offset(3 * 3600 + 62), "T+03:01:02");
+        assert_eq!(format_offset(86_400 + 5), "T+1d 00:00:05");
+        assert_eq!(format_length(7200), "2 h");
+        assert_eq!(format_length(90_000), "25 h");
+        assert_eq!(format_length(864_000), "10 d");
+        assert_eq!(format_length(86_400), "24 h");
     }
 
     #[test]

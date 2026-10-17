@@ -79,6 +79,19 @@ pub enum Taxonomy {
     Maintenance,
 }
 
+impl Taxonomy {
+    /// The tag as a file spells it.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Bos => "bos",
+            Self::Controls => "controls",
+            Self::Cell => "cell",
+            Self::Calendar => "calendar",
+            Self::Maintenance => "maintenance",
+        }
+    }
+}
+
 /// The protocol surface a data fault corrupts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

@@ -8,14 +8,16 @@ repository.workspace = true
 
 [features]
 default = []
-# The self-contained viewer application: owns a Simulation and steps it.
+# The self-contained viewer application: owns a Simulation and steps it,
+# and plays the scenario library through the same engine as the shell.
 # The scene and panels themselves never touch the kernel; they only read
 # &SiteState and emit commands.
-sim = ["dep:bess-models"]
+sim = ["dep:bess-models", "dep:bess-scenario"]
 
 [dependencies]
 bess-core = { workspace = true }
 bess-models = { workspace = true, optional = true }
+bess-scenario = { workspace = true, optional = true }
 bytemuck = "1"
 egui = "0.35"
 # glow backend explicitly: eframe 0.35 defaults to wgpu, and this crate's
@@ -37,9 +39,16 @@ bess-data = { workspace = true }
 # The kernel's default models, so the alarm view can be held against the
 # causal chain the kernel actually produces. Also a dev dependency only.
 bess-models = { workspace = true }
+# The library's committed records are JSON; the test that plays every case
+# through the viewer's loop reads them.
+serde_json = { workspace = true }
 
 [[example]]
 name = "viewer"
+required-features = ["sim"]
+
+[[test]]
+name = "library_through_run"
 required-features = ["sim"]
 
 # This crate cannot inherit the workspace lint table: the glow API is unsafe
