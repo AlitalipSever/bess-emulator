@@ -146,6 +146,16 @@ maintenance) in a muted out-of-service tone.
   yellow; `out_of_service` is `[0.47, 0.55, 0.66]`. The panel uses them
   now, the scene in PR2.
 
+  **Scene half in PR2.** The indications live in a new
+  `instances/status.rs`, because `live.rs` was at 295 lines and alarms
+  are a concern of their own. A quiet container diode echoes its gauge
+  (flow colour while power moves, otherwise neutral) at a steady glow; an
+  alarmed one takes the loudest tone of its racks. The HVAC mark is an
+  amber strip across the top of the end unit's louvres, the PCS diode
+  sits above the skid's grille, the site beacon on the transformer roof.
+  Seen in the browser build on 2026-10-17 with the plant discharged at
+  +100 MW: twenty amber skid diodes and an amber beacon at once.
+
 - **D8, two-way linking.** A summary or journal row is a button; it sets
   `SceneView::selection` to the object that holds the node (rack to its
   container, block to its PCS skid, site and a protection or breaker
@@ -154,6 +164,15 @@ maintenance) in a muted out-of-service tone.
   with the set bit names, a PCS shows the block word's names, the
   transformer shows the site word's. The camera stays where it is (open
   question below).
+
+  **Confirmed in PR2.** Node cells in both tables are links;
+  `alarms/link.rs` maps a node or an event to the object
+  (`object_of`, `object_of_event`). The panel cannot reach the scene, so
+  a click leaves a request in `PanelState::select_request` and the viewer
+  moves it into `SceneView::selection`. The detail panel's rack table
+  gains an alarms column (short names in the loudest tone) and a reset
+  column, the PCS a "Block alarms" row, the transformer a "Site alarms"
+  row, and a failed HVAC reads "failed" in the container's HVAC row.
 
 - **D9, the operator reset from the viewer.**
   `ViewerCommand::ResetAlarms(ResetScope)`: a site reset button in the
@@ -165,6 +184,14 @@ maintenance) in a muted out-of-service tone.
   own (`pcs-trip-and-reset` does); then a viewer that trips the site by
   running a case has no way back but a restart, which is not what the
   HMI button is for.
+
+  **Confirmed in PR2, one revision.** Buttons are enabled by
+  `alarms::latched(state, scope)`: a trip bit in the scope's words, which
+  covers a PCS in fault through its mirror bit. The answer is kept until
+  the next reset or restart instead of until the next tick, because at
+  60x a tick lasts 16 ms and the answer would never be seen; it reads
+  "block03 reset at 07-14 14:03:21, nothing still present" or names the
+  bits that raise again.
 
 - **D10, no new dependency (needs the maintainer's confirmation).**
   Three candidates were considered on 2026-10-17 and declined:
@@ -183,6 +210,9 @@ maintenance) in a muted out-of-service tone.
 - **D11, `ViewerCommand` grows by one variant** (`ResetAlarms`), a
   source-level break for a downstream exhaustive `match`, called out in
   the release-note inventory as M1.5's two variants were.
+  **Confirmed in PR2.** Two more signature changes came with it:
+  `panels::detail::selection_detail` and `panels::alarms::section` take
+  the command list, since the resets live there.
 
 ## Signal map impact
 

@@ -59,4 +59,59 @@ mod tests {
             bess_core::kernel::Event::FaultApplied(FaultAction::PcsTrip { block: 3 })
         );
     }
+
+    /// The reset the panel's button sends, end to end: a tripped PCS lights
+    /// its skid red and offers the block reset; the reset goes through the
+    /// kernel's door, and the next tick's journal shows the bit clearing and
+    /// the PCS leaving fault.
+    #[test]
+    fn a_block_reset_clears_the_trip_and_the_journal_shows_it() {
+        use crate::alarms::{self, Tone};
+        use crate::instances::status;
+        use bess_core::alarms::layout::block;
+        use bess_core::alarms::{AlarmNode, ResetScope};
+        use bess_core::kernel::Event;
+        use bess_core::state::PcsOpState;
+
+        let cfg = PlantConfig::gw01();
+        let models = gw01_models(&cfg);
+        let mut sim = Simulation::new(cfg, models, 7, 1_767_225_600);
+        let weather = gw01_weather();
+        let mut journal = Journal::new();
+
+        sim.apply(FaultAction::PcsTrip { block: 3 })
+            .expect("block 3 exists");
+        step(&mut sim, &weather, &mut journal);
+        let b3 = &sim.state().blocks[3];
+        assert_eq!(status::block_tone(3, b3), Some(Tone::Trip));
+        assert!(alarms::latched(sim.state(), ResetScope::Block(3)));
+
+        let still = sim
+            .reset_alarms(ResetScope::Block(3))
+            .expect("block 3 exists");
+        assert_eq!(still, Vec::new(), "nothing keeps a tripped PCS in fault");
+        let before = journal.len();
+        step(&mut sim, &weather, &mut journal);
+
+        let fresh: Vec<Event> = journal
+            .iter_newest_first()
+            .take(journal.len() - before)
+            .map(|e| e.event)
+            .collect();
+        assert!(fresh.contains(&Event::AlarmCleared {
+            node: AlarmNode::Block { block: 3 },
+            bit: block::PCS_FAULT,
+            severity: bess_core::alarms::Severity::Trip,
+        }));
+        assert!(fresh.iter().any(|e| matches!(
+            e,
+            Event::PcsStateChanged {
+                block: 3,
+                from: PcsOpState::Fault,
+                ..
+            }
+        )));
+        assert_eq!(status::block_tone(3, &sim.state().blocks[3]), None);
+        assert!(!alarms::latched(sim.state(), ResetScope::Block(3)));
+    }
 }

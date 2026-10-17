@@ -126,3 +126,17 @@ the viewer adds no semantics of its own.
   record and the library's records do not move.
 - The spelling of a node in a viewer row is byte-identical to the
   spelling on MQTT and the stream, held by one function in one crate.
+
+## As built
+
+Phase 1 landed in two PRs on 2026-10-17. Four files beyond the table
+above, each one concern: `alarms/row.rs` (how an event reads as a
+journal row), `alarms/filter.rs` (which rows the panel shows),
+`alarms/link.rs` (node and event to scene object, object to its alarm
+names) and `viewer/record.rs` (one tick with its events journaled, the
+single path both the wall clock and a jump step through). The scene's
+indications went to `instances/status.rs` rather than into `live.rs`,
+which was already at 295 lines, and the translation from an observed
+hour to the scene's terms left `viewer.rs` for `viewer/sky.rs` when the
+reset handling took the file past 300. The per-decision notes are in
+[design.md](design.md).
