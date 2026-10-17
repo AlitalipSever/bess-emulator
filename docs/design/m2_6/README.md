@@ -1,6 +1,6 @@
 # M2.6: alarm view mini-iteration
 
-Status: proposed on 2026-10-17, design only, no code. A mini-iteration in
+Status: approved on 2026-10-17, in progress (phase 1 PR1). A mini-iteration in
 the M0.5/M1.5/M2.5 tradition: it deepens the view layer and nothing else,
 so M2.5's one-module discipline and M3's scope are untouched. The
 decisions it needs before implementation starts are listed at the end.
@@ -123,7 +123,23 @@ deciding something. What replaces it:
 
 Filled as PRs land.
 
-- (none yet)
+- **Phase 1 PR1, the alarm section.** The viewer's side panel gains an
+  alarm summary (every set bit of the three words, trips first, then in
+  tree order, with the time it raised) and an alarm journal (the events
+  the viewer saw, newest first, with the kernel's `seq` and `ts`), with
+  filters by severity and block and an "alarms only" toggle. Collapsed,
+  the section header says how many events arrived since it was last
+  open. The whole side panel now scrolls.
+- **Phase 1 PR1, one spelling of a node.** `AlarmNode::path`,
+  `AlarmNode::word`, `AlarmNode::alarm_name`, `Severity::name`,
+  `PcsOpState::name` and `FaultAction::node_path` in `bess-core`;
+  `bess-emulator`'s `events.rs` helpers call them. No surface changes a
+  byte.
+- **Phase 1 PR1, source-level breaks in `bess-scene`:** `PanelInput`
+  gains `journal`, `PanelState` gains `alarm_filter` and `alarms_seen`,
+  `Palette` gains `warning` and `out_of_service`, and
+  `FastForward::advance` takes the journal. Code that builds these by
+  struct literal or calls `advance` needs the new argument.
 
 ## Open questions, and the decisions needed before implementation
 

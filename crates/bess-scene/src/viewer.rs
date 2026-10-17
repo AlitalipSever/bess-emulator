@@ -5,13 +5,16 @@
 //!
 //! - [`jump`]    moving the plant to another moment, and what that costs
 //! - [`presets`] days worth jumping to, derived from the dataset
+//! - [`record`]  one tick, with its events kept in the alarm journal
 
 pub mod jump;
 pub mod presets;
+pub mod record;
 
 use bess_core::{PlantConfig, Simulation};
 use bess_models::{gw01_models, gw01_weather, HistoricalWeather, HourSample, PrecipForm};
 
+use crate::alarms::{self, Journal};
 use crate::panels::{self, PanelState};
 use crate::scene::SceneView;
 use crate::scenery::{Observed, Precip, Scenery};
@@ -60,6 +63,8 @@ pub struct ViewerApp {
     /// Days the dataset suggests. Computed once: the compiled year does not
     /// change while the viewer is open.
     stops: Vec<panels::Stop>,
+    /// The events this plant has emitted since the viewer built it.
+    journal: Journal,
 }
 
 impl ViewerApp {
@@ -84,6 +89,7 @@ impl ViewerApp {
             tick_accum: 0.0,
             jump: None,
             stops: presets::stops(weather.year()),
+            journal: Journal::new(),
         })
     }
 }
@@ -105,6 +111,10 @@ impl ViewerApp {
         self.sim = Simulation::new(cfg, models, self.seed, unix_s);
         self.jump = None;
         self.tick_accum = 0.0;
+        // The kernel's numbering starts over with the plant, so the journal
+        // and the bookmark in it do too.
+        self.journal.clear();
+        self.panel.alarms_seen = alarms::SeenMark::default();
     }
 
     fn scenery(&self) -> Scenery {
@@ -160,7 +170,12 @@ impl eframe::App for ViewerApp {
         if let Some(jump) = self.jump {
             // A jump owns the frame: no wall-clock stepping while it runs,
             // or the plant would be advancing for two reasons at once.
-            if jump.advance(&mut self.sim, &self.weather, JUMP_TICKS_PER_FRAME) {
+            if jump.advance(
+                &mut self.sim,
+                &self.weather,
+                &mut self.journal,
+                JUMP_TICKS_PER_FRAME,
+            ) {
                 self.jump = None;
                 self.tick_accum = 0.0;
             }
@@ -174,8 +189,7 @@ impl eframe::App for ViewerApp {
         let ticks = (self.tick_accum as u64).min(MAX_TICKS_PER_FRAME);
         self.tick_accum = (self.tick_accum - ticks as f64).max(0.0);
         for _ in 0..ticks {
-            let inputs = self.weather.inputs_at(self.sim.unix_time_s());
-            self.sim.step(&inputs);
+            record::step(&mut self.sim, &self.weather, &mut self.journal);
         }
         // The plant always moves; repaint continuously.
         ctx.request_repaint();
@@ -193,6 +207,7 @@ impl eframe::App for ViewerApp {
                 scenery: &scenery,
                 stops: &self.stops,
                 selection: self.scene.selection,
+                journal: &self.journal,
             },
             &mut self.panel,
         );

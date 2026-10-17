@@ -34,6 +34,9 @@ log = "0.4.33"
 # measured series rather than against a second copy of its own formula. A dev
 # dependency: it never reaches the browser build or a downstream consumer.
 bess-data = { workspace = true }
+# The kernel's default models, so the alarm view can be held against the
+# causal chain the kernel actually produces. Also a dev dependency only.
+bess-models = { workspace = true }
 
 [[example]]
 name = "viewer"

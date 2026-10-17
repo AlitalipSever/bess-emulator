@@ -36,6 +36,14 @@ maintenance) in a muted out-of-service tone.
   blinking diode already is; the standards split present from past
   because an operator asks the two questions separately.
 
+  **Confirmed in PR1.** One section, `panels/alarms.rs`, between the
+  weather rows and the controls, open by default. The summary's columns
+  are severity, node, name and raised time; the journal's are `seq`,
+  time, node, kind and what, where a PCS transition reads
+  `pcs run → fault`. Rows are laid out through `ScrollArea::show_rows`,
+  eight visible before a table scrolls. The side panel as a whole now
+  scrolls, because the two tables made it taller than a laptop screen.
+
 - **D2, the spelling of a node moves to `bess-core`.** `AlarmNode::path()`
   (`site`, `block02`, `block02/container1/rack05`),
   `FaultAction::node_path()` (an HVAC unit as
@@ -48,12 +56,26 @@ maintenance) in a muted out-of-service tone.
   functions, no behavior change, held by the shell's existing payload
   tests).
 
+  **Confirmed in PR1, two additions.** The move also carries
+  `AlarmNode::word()` and `AlarmNode::alarm_name(bit)`, so the `rack.bit11`
+  fallback for a free position lives in one place too, and
+  `PcsOpState::name()`, since a journal row spells a PCS transition the
+  way the payload does. The impls sit in a private `alarms/names.rs`.
+  `bess-core` tests pin every node kind and every `FaultAction` variant;
+  the shell's payload tests and the MQTT acceptance test pass unchanged.
+
 - **D3, the summary is derived from the words every frame.** Rationale
   in architecture.md. The walk is a pure function `active(&SiteState)
   -> Vec<ActiveAlarm>`, tested against a hand-set tree, so it cannot
   miss a word the way the diode today misses two of three. Cost: 480
   rack words plus 21 more per frame, a few microseconds; the dynamic
   instance pass already walks the same racks.
+
+  **Confirmed in PR1.** `alarms::active` walks the words; `Tone`
+  (`OutOfService`, `Warning`, `Trip`) says how a set bit is drawn, with
+  `rack.isolated` and `block.maintenance` muted and `site.hv_breaker_open`
+  promoted to the trip tone. The text column still shows the kernel's
+  severity, so the tone changes a colour and never a published word.
 
 - **D4, the journal is a bounded ring, view state only.** Capacity
   4,096 entries, one per event, each a `Copy` event plus two integers.
@@ -66,12 +88,24 @@ maintenance) in a muted out-of-service tone.
   limit); the kernel keeping the log (rejected in M2 phase 2 D5 for the
   checkpoint's sake, and nothing has changed).
 
+  **Confirmed in PR1, capacity measured.** The longest library case,
+  `hvac-failure-hot-week`, emits 1,717 events in ten days and
+  `hvac-failure-winter-night` 1,686 in one; 4,096 holds every case whole.
+  Beside the ring the journal keeps the raise time of every bit whose
+  last edge was a raise, so a summary row keeps its time after the ring
+  has dropped the raise. Both ways the viewer moves the plant (wall time
+  and a jump) step through `viewer/record.rs`, which copies the events
+  out of the kernel's buffer without allocating.
+
 - **D5, timestamps are the tick's simulation time.** The same `ts` MQTT
   and the stream carry: the unix time of the snapshot that shows the
   event's effect, `sim.unix_time_s()` after `step`. Shown as the UTC
   clock the panel header already uses, and, while a scenario plays
   (phase 2), also as an offset from scenario start, since the library's
   files speak in offsets.
+
+  **Confirmed in PR1.** Rows read `MM-DD HH:MM:SS` (`clock::format_row`);
+  the year is in the panel header. The scenario offset waits for phase 2.
 
 - **D6, no acknowledgement.** The kernel has no acknowledge concept:
   latched bits reset, hysteresis bits clear themselves, and the words
@@ -90,6 +124,11 @@ maintenance) in a muted out-of-service tone.
   a question for the maintainer, since it decides what the scene does
   with motion.
 
+  **Confirmed in PR1, option (a), as approved.** A `SeenMark` holds the
+  event count when the section was last open; collapsed, the section
+  shows "N events since you last looked". The viewer resets the mark
+  with the plant.
+
 - **D7, the scene's severity mapping** is the table in architecture.md.
   Two new indications: a diode on the PCS skid for the block word and a
   marker on the transformer for the site word, both cuboid instances in
@@ -99,6 +138,11 @@ maintenance) in a muted out-of-service tone.
   blinking (architecture.md, "nothing blinks"). Alternative: keep one
   red for everything, which is what today's diode does and what hides
   the severity byte the layout went to the trouble of freezing.
+
+  **Palette half in PR1:** `warning` is amber `[1.00, 0.76, 0.03]`,
+  yellower than the discharge orange and redder than the selection
+  yellow; `out_of_service` is `[0.47, 0.55, 0.66]`. The panel uses them
+  now, the scene in PR2.
 
 - **D8, two-way linking.** A summary or journal row is a button; it sets
   `SceneView::selection` to the object that holds the node (rack to its
@@ -128,6 +172,11 @@ maintenance) in a muted out-of-service tone.
   | `egui_extras` 0.35 (same org and version line as egui) | `TableBuilder`: resizable columns, a fixed header, virtualized rows | a second UI crate for two tables whose columns do not need resizing; it pulls optional image and syntax-highlighting features that have to be turned off; one more crate to keep in step with each egui bump | `egui::Grid` inside `egui::ScrollArea::show_rows`, which virtualizes rows (only the visible range is laid out) and is in egui already; the header is a first striped row |
   | `egui_plot` 0.35 | a plot widget for a timeline of events | the timeline wanted here is a strip of ticks at times, not axes with zoom; a plot crate for that is weight without a reader | `ui.painter()` on an allocated rect, the way the scene's mode overlay already draws |
   | `egui_kittest` 0.35 | UI snapshot and interaction tests | its snapshot path needs a GPU backend in CI (wgpu), which the workspace deliberately does not carry; its logic path tests egui widgets, not this crate's claims | the existing pattern: every claim lives in a pure function with a test (`alarms.rs`, `journal.rs`), the panel only draws its result |
+
+  **Confirmed in PR1, as approved.** No crate added. `bess-models`
+  becomes a dev dependency of `bess-scene` (a workspace crate, already an
+  optional dependency behind `sim`) so `tests/alarm_view.rs` can hold the
+  view against the chain the kernel produces.
 
 - **D11, `ViewerCommand` grows by one variant** (`ResetAlarms`), a
   source-level break for a downstream exhaustive `match`, called out in
@@ -187,6 +236,5 @@ None. The journal is view state; no field is added to the tree.
   `Camera::focus_on(center)` the camera does not have). Leaning no for
   this phase: the frame and the orbit find it, and a camera that jumps
   on every click fights the person steering it.
-- The journal's capacity, 4,096, is a guess sized on the native backlog;
-  the longest library case's actual event count is measured in PR1 and
-  the number revisited if it is close.
+- The journal's capacity: answered in PR1 (D4), 4,096 against a
+  measured maximum of 1,717.

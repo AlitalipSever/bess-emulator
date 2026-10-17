@@ -1,7 +1,7 @@
 //! Material palette. Site materials carry fixed, physically plausible
 //! albedos (light-gray container steel, concrete, asphalt) so that daylight
 //! actually reads as daylight; the sun model only scales the light, never
-//! the material. Signal colors (charge, discharge, alarm) are fixed so
+//! the material. Signal colors (charge, discharge, the alarm tones) are fixed so
 //! their meaning never shifts.
 
 /// Signal colors, constant across themes.
@@ -11,8 +11,14 @@ pub struct Palette {
     pub charge: [f32; 3],
     /// Discharging (power flowing to the grid).
     pub discharge: [f32; 3],
-    /// Alarm / fault accents.
+    /// Trips: a latched alarm, a PCS in fault, the site off the grid.
     pub alarm: [f32; 3],
+    /// Warnings: self-clearing alarms. Amber, kept yellower than the
+    /// discharge orange and redder than the selection yellow.
+    pub warning: [f32; 3],
+    /// Equipment out of service on purpose: a rack isolated, a block in
+    /// maintenance. Muted, because it is a status rather than an alarm.
+    pub out_of_service: [f32; 3],
     /// Selection highlight.
     pub select: [f32; 3],
 }
@@ -23,6 +29,8 @@ impl Default for Palette {
             charge: [0.20, 0.75, 0.62],
             discharge: [1.00, 0.66, 0.24],
             alarm: [0.95, 0.25, 0.20],
+            warning: [1.00, 0.76, 0.03],
+            out_of_service: [0.47, 0.55, 0.66],
             select: [1.00, 0.85, 0.30],
         }
     }
