@@ -33,6 +33,10 @@ pkg.description =
   "Synthetic grid-scale battery plant emulator: deterministic simulation kernel and 3D site view in one WASM module";
 pkg.homepage = "https://github.com/AlitalipSever/bess-emulator";
 pkg.keywords = ["bess", "battery", "energy-storage", "simulation", "emulator", "wasm", "scada"];
+// wasm-pack writes a `files` allowlist with only the build outputs, and npm
+// adds a license file on its own only when it is named plain LICENSE. The
+// dual-license pair has to be listed, or the copies above stay behind.
+pkg.files = [...new Set([...(pkg.files || []), "LICENSE-MIT", "LICENSE-APACHE"])];
 fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
 console.log(`patched ${path}: ${pkg.name}@${pkg.version}`);
 PATCH
@@ -44,6 +48,15 @@ if [ "$PUBLISHED_NAME" != "$NAME" ]; then
   echo "refusing to publish: package name is '$PUBLISHED_NAME', expected '$NAME'" >&2
   exit 1
 fi
+# And check the tarball, not the directory: v0.5.0 shipped without its
+# licenses because pkg/ had them and the package did not.
+PACKED=$(cd "$PKG" && npm pack --dry-run --json | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8'))[0].files.map(f => f.path).join(' ')")
+for f in LICENSE-MIT LICENSE-APACHE README.md; do
+  case " $PACKED " in
+    *" $f "*) ;;
+    *) echo "refusing to publish: $f is not in the tarball" >&2; exit 1 ;;
+  esac
+done
 
 echo
 echo "About to publish $PUBLISHED_NAME@$VERSION to npm."
