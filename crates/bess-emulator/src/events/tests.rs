@@ -1,6 +1,8 @@
 //! Topics and payloads, one test per event kind.
 
 use bess_core::alarms::layout::{block, rack};
+use bess_core::alarms::ResetScope;
+use bess_core::state::PcsOpState;
 
 use super::*;
 
