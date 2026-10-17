@@ -127,6 +127,13 @@ Filled as PRs land.
 
 ## Open questions, and the decisions needed before implementation
 
+Approved by the maintainer on 2026-10-17, each as recommended below:
+M2.6 ships before M2.5 as v0.6.0, no new dependency, no
+acknowledgement concept in the view, the library and the parser
+embedded with the size measured, the four-method JS door, the headline
+from the header comment. Each is still confirmed or revised in the PR
+that lands it, per the repository's rule.
+
 The detailed options and recommendations are in the phase design files;
 this is the list of answers the work cannot start without.
 
