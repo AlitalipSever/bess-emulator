@@ -8,6 +8,7 @@
 //! the other fails CI rather than quietly missing from the browser.
 
 use bess_core::PlantConfig;
+use serde_json::{json, Value};
 
 use crate::{load, LoadError, Scenario};
 
@@ -56,6 +57,26 @@ pub fn find(name: &str) -> Option<&'static Case> {
     CASES.iter().find(|c| c.name == name)
 }
 
+/// The library as the browser module's `scenarios()` publishes it: one
+/// object per case that loads against `cfg`, in the library's order, with
+/// `name`, `taxonomy`, `length_s` and `headline`.
+pub fn catalogue(cfg: &PlantConfig) -> Value {
+    Value::Array(
+        CASES
+            .iter()
+            .filter_map(|case| {
+                let scenario = case.load(cfg).ok()?;
+                Some(json!({
+                    "name": case.name,
+                    "taxonomy": scenario.taxonomy.map(crate::Taxonomy::name),
+                    "length_s": scenario.length_s,
+                    "headline": case.headline(),
+                }))
+            })
+            .collect(),
+    )
+}
+
 impl Case {
     /// Parse and validate the case against a site.
     pub fn load(&self, cfg: &PlantConfig) -> Result<Scenario, LoadError> {
@@ -87,5 +108,21 @@ mod tests {
         assert!(headline.ends_with("cools back into its window."));
         assert!(!headline.contains('#') && !headline.contains('\n'));
         assert_eq!(find("no-such-case"), None);
+    }
+
+    #[test]
+    fn the_catalogue_lists_every_case_in_order_with_four_fields() {
+        let catalogue = catalogue(&PlantConfig::gw01());
+        let cases = catalogue.as_array().expect("an array");
+        assert_eq!(cases.len(), CASES.len());
+        assert_eq!(
+            cases[1],
+            json!({
+                "name": "hvac-failure-both-units",
+                "taxonomy": "bos",
+                "length_s": 21_600,
+                "headline": find("hvac-failure-both-units").unwrap().headline(),
+            })
+        );
     }
 }

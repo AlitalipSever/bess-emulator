@@ -20,6 +20,7 @@ mod player;
 mod resolve;
 mod scenario;
 pub mod schema;
+pub mod status;
 mod validate;
 
 pub use error::{LoadError, Position, Reason};

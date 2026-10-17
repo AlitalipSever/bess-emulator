@@ -204,3 +204,40 @@ fn the_door_refuses_what_it_cannot_play_and_says_why() {
     assert_eq!(view.name, "custom");
     assert_eq!(view.headline, "");
 }
+
+/// The door's two JSON answers: the catalogue, and the status in the REST
+/// shape, counting what fired.
+#[test]
+fn the_door_answers_in_the_rest_shape() {
+    let mut session = Session::new();
+    let catalogue: Value = serde_json::from_str(&session.scenarios_json()).expect("JSON");
+    assert_eq!(catalogue.as_array().map(Vec::len), Some(CASES.len()));
+    assert_eq!(
+        serde_json::from_str::<Value>(&session.scenario_status_json()).expect("JSON"),
+        serde_json::json!({"loaded": false})
+    );
+
+    session
+        .start_scenario("pcs-trip-and-reset")
+        .expect("in the library");
+    let status =
+        |s: &Session| -> Value { serde_json::from_str(&s.scenario_status_json()).expect("JSON") };
+    let before = status(&session);
+    assert_eq!(before["loaded"], true);
+    assert_eq!(before["name"], "pcs-trip-and-reset");
+    assert_eq!(
+        (&before["fired"], &before["tick"]),
+        (&Value::from(0), &Value::from(0))
+    );
+    assert_eq!(before["next"]["at_s"], 1800);
+
+    session.apply(ViewerCommand::RunToNextEvent);
+    while session.jumping() {
+        session.advance(0.016);
+    }
+    session.advance(0.25);
+    let after = status(&session);
+    assert_eq!(after["fired"], 1);
+    assert_eq!(after["events"][0]["fired"], true);
+    assert_eq!(after["next"]["fault"], "alarm_reset");
+}

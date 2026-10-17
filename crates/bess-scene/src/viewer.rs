@@ -92,6 +92,13 @@ impl eframe::App for ViewerApp {
         });
     }
 
+    // The browser module's JS door reaches the session through
+    // `WebRunner::app_mut`, which needs the app as `Any`.
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> Option<&mut dyn std::any::Any> {
+        Some(&mut *self)
+    }
+
     fn on_exit(&mut self, gl: Option<&eframe::glow::Context>) {
         if let Some(gl) = gl {
             self.scene.destroy(gl);
