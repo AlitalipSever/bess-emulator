@@ -33,7 +33,8 @@ Each decision is proposed here and confirmed or revised in its PR.
   the parser (`granit-parser`), its error rendering
   (`annotate-snippets`, `unicode-width`), the derived deserializers
   and the panel code. The table option would remove the parser and
-  with it `load_scenario_yaml`.
+  with it `load_scenario_yaml`. **Decided by the maintainer on
+  2026-10-17:** the size is not a concern; the parser stays.
 
 - **D2, one run loop, one helper.** `viewer/run.rs` (architecture.md)
   and `Player::fire_due` in `bess-scenario`, adopted by the three native

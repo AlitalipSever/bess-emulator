@@ -169,7 +169,7 @@ Filled as PRs land.
   (shell, headless run, test helper). Nothing on the wire changes.
 - **Phase 2 PR1, module size:** `bess_wasm_bg.wasm` 4.54 MB to 5.47 MB
   raw, 1.59 MB to 1.82 MB brotli. Above the half-megabyte threshold of
-  phase 2 D1, so the maintainer decides.
+  phase 2 D1; the maintainer accepted it on 2026-10-17.
 - **Phase 2 PR1, source-level breaks in `bess-scene`:**
   - `ViewerCommand` gains `StartScenario`, `RunToNextEvent` and `RunToEnd`.
   - `FastForward::advance` takes a `Run`.
