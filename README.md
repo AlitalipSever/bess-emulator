@@ -145,7 +145,8 @@ conversion efficiency curve fitted to the CEC inverter database, as v0.2.0;
 M1, thermal and weather, as v0.3.0; the M1.5 view mini-iteration as
 v0.4.0, which put M1 on the screen; M2, BMS, alarms and the scenario
 engine, as v0.5.0; and the M2.6 view mini-iteration as v0.6.0, which put
-M2's alarms and its scenario library on the screen, in the browser too.
+M2's alarms and its scenario library on the screen, in the browser too;
+v0.6.1 re-timed three library cases so they show what their headers say.
 
 M2.6 added no physics. The viewer shows what is in alarm, by node and
 severity, and the journal of what raised and cleared, numbered as MQTT

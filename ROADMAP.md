@@ -15,7 +15,7 @@ scheduled. Architecture and rationale live in
 | M1.5 | View mini-iteration: real solar position, weather-driven scenery, time controls | done (v0.4.0) |
 | M2 | BMS, alarms, scenario engine | done (v0.5.0) |
 | M2.5 | SoC realism mini-iteration: OCV hysteresis, reported SoC, measurement imperfections | planned |
-| M2.6 | Alarm view mini-iteration: alarms on screen, the scenario library in the browser | done (v0.6.0) |
+| M2.6 | Alarm view mini-iteration: alarms on screen, the scenario library in the browser | done (v0.6.0; library re-timed in v0.6.1) |
 | M3 | PCS + electrical | planned |
 | M4 | EMS + market signals | planned |
 | M5 | Degradation | planned |
@@ -277,7 +277,8 @@ accuracy classes.
 
 Shipped as v0.6.0, ahead of M2.5; what was actually built, phase by
 phase, is in the design folder's "as built" notes and its release-note
-inventory.
+inventory. v0.6.1 re-timed three library cases whose faults had landed
+in idle hours of the plan, so they show the lessons their headers name.
 
 A mini-iteration in the M0.5/M1.5 pattern, proposed 2026-10-17 after M2
 shipped: M2 put every alarm on the native surfaces and none of it on the

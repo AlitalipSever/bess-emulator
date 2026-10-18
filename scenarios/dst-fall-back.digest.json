@@ -1,7 +1,7 @@
 {
   "scenario": "dst-fall-back",
   "content_hash": "0x2a0d9069e8e077c4",
-  "engine_version": "0.6.0",
+  "engine_version": "0.6.1",
   "seed": 7,
   "start_unix_s": 1793052000,
   "ticks": 90000,
