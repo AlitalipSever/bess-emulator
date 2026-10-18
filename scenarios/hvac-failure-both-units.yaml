@@ -1,14 +1,17 @@
-# Both HVAC units of block 2 fail at once on the warmest afternoon of
-# the replayed year, with the plant asked for full discharge by the
-# plan: the phase 2 causal chain, failure, derate, setpoint miss, site
-# limit, minutes apart. The units are repaired after two hours and the
+# Both HVAC units of block 2 fail at once on the evening of 13 July and
+# stay down until the next evening. The plant keeps to its plan, and the
+# discharge on the warmest afternoon of the replayed year takes the
+# block's cells past the 55 C shoulder. The phase 2 causal chain
+# follows, minutes apart: over-temperature warning, derate, the block
+# misses its setpoint, the site reports its limit while the other blocks
+# still have charge. The units are repaired after the discharge and the
 # block cools back into its window.
 schema: 1
 name: hvac-failure-both-units
 taxonomy: bos
 seed: 7
-start: 2026-07-14T13:00:00Z
-length: PT6H
+start: 2026-07-13T16:00:00Z
+length: PT30H
 events:
   - at: PT1H
     target: block[2].container[0].hvac
@@ -16,9 +19,9 @@ events:
   - at: PT1H
     target: block[2].container[1].hvac
     fault: failure
-  - at: PT3H
+  - at: PT28H
     target: block[2].container[0].hvac
     fault: repair
-  - at: PT3H
+  - at: PT28H
     target: block[2].container[1].hvac
     fault: repair

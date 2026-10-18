@@ -1,10 +1,11 @@
-# A container's cooling fails in the hottest week of the replayed year.
-# Block 2's racks warm up through the afternoon of the 13th, the derate
-# bits raise, the block misses its setpoint, the site reports its limit;
-# the repair comes on the 14th, after the hottest afternoon. Two days
-# later one rack starts to leak, and on day 9 it is isolated. The MQTT
-# dropout in the first afternoon, with the backfill twenty minutes
-# later, is the data-side trap a subscriber meets at the same time.
+# A container's cooling fails in the hottest week of the replayed year
+# and stays down thirty hours. Block 2 keeps cycling; the discharge on
+# the evening of the 14th takes its racks past the 55 C shoulder, they
+# derate and the block misses its setpoint, about 1.4 MW short: one
+# container is not enough to limit the site (`hvac-failure-both-units`
+# is). On the third day one rack starts to leak; on day 9 it is
+# isolated. An MQTT dropout on the first afternoon, with its backfill
+# twenty minutes later, is the data-side trap of the same week.
 schema: 1
 name: hvac-failure-hot-week
 taxonomy: bos
@@ -15,7 +16,7 @@ events:
   - at: PT14H
     target: block[2].container[0].hvac
     fault: failure
-  - at: PT38H
+  - at: PT44H
     target: block[2].container[0].hvac
     fault: repair
   - at: P2D

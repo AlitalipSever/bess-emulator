@@ -1,14 +1,14 @@
 {
   "scenario": "pcs-trip-and-reset",
-  "content_hash": "0x2ae467b1842dd150",
+  "content_hash": "0x2ee1def80933e151",
   "engine_version": "0.6.0",
   "seed": 7,
   "start_unix_s": 1784048400,
   "ticks": 10800,
-  "state_digest": "0x30c29d5afd799976",
+  "state_digest": "0x0c57e47a453dc35b",
   "event_log": {
-    "count": 49,
-    "digest": "0xd871ebf645612b96"
+    "count": 90,
+    "digest": "0xe3ca62f3b2e0e190"
   },
   "revenue_periods_closed": 12
 }

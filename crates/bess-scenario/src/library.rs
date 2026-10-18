@@ -120,7 +120,7 @@ mod tests {
             json!({
                 "name": "hvac-failure-both-units",
                 "taxonomy": "bos",
-                "length_s": 21_600,
+                "length_s": 108_000,
                 "headline": find("hvac-failure-both-units").unwrap().headline(),
             })
         );
