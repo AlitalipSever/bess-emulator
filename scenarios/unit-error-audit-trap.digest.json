@@ -1,7 +1,7 @@
 {
   "scenario": "unit-error-audit-trap",
   "content_hash": "0xda923441e8107159",
-  "engine_version": "0.6.0",
+  "engine_version": "0.6.1",
   "seed": 7,
   "start_unix_s": 1784023200,
   "ticks": 14400,
