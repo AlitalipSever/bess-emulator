@@ -205,3 +205,10 @@ data, which is the M0 rule and stays one.
   The records are faithful to the files; the files' timing predates
   the SMARD plan of M2 phase 3. Re-timing them changes their digests
   and is a library change of its own.
+  Resolved after the release, in the library re-timing: re-timing alone
+  was not enough for the cooling case. From a fresh plant the racks
+  start near 20 C and the derate shoulder is 55 C; one charge and one
+  discharge with the units down end at 54 C. Both cases now hold the
+  failure across two cycles or trip mid-discharge, and
+  `hvac-failure-hot-week`, which stopped at 54.6 C the same way, keeps
+  its unit down thirty hours.

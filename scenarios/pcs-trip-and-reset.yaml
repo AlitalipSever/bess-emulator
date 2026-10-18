@@ -1,8 +1,10 @@
-# Block 5's converter trips in the middle of a discharge hour: its PCS
-# goes to fault, the block drops out of the available set, the site's
-# available power falls by one block and the setpoint is split over the
-# others. An operator reset of the block half an hour later brings the
-# converter back through standby.
+# Block 5's converter trips a quarter of an hour into the evening
+# discharge: its PCS goes to fault, the block drops out of the available
+# set, and the site falls one block short, since the other nineteen are
+# already at their rating; it raises its limit and its partial
+# availability. An operator reset of the block half an hour later brings
+# the converter back through standby, and the block, which kept its
+# charge while it was out, runs on after the others have emptied.
 schema: 1
 name: pcs-trip-and-reset
 taxonomy: bos
@@ -10,9 +12,9 @@ seed: 7
 start: 2026-07-14T17:00:00Z
 length: PT3H
 events:
-  - at: PT30M
+  - at: PT1H15M
     target: block[5].pcs
     fault: trip
-  - at: PT1H
+  - at: PT1H45M
     target: block[5]
     fault: alarm_reset

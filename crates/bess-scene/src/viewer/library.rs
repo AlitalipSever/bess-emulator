@@ -102,7 +102,7 @@ mod tests {
             .iter()
             .find(|c| c.name == "hvac-failure-both-units")
             .expect("listed");
-        assert_eq!((both.wire_events, both.length_s), (0, Some(6 * 3600)));
+        assert_eq!((both.wire_events, both.length_s), (0, Some(30 * 3600)));
     }
 
     #[test]

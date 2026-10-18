@@ -229,7 +229,7 @@ fn the_door_answers_in_the_rest_shape() {
         (&before["fired"], &before["tick"]),
         (&Value::from(0), &Value::from(0))
     );
-    assert_eq!(before["next"]["at_s"], 1800);
+    assert_eq!(before["next"]["at_s"], 4500);
 
     session.apply(ViewerCommand::RunToNextEvent);
     while session.jumping() {

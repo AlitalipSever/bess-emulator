@@ -46,9 +46,9 @@ a case is added or removed on the wrong side.
 
 | Case | Taxonomy | Length | What a consumer sees |
 |---|---|---|---|
-| `hvac-failure-hot-week` | bos | 10 days | the hottest week: a cooling failure, the derate chain, a repair, then a leaking rack and its isolation; a dropout with backfill on the first afternoon |
-| `hvac-failure-both-units` | bos | 6 h | both units of a block fail under full discharge: failure, derate, setpoint miss, site limit, minutes apart |
-| `pcs-trip-and-reset` | bos | 3 h | a converter trips mid-discharge, the block leaves the available set, an operator reset brings it back |
+| `hvac-failure-hot-week` | bos | 10 days | the hottest week: one container's cooling fails, its racks derate and the block misses its setpoint, but one container is not enough to limit the site; a repair, then a leaking rack and its isolation; a dropout with backfill on the first afternoon |
+| `hvac-failure-both-units` | bos | 30 h | both units of a block fail overnight; the next evening's discharge on the warmest day: over-temperature, derate, setpoint miss, site limit, minutes apart |
+| `pcs-trip-and-reset` | bos | 3 h | a converter trips in the evening discharge, the site falls one block short, an operator reset brings it back |
 | `protection-trip-staggered-return` | bos | 2 h | the breaker opens, the POI reads zero, the reset starts the staggered return, block by block |
 | `hvac-failure-winter-night` | bos | 1 day | a container loses its heater on a January night and cannot take the morning charge |
 | `scada-dropout-with-backfill` | controls | 2 h | silence, then the store replayed with old device timestamps ahead of the live stream |
