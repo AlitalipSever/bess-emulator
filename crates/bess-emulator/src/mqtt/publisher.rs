@@ -93,7 +93,7 @@ impl Publisher {
             if !due(self.last_pub_s[idx], sim_time_s, period) {
                 continue;
             }
-            let truth = (point.extract)(&snap.state);
+            let truth = snap.measured[i];
             let value = snap.taps.value(Surface::Mqtt, i, tick, truth);
             let msg = Message {
                 topic: topic.clone(),
@@ -135,7 +135,7 @@ impl Publisher {
             if point.class != Class::Event {
                 continue;
             }
-            let truth = (point.extract)(&snap.state);
+            let truth = snap.measured[i];
             let mut value = snap.taps.value(Surface::Mqtt, i, tick, truth);
             if snap.taps.flipped(Surface::Mqtt, i, tick) {
                 value = flapped(value);

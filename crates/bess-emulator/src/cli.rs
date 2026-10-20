@@ -52,6 +52,12 @@ pub struct Args {
     )]
     pub assert: Option<PathBuf>,
 
+    /// Publish the kernel's exact values instead of instrumented readings:
+    /// no meter class, no noise, no wander on any surface. A research
+    /// switch; the default plant measures the way a real one does.
+    #[arg(long, default_value_t = false)]
+    pub exact_instruments: bool,
+
     /// Modbus TCP listen address.
     #[arg(long, default_value = "127.0.0.1:1502")]
     pub modbus: SocketAddr,

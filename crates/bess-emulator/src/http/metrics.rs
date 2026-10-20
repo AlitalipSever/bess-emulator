@@ -12,6 +12,7 @@ use std::fmt::Write as _;
 use bess_core::state::HvacMode;
 use bess_core::SiteState;
 
+use crate::instruments::Readings;
 use crate::sim::Snapshot;
 
 /// Write one single-sample metric family.
@@ -44,9 +45,9 @@ fn labeled_metric(
 /// metrics that actually exist rather than the ones someone remembers.
 pub(super) fn metrics_body(snap: &Snapshot) -> String {
     let mut out = String::with_capacity(4096);
-    site_metrics(&mut out, &snap.state, snap.speed);
-    thermal_metrics(&mut out, &snap.state);
-    house_load_metrics(&mut out, &snap.state);
+    site_metrics(&mut out, &snap.state, &snap.readings, snap.speed);
+    thermal_metrics(&mut out, &snap.state, &snap.readings);
+    house_load_metrics(&mut out, &snap.state, &snap.readings);
     bms_metrics(&mut out, &snap.state);
     alarms::alarm_metrics(&mut out, &snap.state);
     market::market_metrics(&mut out, &snap.state);
@@ -54,13 +55,13 @@ pub(super) fn metrics_body(snap: &Snapshot) -> String {
 }
 
 /// Grid-facing KPIs and the run's own bookkeeping.
-fn site_metrics(out: &mut String, s: &SiteState, speed: f64) {
+fn site_metrics(out: &mut String, s: &SiteState, r: &Readings, speed: f64) {
     metric(
         out,
         "bess_poi_active_power_watts",
         "gauge",
-        "Active power at the POI (positive = export).",
-        s.substation.poi_active_power_w,
+        "Active power at the POI (positive = export), as the SCADA analog reads it.",
+        r.poi_active_power_w,
     );
     metric(
         out,
@@ -88,21 +89,21 @@ fn site_metrics(out: &mut String, s: &SiteState, speed: f64) {
         "bess_import_watthours_total",
         "counter",
         "POI import meter.",
-        s.substation.import_wh,
+        r.import_wh,
     );
     metric(
         out,
         "bess_export_watthours_total",
         "counter",
         "POI export meter.",
-        s.substation.export_wh,
+        r.export_wh,
     );
     metric(
         out,
         "bess_station_service_watthours_total",
         "counter",
         "Station-service meter: the house load drawn while the HV breaker is open.",
-        s.substation.station_service_wh,
+        r.station_service_wh,
     );
     metric(
         out,
@@ -123,7 +124,7 @@ fn site_metrics(out: &mut String, s: &SiteState, speed: f64) {
 /// The thermal chain M1 added: the weather that drives it, the container air
 /// that answers it, the cells that lag it, and what the HVAC is doing about
 /// all of it.
-fn thermal_metrics(out: &mut String, s: &SiteState) {
+fn thermal_metrics(out: &mut String, s: &SiteState, r: &Readings) {
     let containers: Vec<_> = s.blocks.iter().flat_map(|b| b.containers.iter()).collect();
     // A site with no containers is not a configuration that ships, but the
     // three temperatures here have to agree about what it would mean, and
@@ -146,8 +147,8 @@ fn thermal_metrics(out: &mut String, s: &SiteState) {
         out,
         "bess_ambient_celsius",
         "gauge",
-        "Ambient temperature.",
-        s.weather.ambient_c,
+        "Ambient temperature, as the site thermometer reads it.",
+        r.ambient_c,
     );
     metric(
         out,
@@ -201,7 +202,7 @@ fn thermal_metrics(out: &mut String, s: &SiteState) {
 
 /// The house load and the loss waterfall: what the site spent on itself and
 /// where the rest of the gap between nameplate and meter went.
-fn house_load_metrics(out: &mut String, s: &SiteState) {
+fn house_load_metrics(out: &mut String, s: &SiteState, r: &Readings) {
     let aux = &s.aux;
     let items = &s.energy.aux_items;
 
@@ -211,7 +212,7 @@ fn house_load_metrics(out: &mut String, s: &SiteState) {
         "gauge",
         "House load as the substation meters it, accumulated on its own path; \
          the itemized gauges have to add up to this.",
-        s.substation.aux_power_w,
+        r.aux_power_w,
     );
     labeled_metric(
         out,

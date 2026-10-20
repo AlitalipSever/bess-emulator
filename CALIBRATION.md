@@ -884,6 +884,102 @@ Systems, 2026-08-06, citing the ACCURE 2025 Energy Storage System Health
 example. Knee placement: the OCV table in `crates/bess-models/src/cell.rs`.
 Numbers cited, nothing reproduced.
 
+## M2.5 (v0.7.0): the instrument inventory
+
+Everything the plant publishes now passes through an instrument, and the
+instruments have classes. The inventory is explicit and small
+(`crates/bess-emulator/src/instruments/inventory.rs`): the fiscal meter
+behind the two `site.revenue.period_*_kwh` registers (IEC 62053-22 class
+0.2S), the house-load meters behind the five `site.aux.*` items, their
+total and the station-service register (class 0.5S), the substation's
+CT/VT chain and each PCS's own measurement behind the POI power, reactive
+power and voltage, the two SCADA energy registers and the per-block AC
+and DC power (class 0.5), and a Pt100 class B thermometer behind every
+published temperature. Everything else is exact and listed as such:
+counters, states, enumerations, the control surface, the BMS's own
+estimates (`soc_pct`, `cell_dv_mv`), the PCS efficiency ratio, the sun's
+irradiance and the grid frequency, the last because a plant frequency
+meter resolves the point's own 1 mHz LSB.
+
+**The error model** (`instruments/model.rs`), per instrumented point, derived
+from (seed, instrument, point, tick) and never stored, so a resumed run
+publishes the same bytes (design D5, achieved):
+
+- a slow bounded wander of the offset, three sinusoids of 3.1 days,
+  16.8 hours and 5.3 hours with seeded phases, consuming 60 % of the
+  class limit at the current load;
+- white noise, bounded, with a sigma of 10 % of the class limit at the
+  current load, plus a zero-reading floor of one part in ten thousand of
+  full scale;
+- the S-curve: the class's rated limit from 5 % of full scale up, its
+  low-load limit at 1 %, log-linear between, flat below 1 % (the meter's
+  starting range, where the class promises nothing and the model stops
+  getting worse);
+- cumulative energy registers carry one constant ratio error per
+  register, drawn once inside 60 % of the rated limit, and no wander,
+  so a published register stays monotonic as a real one does. This is
+  a stated simplification of design D4 (a register that integrates its
+  own measured power): the integral would be shell state and would need
+  its own checkpoint story, which D5 set out to avoid.
+
+**Gate, class compliance,** held by
+`every_reading_stays_inside_its_class_at_every_load` in
+`crates/bess-emulator/src/instruments/tests.rs`: every instrumented
+point, at eleven loads from zero to 120 % of full scale in both
+directions, at ticks sampled across a year, reads within the class limit
+at that load plus three sigma of the zero floor. By construction the
+wander and the noise sum to at most 90 % of the limit, so the gate is a
+check on the arithmetic staying inside its own budget rather than a
+measurement, and it is labeled that way. The design asked for this gate
+in `bess-bench`; it lives in the shell crate instead, because the
+instruments do.
+
+**Two meters disagree.** `two_meters_on_one_quantity_disagree_by_a_bounded_wander`
+runs the hot-plant fixture six hours and reads the POI power through its
+analog and through the sum of the twenty block readings. The analog's
+error over those six hours: worst 287 kW on a 100 MW scale, sigma 78 kW,
+lag-one autocorrelation 0.87 between minute samples (a wander, not
+noise), every sample inside its class limit. The two readings of the
+same power differ by a slowly moving amount on top of the losses that
+separate them in truth, which is the reconciliation gap a plant data
+pipeline meets in its first week.
+
+**Switch-off.** `--exact-instruments` publishes the truth on every surface
+(the pre-phase bytes); the research record never saw an instrument, since
+`bess-bench` reads the kernel.
+
+**Known gaps.**
+
+- **Energy registers do not integrate measured power** (above).
+- **No temperature coefficient, no aging of the instruments.** The class
+  is consumed at a fixed share; a meter near the end of its calibration
+  interval would sit nearer the limit.
+- **Irradiance and efficiency are exact.** A pyranometer has a class
+  (ISO 9060) and the efficiency ratio is computed from two measured
+  powers; both are left for a later inventory revision.
+- **The one-sensor rule reaches no telemetry point yet.** The rack
+  current sensor that drives the SoC estimator (`sensor_offset_a`,
+  `sensor_gain`) is defined once on the rack, but no published point
+  carries rack current, so D3's second consumer does not exist on the
+  map; `cell_dv_mv` is the BMS's own reading and is left exact.
+- **The viewer reads the kernel.** The browser module shows the truth,
+  not an instrumented value; it is a research surface by that choice.
+
+**Sources:** IEC 62053-22:2020, Electricity metering equipment, Part 22:
+Static meters for AC active energy (classes 0.1S, 0.2S and 0.5S), the
+percentage error limits at unity power factor: class 0.2S ±0.2 % from
+0.05 In to Imax and ±0.4 % from 0.01 In, class 0.5S ±0.5 % and ±1.0 %,
+as summarized publicly by
+[Compere Power](https://comperepower.com/understanding-meter-accuracy-classes-0-2s-0-5s-and-1-0/)
+(the standard itself is paywalled; only the limit values are used).
+IEC 61869-2:2012, Instrument transformers, Part 2: Current transformers,
+class 0.5 ratio error ±0.5 % at 20 to 120 %, ±0.75 % at 5 %, ±1.5 % at
+1 % of rated current, as published by
+[CTL Systems](https://ctlsys.com/support/ct-accuracy-standards/),
+retrieved 2026-10-21. IEC 60751, industrial platinum resistance
+thermometers, class B tolerance ±(0.30 + 0.005 |t|) K. Numbers cited,
+nothing reproduced.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

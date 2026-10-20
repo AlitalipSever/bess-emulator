@@ -11,6 +11,7 @@ mod events;
 mod fixtures;
 mod headless;
 mod http;
+mod instruments;
 mod map;
 mod modbus;
 mod mqtt;
@@ -133,7 +134,7 @@ async fn run(
     params: RunParams,
     resolved: Option<Resolved>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (handle, sim_task) = sim::spawn(params, resolved);
+    let (handle, sim_task) = sim::spawn(params, resolved, !args.exact_instruments);
 
     info!(
         site = "GW-01",

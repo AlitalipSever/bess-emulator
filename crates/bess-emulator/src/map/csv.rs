@@ -20,7 +20,7 @@ pub fn dump_signal_map_csv(path: &Path) -> std::io::Result<()> {
     writeln!(out, "# signal-map-version: {MAP_VERSION}")?;
     writeln!(
         out,
-        "space,address,words,encoding,scale,name,unit,class,access"
+        "space,address,words,encoding,scale,name,unit,class,access,instrument,accuracy_class"
     )?;
     for p in &points {
         let space = match p.space {
@@ -28,9 +28,14 @@ pub fn dump_signal_map_csv(path: &Path) -> std::io::Result<()> {
             Space::Holding => "holding",
         };
         let access = if p.writable { "rw" } else { "ro" };
+        // The instrument behind the point and its accuracy class, or
+        // `exact` twice (M2.5 phase 3): a signal list that does not say how
+        // good a number claims to be is leaving the reader to guess.
+        let (instrument, accuracy) = crate::instruments::instrument_of(&p.name)
+            .map_or(("exact", "exact"), |i| (i.name(), i.class().name));
         writeln!(
             out,
-            "{space},{},{},{},{},{},{},{},{access}",
+            "{space},{},{},{},{},{},{},{},{access},{instrument},{accuracy}",
             p.addr,
             p.encoding.words(),
             p.encoding.as_str(),
