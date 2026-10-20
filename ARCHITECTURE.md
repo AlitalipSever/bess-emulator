@@ -117,7 +117,7 @@ can be deepened independently:
 
 | Trait | Initial implementation | Upgrade path |
 |---|---|---|
-| `CellModel` | 1-RC equivalent circuit + OCV-SoC curve from public datasheets | 2-RC, temperature-dependent parameters |
+| `CellModel` | 1-RC equivalent circuit + OCV-SoC curve from public datasheets + one-state OCV hysteresis (M2.5) | 2-RC, temperature-dependent parameters |
 | `ThermalModel` | Two-node container model (rack cell mass + bulk air) with envelope, solar gain and HVAC | Rack-level gradients, HVAC staging |
 | `BmsLogic` | Limits, derating, alarm tree, passive balancing | Behavior profiles from public vendor manuals |
 | `PcsModel` | Efficiency map f(P, V_dc), P/Q capability, state machine, setpoint response | Thermal derating, overload budget, STATCOM mode |

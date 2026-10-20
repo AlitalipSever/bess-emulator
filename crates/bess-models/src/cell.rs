@@ -1,12 +1,19 @@
-//! 1-RC equivalent-circuit rack model with an LFP OCV curve.
+//! 1-RC equivalent-circuit rack model with an LFP OCV curve and its
+//! hysteresis.
+
+pub mod hysteresis;
 
 use bess_core::config::RackConfig;
 use bess_core::state::RackState;
 use bess_core::traits::{CellModel, RackStepResult};
 
+pub use hysteresis::{Hysteresis, LFP_HALF_GAP_V};
+
 /// Cell-level OCV curve for a 314 Ah class LFP cell, (SoC, V). Shape taken
 /// from public datasheets and published LFP OCV studies: a flat plateau
-/// around 3.3 V with knees at both ends. Strictly increasing in SoC.
+/// around 3.3 V with knees at both ends. Strictly increasing in SoC. Since
+/// M2.5 this is the mean curve: the charge and discharge branches sit a
+/// hysteresis envelope above and below it (`hysteresis`).
 const OCV_LFP_V: &[(f64, f64)] = &[
     (0.00, 2.90),
     (0.05, 3.05),
@@ -26,7 +33,7 @@ const OCV_LFP_V: &[(f64, f64)] = &[
 /// 1-RC equivalent circuit aggregated to rack level: a series resistance R0
 /// plus one RC polarization branch (R1, tau1). Per tick it solves the
 /// quadratic coupling of terminal power and current, coulomb-counts SoC,
-/// and relaxes the polarization state.
+/// relaxes the polarization state, and moves the OCV hysteresis state.
 ///
 /// Resistances are rack totals (cells plus busbars, fuses, contactors and
 /// cabling) and are scaled by each rack's manufacturing-spread multiplier.
@@ -38,6 +45,8 @@ pub struct Ecm1Rc {
     pub r1_ohm: f64,
     /// Polarization time constant, s.
     pub tau1_s: f64,
+    /// OCV hysteresis: the envelope and the transition rate.
+    pub hysteresis: Hysteresis,
 }
 
 impl Ecm1Rc {
@@ -49,6 +58,16 @@ impl Ecm1Rc {
             r0_ohm: 0.28,
             r1_ohm: 0.06,
             tau1_s: 30.0,
+            hysteresis: Hysteresis::lfp_barai_2015(),
+        }
+    }
+
+    /// The same rack with hysteresis switched off: the pre-M2.5 model, used
+    /// by the switch-off proof and by anyone who wants a single-curve cell.
+    pub fn lfp_314ah_rack_without_hysteresis() -> Self {
+        Self {
+            hysteresis: Hysteresis::off(),
+            ..Self::lfp_314ah_rack()
         }
     }
 }
@@ -101,13 +120,16 @@ impl CellModel for Ecm1Rc {
     ) -> RackStepResult {
         let r0 = self.r0_ohm * rack.resistance_scale;
         let r1 = self.r1_ohm * rack.resistance_scale;
+        // The mean curve carries the energy; the hysteresis state shifts
+        // the voltage the terminals see without changing what is stored.
         let ocv = ocv_rack_v(rack.soc, cfg);
+        let ocv_eff = ocv + rack.hysteresis_v;
         let v1 = rack.polarization_v;
 
         if !rack.in_service {
             rack.current_a = 0.0;
             rack.polarization_v = v1 + dt_s / self.tau1_s * (-v1);
-            rack.voltage_v = ocv - rack.polarization_v;
+            rack.voltage_v = ocv_eff - rack.polarization_v;
             return RackStepResult {
                 p_dc_w: 0.0,
                 heat_w: 0.0,
@@ -116,7 +138,7 @@ impl CellModel for Ecm1Rc {
 
         // Terminal power P = (E - R0*I) * I with E = OCV - V1. Solve the
         // quadratic for I; the physically meaningful root is the small one.
-        let e = ocv - v1;
+        let e = ocv_eff - v1;
         let p_max_w = e * e / (4.0 * r0);
         let mut p = p_request_w.min(0.999 * p_max_w);
         let mut i_a = if p.abs() < f64::EPSILON {
@@ -138,11 +160,23 @@ impl CellModel for Ecm1Rc {
         rack.current_a = i_a;
         rack.voltage_v = e - r0 * i_a;
         rack.polarization_v = v1 + dt_s / self.tau1_s * (i_a * r1 - v1);
+        rack.hysteresis_v = self.hysteresis.step(
+            rack.hysteresis_v,
+            rack.soc,
+            i_a,
+            dt_s,
+            capacity_ah,
+            cfg.cells_series,
+        );
 
         // All chemical power that does not reach the terminals is booked as
         // heat, so the site energy balance closes exactly. During RC
         // transients this briefly includes energy moving in and out of the
-        // polarization branch (bounded by its tiny stored energy).
+        // polarization branch (bounded by its tiny stored energy). The
+        // hysteresis work `-h * i` is in here too: charging against a raised
+        // branch and discharging into a lowered one both cost, and once the
+        // state has crossed to the current's side the term is a loss every
+        // tick, which is what the published LFP hysteresis loss is.
         let heat_w = ocv * i_a - p;
         RackStepResult { p_dc_w: p, heat_w }
     }
@@ -167,6 +201,7 @@ mod tests {
             current_a: 0.0,
             cell_temp_c: 25.0,
             polarization_v: 0.0,
+            hysteresis_v: 0.0,
             resistance_scale: 1.0,
             temp_offset_c: 0.0,
             alarm_bits: 0,

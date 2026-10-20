@@ -71,20 +71,20 @@ fails if this block is stale.
 
 | Gate | Band | Measured | Verdict | Band drawn from |
 |---|---|---|---|---|
-| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 83.66% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
-| Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.71% | inside | no public dataset publishes this at plant scale; see the note below |
+| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 82.96% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
+| Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.90% | inside | no public dataset publishes this at plant scale; see the note below |
 
 Energy at the point of interconnection over the run:
 
 | Quantity | Value |
 |---|---|
-| Imported | 66 484.8 MWh |
-| Exported | 55 622.2 MWh |
-| Round-trip efficiency | 0.8366 |
-| Round-trip efficiency, house load removed from import | 0.8599 |
-| Equivalent full cycles, exported energy over nameplate energy | 277.2 |
+| Imported | 66 778.0 MWh |
+| Exported | 55 396.9 MWh |
+| Round-trip efficiency | 0.8296 |
+| Round-trip efficiency, house load removed from import | 0.8543 |
+| Equivalent full cycles, exported energy over nameplate energy | 276.1 |
 | Stored energy, end minus start | 93.8 MWh |
-| Auxiliary share of import / of export | 2.71% / 3.24% |
+| Auxiliary share of import / of export | 2.90% / 3.49% |
 | Unexplained residual | 0.00067% of throughput, gate below 0.2% |
 
 Three definitions the figures above depend on. The round-trip ratio is
@@ -100,15 +100,15 @@ Where the energy went, each category on its own meter:
 
 | Category | MWh | Share of import |
 |---|---|---|
-| Battery | 4 562.7 | 6.86% |
-| PCS conversion | 2 812.4 | 4.23% |
-| Transformer | 1 591.3 | 2.39% |
-| Auxiliary: HVAC | 1 235.1 | 1.86% |
+| Battery | 4 951.8 | 7.42% |
+| PCS conversion | 2 812.0 | 4.21% |
+| Transformer | 1 591.3 | 2.38% |
+| Auxiliary: HVAC | 1 364.9 | 2.04% |
 | Auxiliary: rack electronics | 301.9 | 0.45% |
 | Auxiliary: PCS standby | 47.1 | 0.07% |
 | Auxiliary: controls and protection | 131.4 | 0.20% |
 | Auxiliary: lighting and safety | 87.6 | 0.13% |
-| **Total** | **10 769.5** | **16.20%** |
+| **Total** | **11 288.0** | **16.90%** |
 
 Temperatures and HVAC over the run:
 
@@ -116,16 +116,16 @@ Temperatures and HVAC over the run:
 |---|---|
 | Ambient, coldest to warmest | -12.1 to 33.3 C |
 | Container air, coldest to warmest | 10.0 to 29.0 C |
-| Cells, coldest to warmest | 8.7 to 38.1 C |
-| Duty, one unit / both units / heating | 15.66% / 0.45% / 0.26% |
-| Cooling starts per container | 4 847.9 |
+| Cells, coldest to warmest | 8.7 to 39.0 C |
+| Duty, one unit / both units / heating | 16.38% / 1.02% / 0.24% |
+| Cooling starts per container | 4 765.3 |
 
-Alarms raised over the run: 0 trips (gate: none), 40 449 warnings.
+Alarms raised over the run: 0 trips (gate: none), 38 867 warnings.
 
 | Alarm | Raised |
 |---|---|
 | `block.setpoint_not_met` | 15 300 |
-| `rack.derate_active` | 24 384 |
+| `rack.derate_active` | 22 802 |
 | `site.power_limited` | 765 |
 
 Fiscal quarter-hours closed: 35 040 (gate: exactly 35 040), 92 on the 23-hour day and 100 on the 25-hour day (gates: 92 and 100).
@@ -704,6 +704,103 @@ its hours is M4's, and the number will move again then. The fifteen
 library records were regenerated for the same bump and moved in their
 version string and nothing else, which is the evidence that the release
 is the physics the phases measured.
+
+## M2.5 (v0.7.0): OCV hysteresis
+
+The cell's open-circuit voltage stopped being one curve. The 13-point LFP
+table is now the mean curve, and a per-rack hysteresis state (Plett's
+one-state model) shifts the rested voltage above it after charging and
+below it after discharging, held at rest and moved only by throughput.
+The envelope is half the measured charge-minus-discharge rest-voltage gap
+(`LFP_HALF_GAP_V` in `crates/bess-models/src/cell/hysteresis.rs`).
+
+**Gate, curve-pair fidelity,** held by
+`rested_voltage_lies_on_two_branches_with_the_pinned_gap` in
+`crates/bess-models/tests/ocv_hysteresis.rs`. A rack is brought to the
+test SoC from ten points below at about 0.2C and rested fifteen minutes,
+then from ten points above, and the two rested voltages are compared per
+cell. Bands drawn before the measurement:
+
+| SoC | Band (full gap, mV per cell) | Bound | Measured |
+|---|---|---|---|
+| 5 % | 32 to 44 | sourced: 38 mV peak near 5 % SoC (Barai 2015, text) | 35.9 |
+| 50 % | 10 to 25 | sanity bound: the text gives no plateau value | 19.9 |
+
+The 5 % reading sits 2 mV under the source's peak because the rack rests
+at the SoC it crossed, a fraction above 5 %, on a knee where the envelope
+falls 2 mV per percent. **The plateau level is an estimate**, chosen
+inside the range the LFP literature reports and labeled as such: the
+pinned paper plots the whole curve (its Figure 6b) and states only the
+peak and where the maximum lies (5 to 25 % SoC), and this record quotes
+nothing it did not read in text.
+
+**Transition rate.** `gamma` = 75 covers 95 % of a transition within one
+4 % SoC step, the step size of the source protocol, after which its
+measured rest voltage lay on the new branch. The source publishes no
+intermediate rest points (its own simulation sets the rate "arbitrarily"
+at 50), so this is an interpretation of the protocol, not a fit, and is
+held as one by `ninety_five_percent_of_a_transition_fits_one_source_step`.
+
+**One envelope, one temperature.** The same group's 2016 measurement on
+the same cell has the 25 C gap within 3 mV of the 45 C gap, 13 mV wider
+at 0 C, and nearly rate-independent between 0.2C and 3C. GW-01's cells
+spend the replayed year between 8.7 and 38.1 C, so one 25 C envelope is
+carried and the cold widening is a known gap below.
+
+**Energy.** The stored energy stays the integral of the mean curve, and
+the hysteresis work `-h * i` is booked to the battery loss row with the
+RC and ohmic terms, so the site balance closes to the same residual as
+before (`the_energy_books_close_through_a_hysteresis_cycle`). The cost
+is real: the 0.5C full-depth cycle gate measured **0.9129** (import
+172.3 MWh, export 157.3 MWh) against 0.917 before the phase, 0.4 points
+of round trip paid to the gap, inside the unchanged [0.90, 0.93] band.
+The annual record moved as the table at the end of this section says:
+0.7 points of round trip, still inside the M1 field band.
+
+**Switch-off proof.** With `gamma` = 0 (`Ecm1Rc::lfp_314ah_rack_without_hysteresis`)
+the four-hour determinism run, with the new state field cut out of its
+serialization, hashes to the pre-phase golden digest
+(`switched_off_the_plant_is_the_pre_phase_plant_byte_for_byte`).
+
+**Known gaps.**
+
+- **The plateau level is not a measurement.** A source that prints the
+  gap at mid SoC in text, or a curve pair this repository may bundle,
+  would turn the 50 % row from a sanity bound into a sourced one.
+- **No temperature dependence.** The envelope is the 25 C one; a cold
+  site rests on branches 13 mV further apart than the model shows.
+- **The spread still reads through the mean curve.** `cell_dv_v` turns
+  the cell SoC spread into a voltage on the mean curve; cells of one
+  string sit on the same branch, so the branch cancels in the difference,
+  but a string mid-transition would show a spread this does not.
+- **Rested voltage is ambiguous now, and nothing yet exploits it.** The
+  published SoC is still the truth; phase 2 is where an estimator meets
+  this ambiguity.
+
+**Sources:** Barai, Widanage, Marco, McGordon, Jennings, "A study of the
+open circuit voltage characterization technique and hysteresis
+assessment of lithium-ion cells", J. Power Sources 295 (2015) 99-107,
+author manuscript in the
+[Warwick Research Archive Portal](https://wrap.warwick.ac.uk/70160/)
+(CC BY-NC-ND 4.0), retrieved 2026-10-21: the 38 mV peak near 5 % SoC,
+the 5 to 25 % placement, the protocol (20 Ah LFP pouch, 25 C, 4 % steps
+at 1C, 4 h rests, CV to C/20). Barai, Widanage, McGordon, Jennings, "The
+influence of temperature and charge-discharge rate on open circuit
+voltage hysteresis of an LFP Li-ion battery", IEEE ITEC 2016, author
+manuscript in the same archive
+([WRAP 81701](https://wrap.warwick.ac.uk/81701/)), retrieved 2026-10-21:
+the temperature and rate findings. Model: Plett, "Extended Kalman
+filtering for battery management systems of LiPB-based HEV battery
+packs, part 2", J. Power Sources 134 (2004), the one-state hysteresis
+form as restated in Barai 2015 section 2.3. Numbers cited, nothing
+reproduced.
+
+### The annual record after the phase
+
+| Record | Round trip at the POI | Import | Export | Equivalent full cycles | What moved it |
+|---|---|---|---|---|---|
+| v0.6.1 | 0.8366 | 66,484.8 MWh | 55,622.2 MWh | 277.2 | the M2 plant |
+| after phase 1 | 0.8296 | 66,778.0 MWh | 55,396.9 MWh | 276.1 | OCV hysteresis: 389.1 MWh more heat in the battery row (4,562.7 to 4,951.8), 129.8 MWh more HVAC to remove it, warmest cell 38.1 to 39.0 C |
 
 ## Planned gates (from ROADMAP.md)
 

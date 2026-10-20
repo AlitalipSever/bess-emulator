@@ -1,6 +1,7 @@
 # M2.5: SoC realism mini-iteration
 
-Status: draft, designed alongside M2, implemented after it. A
+Status: in progress. Phase 1 landed 2026-10-21 (PR1); phases 2 and 3
+follow. Designed alongside M2, implemented after it. A
 mini-iteration in the M0.5/M1.5 tradition: three small phases, each
 deepening exactly one thing, so the iteration discipline holds where a
 combined M2 would have bent it (the hysteresis work touches the cell
@@ -61,11 +62,26 @@ Per phase, each against public data, recorded in CALIBRATION.md:
 
 Filled as PRs land.
 
-- (none yet)
+- **Rested voltage depends on history** (phase 1 PR1). Every rack
+  carries an OCV hysteresis state; after charging a rested rack reads up
+  to 19 mV per cell above the mean curve at the low knee and about
+  10 mV on the plateau, after discharging the same below. Rack and cell
+  voltage points keep their addresses and units; any baseline recorded
+  against v0.6.1 voltages will differ, and a client that inferred SoC
+  from rested voltage now gets a path-dependent answer, which is the
+  point. The 0.5C cycle RTE moved 0.917 to 0.9129.
+- **Checkpoint format 9** (phase 1 PR1). Racks carry `hysteresis_v`;
+  v8 files are refused by version.
+- **Library records regenerated** (phase 1 PR1): all fifteen digests
+  moved with the physics; `hvac-failure-both-units`,
+  `hvac-failure-hot-week` and `rack-self-discharge-drift` changed their
+  event counts by a handful of derate events.
 
 ## Open questions
 
-- Which published LFP curve pair pins the hysteresis gate (phase 1).
+- ~~Which published LFP curve pair pins the hysteresis gate (phase 1).~~
+  Barai et al. 2015; the plateau level stays a labeled estimate until a
+  source prints it in text (CALIBRATION.md, M2.5 known gaps).
 - Whether reported SoC replaces the published point or ships beside it
   for one release before the switch (phase 2 design argues replacement;
   the two-point alternative is the fallback if review disagrees).
