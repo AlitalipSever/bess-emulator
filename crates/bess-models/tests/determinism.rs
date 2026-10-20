@@ -24,13 +24,17 @@ const TICKS: u64 = 4 * 3600;
 /// If a deliberate model or state-schema change moves this value, update it
 /// from the number printed by the failing assertion. Any other change that
 /// moves it is a broken determinism contract. Last regenerated in M2.5
-/// phase 1, for a physics change and a schema change at once: every rack
-/// gained the OCV hysteresis state (`hysteresis_v`) and the cell model
-/// moves it, so voltages, currents and the night charge's heat differ from
-/// the first charging tick. The switch-off proof in `ocv_hysteresis.rs`
-/// holds the previous value: with the transition rate at zero and the new
-/// field cut out of the serialization the tree still hashes to it.
-/// Earlier values: 0xf3fb_8ad4_75c9_980f (M2 phase 4 PR1, for schema
+/// phase 2 PR1, for schema and the event log: every rack gained the
+/// reported SoC and its sensor's two error parameters, and the estimator's
+/// corrections are events, so the log's count and digest move with them.
+/// The physics did not: the decoupling proof in `reported_soc.rs` holds
+/// the truth trajectory to phase 1's value with the new fields cut out.
+/// Earlier values: 0x95c3_aa5c_e7bb_3679 (M2.5 phase 1, a physics and a
+/// schema change at once: every rack gained the OCV hysteresis state and
+/// the cell model moves it, so voltages, currents and the night charge's
+/// heat differ from the first charging tick; the switch-off proof in
+/// `ocv_hysteresis.rs` holds the value before it with the field cut out),
+/// 0xf3fb_8ad4_75c9_980f (M2 phase 4 PR1, for schema
 /// alone: run identity gained the scenario (`meta.scenario`, `null` here)
 /// and every rack the excess self-discharge rate (`0.0` here)),
 /// 0xa24f_1646_1b6a_d90e (M2 phase 3 PR2, for schema
@@ -47,7 +51,7 @@ const TICKS: u64 = 4 * 3600;
 /// two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC),
 /// 0x1446_6f26_c751_bc02 (M1 PR5, the auxiliary inventory),
 /// 0xcd26_9803_d062_e1ad (M2 phase 1 PR2, cell spread and balancing).
-const GOLDEN_DIGEST: u64 = 0x95c3_aa5c_e7bb_3679;
+const GOLDEN_DIGEST: u64 = 0xe46c_f1ee_8656_cf35;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();

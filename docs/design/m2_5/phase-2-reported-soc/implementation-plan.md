@@ -15,6 +15,16 @@ Two PRs, each landing green.
 Accept: the sawtooth chart from a replayed cycling week, truth smooth
 underneath.
 
+*As built (feature/m2_5-phase2-pr1, 2026-10-21):* `bms/estimator.rs`,
+`BasicBms::estimator` with `with_perfect_estimator()`; `BmsFlows::soc_resnap`
+carries the jump to the kernel, which emits `Event::SocResnapped`; the
+shell's MQTT topic and payload, and the viewer's journal row; bench gains
+an estimator section (mean and worst error, corrections) with two sanity
+gates; checkpoint 10; tests `tests/reported_soc.rs` (decoupling, plateau
+drift, a replayed week's sawtooth) and unit tests in the estimator. The
+acceptance chart is the week test's printed line and the annual gate
+figures in CALIBRATION.md; a drawn chart is left for the release piece.
+
 ## PR2: the switch
 
 - Published SoC points and aggregates carry the reported value (D1);
@@ -32,5 +42,6 @@ bench output still measures estimator error against truth.
 
 - Whether aggregates should be capacity-weighted or plain means of
   reported values; decided by what the M0 aggregation already does for
-  truth (mirror it, whichever it is).
+  truth (mirror it, whichever it is). *Resolved in PR1:* plain means over
+  in-service racks, `average_soc_reported` beside `average_soc`.
 - Confidence signal precedent (README open question, D4).

@@ -30,6 +30,9 @@ pub fn object_of_event(event: &Event) -> Selection {
     match *event {
         Event::AlarmRaised { node, .. } | Event::AlarmCleared { node, .. } => object_of(node),
         Event::PcsStateChanged { block, .. } => Selection::Pcs { block },
+        Event::SocResnapped {
+            block, container, ..
+        } => Selection::Container { block, container },
         Event::FaultApplied(action) => match action {
             FaultAction::HvacFailure { block, container }
             | FaultAction::HvacRepair { block, container }

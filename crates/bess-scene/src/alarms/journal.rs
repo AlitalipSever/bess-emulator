@@ -61,7 +61,9 @@ impl Journal {
                 Event::AlarmCleared { node, bit, .. } => {
                     self.raised.remove(&(node, bit));
                 }
-                Event::PcsStateChanged { .. } | Event::FaultApplied(_) => {}
+                Event::PcsStateChanged { .. }
+                | Event::FaultApplied(_)
+                | Event::SocResnapped { .. } => {}
             }
             if self.entries.len() == CAPACITY {
                 self.entries.pop_front();

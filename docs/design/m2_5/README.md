@@ -1,7 +1,7 @@
 # M2.5: SoC realism mini-iteration
 
-Status: in progress. Phase 1 landed 2026-10-21 (PR1); phases 2 and 3
-follow. Designed alongside M2, implemented after it. A
+Status: in progress. Phase 1 landed 2026-10-21 (PR1); phase 2 PR1 the
+same day; phase 2 PR2 and phase 3 follow. Designed alongside M2, implemented after it. A
 mini-iteration in the M0.5/M1.5 tradition: three small phases, each
 deepening exactly one thing, so the iteration discipline holds where a
 combined M2 would have bent it (the hysteresis work touches the cell
@@ -72,6 +72,18 @@ Filled as PRs land.
   point. The 0.5C cycle RTE moved 0.917 to 0.9129.
 - **Checkpoint format 9** (phase 1 PR1). Racks carry `hysteresis_v`;
   v8 files are refused by version.
+- **A new event, `soc_resnap`** (phase 2 PR1). A rack's BMS correcting
+  its reported SoC at a knee of the OCV curve is an event on every
+  surface: MQTT `events/<rack>/soc_resnap` with `from_pct` and `to_pct`,
+  the event counter, the viewer's journal. On the replayed year it fires
+  about once per rack and day, so an event consumer that counted only
+  alarm edges now sees a steady stream beside them.
+- **Checkpoint format 10** (phase 2 PR1). Racks carry `soc_reported`,
+  `sensor_offset_a` and `sensor_gain`; v9 files are refused.
+- **The research record gains an estimator section** (phase 2 PR1):
+  mean and worst reported-SoC error and the correction count, with two
+  sanity gates. The published SoC points still carry the truth until
+  phase 2 PR2.
 - **Library records regenerated** (phase 1 PR1): all fifteen digests
   moved with the physics; `hvac-failure-both-units`,
   `hvac-failure-hot-week` and `rack-self-discharge-drift` changed their

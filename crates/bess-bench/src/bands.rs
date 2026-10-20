@@ -87,6 +87,19 @@ pub const ANNUAL_RTE: Band = Band { lo: 0.80, hi: 0.85 };
 /// survive a careless record regeneration.
 pub const AUX_SHARE_OF_IMPORT: Band = Band { lo: 0.01, hi: 0.08 };
 
+/// Mean absolute error of the reported SoC against the truth, percentage
+/// points. A sanity bound: no public dataset publishes estimator error at
+/// rack level over a plant year. The floor says the estimator is not
+/// secretly an oracle; the ceiling is well under the field range below.
+pub const ESTIMATOR_MEAN_ABS_ERROR_PCT: Band = Band { lo: 0.05, hi: 2.0 };
+
+/// Largest reported-SoC error any rack showed, percentage points. The
+/// ceiling is the field range ACCURE reports across more than 100 operating
+/// sites (errors up to 15 points, outliers beyond); a plant whose worst
+/// rack passes it is claiming a worse fleet than measured. Sanity, not
+/// calibration: the source gives a range, not a distribution.
+pub const ESTIMATOR_MAX_ABS_ERROR_PCT: Band = Band { lo: 0.2, hi: 15.0 };
+
 /// Unexplained energy as a share of throughput. Not a calibration band: the
 /// books either close or the accounting is wrong. The tolerance matches the
 /// daily invariant test and exists for float accumulation over tens of
@@ -118,6 +131,20 @@ pub const GATES: &[Gate] = &[
         bound: Bound::Sanity,
         source: "no public dataset publishes this at plant scale; see the note below",
         read: |k| k.energy.aux_share_of_import,
+    },
+    Gate {
+        name: "Reported SoC, mean absolute error (points)",
+        band: ESTIMATOR_MEAN_ABS_ERROR_PCT,
+        bound: Bound::Sanity,
+        source: "no public rack-level estimator error at plant scale; see CALIBRATION.md",
+        read: |k| k.estimator.mean_abs_error_pct,
+    },
+    Gate {
+        name: "Reported SoC, largest error on any rack (points)",
+        band: ESTIMATOR_MAX_ABS_ERROR_PCT,
+        bound: Bound::Sanity,
+        source: "ACCURE 2025 ESS report field range, errors up to 15 points",
+        read: |k| k.estimator.max_abs_error_pct,
     },
 ];
 
@@ -197,6 +224,12 @@ mod tests {
                     }
                     "Auxiliary share of energy imported" => {
                         kpis.energy.aux_share_of_import = value;
+                    }
+                    "Reported SoC, mean absolute error (points)" => {
+                        kpis.estimator.mean_abs_error_pct = value;
+                    }
+                    "Reported SoC, largest error on any rack (points)" => {
+                        kpis.estimator.max_abs_error_pct = value;
                     }
                     other => panic!("gate {other} has no case here"),
                 }

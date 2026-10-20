@@ -144,6 +144,7 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
     let cfg = PlantConfig::gw01();
     let site_id = cfg.site_id.clone();
     let containers = cfg.blocks * cfg.containers_per_block;
+    let racks = cfg.total_racks();
     let nominal_energy_wh = cfg.nominal_energy_wh();
     let models = gw01_models(&cfg);
     let mut sim = Simulation::new(cfg, models, spec.seed, spec.start_unix_s);
@@ -153,6 +154,7 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
     let ticks = spec.days * DAY_S / TICK_SECONDS;
     let mut tallies = Tallies::new(containers);
     let mut alarms = crate::alarms::AlarmKpis::default();
+    let mut estimator = crate::estimator::Tally::default();
     let mut periods = crate::periods::Collector::new(spec.start_unix_s);
     let (window, label) = crate::series::window::hot_week(weather, spec);
     let mut series = crate::series::Collector::new(
@@ -164,8 +166,15 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
 
     for tick in 0..ticks {
         let inputs = weather.inputs_at(sim.unix_time_s());
-        alarms.observe(sim.step(&inputs));
+        {
+            let events = sim.step(&inputs);
+            alarms.observe(events);
+            estimator.observe_events(events);
+        }
         tallies.observe(&sim, tick);
+        if tick.is_multiple_of(CELL_SAMPLE_TICKS) {
+            estimator.observe_state(sim.state());
+        }
         periods.observe(sim.state());
         series.observe(&sim, sim.unix_time_s());
         if (tick + 1) % (DAY_S / TICK_SECONDS) == 0 {
@@ -206,6 +215,7 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
         },
         alarms,
         periods: period_kpis,
+        estimator: estimator.finish(racks, spec.days),
     };
     let series = series.finish(&sim, kpis.run.clone());
     (kpis, series, period_rows)
@@ -281,7 +291,7 @@ fn mwh(wh: f64) -> f64 {
 /// committed record be compared field by field: the run is deterministic, but
 /// the last bits of a float are not worth defending across architectures, and
 /// no reading in this file is meaningful past the digits it keeps.
-fn round(value: f64, decimals: u32) -> f64 {
+pub(crate) fn round(value: f64, decimals: u32) -> f64 {
     let scale = 10f64.powi(decimals as i32);
     (value * scale).round() / scale
 }

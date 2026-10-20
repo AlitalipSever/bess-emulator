@@ -55,5 +55,11 @@
     "closed": 35040,
     "on_short_dst_day": 92,
     "on_long_dst_day": 100
+  },
+  "estimator": {
+    "mean_abs_error_pct": 0.253,
+    "max_abs_error_pct": 1.13,
+    "corrections": 104944,
+    "corrections_per_rack_day": 0.599
   }
 }

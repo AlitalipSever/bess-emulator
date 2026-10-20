@@ -73,6 +73,8 @@ fails if this block is stale.
 |---|---|---|---|---|
 | Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 82.96% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
 | Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.90% | inside | no public dataset publishes this at plant scale; see the note below |
+| Reported SoC, mean absolute error (points) | 5.00% to 200.00% (sanity bound) | 25.30% | inside | no public rack-level estimator error at plant scale; see CALIBRATION.md |
+| Reported SoC, largest error on any rack (points) | 20.00% to 1500.00% (sanity bound) | 113.00% | inside | ACCURE 2025 ESS report field range, errors up to 15 points |
 
 Energy at the point of interconnection over the run:
 
@@ -129,6 +131,8 @@ Alarms raised over the run: 0 trips (gate: none), 38 867 warnings.
 | `site.power_limited` | 765 |
 
 Fiscal quarter-hours closed: 35 040 (gate: exactly 35 040), 92 on the 23-hour day and 100 on the 25-hour day (gates: 92 and 100).
+
+Reported SoC against the truth, over every rack: mean absolute error 0.253 points (gate: 5.00% to 200.00%), largest 1.13 points (gate: 20.00% to 1500.00%); 104 944 corrections, 0.599 per rack and day.
 
 <!-- bess-bench:end m1-annual -->
 
@@ -801,6 +805,78 @@ reproduced.
 |---|---|---|---|---|---|
 | v0.6.1 | 0.8366 | 66,484.8 MWh | 55,622.2 MWh | 277.2 | the M2 plant |
 | after phase 1 | 0.8296 | 66,778.0 MWh | 55,396.9 MWh | 276.1 | OCV hysteresis: 389.1 MWh more heat in the battery row (4,562.7 to 4,951.8), 129.8 MWh more HVAC to remove it, warmest cell 38.1 to 39.0 C |
+
+## M2.5 (v0.7.0): the reported SoC
+
+Each rack's BMS now carries an estimate of its own state of charge beside
+the truth, and from phase 2 PR2 on the estimate is what the plant
+publishes. The estimator is behavioral (`crates/bess-models/src/bms/estimator.rs`):
+coulomb counting through a current sensor with an offset and a gain
+error, a feeble pull toward the truth on the plateau standing in for the
+little a flat OCV curve lets voltage say, and a hard correction when the
+rack reaches a knee of the curve, where voltage finally can. Corrections
+are events (`SocResnapped`), so the sawtooth is a sequence of facts.
+
+**The sensor bounds the drift.** Each rack draws its sensor's offset and
+gain error once at commissioning, uniformly inside the published class
+of a shunt-based pack current sensor: the Isabellenhütte IVT-S at the
+±500 A range, offset ≤ 75 mA, total accuracy ±0.4 % of reading. Over a
+314 Ah rack, 75 mA is 0.57 points of SoC a day; the gain error cancels
+over a balanced cycle and shows only as the error between knees. The
+bound is a specification limit, not a distribution, and a BMS that
+auto-zeroes its sensor at rest would sit well inside it; both are stated
+here rather than modeled.
+
+**Where it corrects.** The knees are where the mean OCV table leaves its
+plateau, 10 % and 90 % SoC. A visit with more than 0.5 points of error
+snaps the estimate to the truth plus a fifth of the error. The threshold,
+the residual and the plateau pull (a ten-day time constant) are estimates
+under sanity bounds: no public source gives them at plant scale.
+
+**Gate,** sanity bounds in `bess-bench` (`ESTIMATOR_MEAN_ABS_ERROR_PCT`,
+`ESTIMATOR_MAX_ABS_ERROR_PCT`), measured over every rack of the replayed
+year and printed in the generated block above: the mean absolute error
+has to sit between 0.05 and 2 points, the worst rack's error between 0.2
+and 15 points. The ceiling is the field range ACCURE reports across more
+than a hundred operating sites (errors up to ±15 points, with outliers
+beyond); the floor says the estimator is not an oracle in disguise.
+Measured: mean 0.253 points, worst 1.13 points, 104,944 corrections
+(0.599 per rack and day). The energy figures did not move by a digit:
+the generated block's round trip, import and export are phase 1's.
+
+**The truth never moves.** `the_estimator_never_touches_the_truth` in
+`crates/bess-models/tests/reported_soc.rs` holds the physics with the
+imperfect estimator to the physics with a perfect one, byte for byte once
+the estimator's three fields and the event log are cut out; dispatch,
+limits, derating and alarms keep reading `soc`. That is a known gap, by
+design: a real BMS acts on its estimate, and routing the estimate into
+the limit chain couples estimator error into every calibration number at
+once. It is deferred to a later iteration, so this phase changes what the
+plant says before what it does.
+
+**Known gaps.**
+
+- **No plant-scale source for the correction behavior.** Threshold,
+  residual and pull are labeled estimates; a published BMS log with
+  correction sizes would turn the sanity bounds into a sourced band.
+- **The offset is a bound, not a draw from the field.** Real offsets after
+  auto-zero are smaller; the drift here is the class limit's.
+- **The BMS does not know the state of health.** It counts against the
+  nameplate capacity, which is right while `soh` is 1.0 and a second
+  drift source once M5 ages the racks.
+- **The limit chain reads the truth** (above).
+
+**Sources:** Isabellenhütte Heusler, IVT-S datasheet, current channel
+table (measurement ranges ±100 to ±2,500 A; offset ≤ 8 to ≤ 500 mA;
+initial accuracy ±0.1 %, total ±0.4 % of reading; linearity 0.01 %),
+[manufacturer PDF](https://www.isabellenhuette.com/hubfs/Files/Data-sheets/IVT-S.pdf),
+retrieved 2026-10-21. Field range: D. Rüwald, "SOC errors in LFP
+batteries: the $1 million per GWh challenge for BESS", Modern Power
+Systems, 2026-08-06, citing the ACCURE 2025 Energy Storage System Health
+& Performance Report (over 100 sites, more than 20 GWh): SoC errors up to
+±15 %, outliers beyond 40 %, a 12-point daily difference in one field
+example. Knee placement: the OCV table in `crates/bess-models/src/cell.rs`.
+Numbers cited, nothing reproduced.
 
 ## Planned gates (from ROADMAP.md)
 

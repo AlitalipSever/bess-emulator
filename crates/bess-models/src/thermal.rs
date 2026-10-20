@@ -378,6 +378,9 @@ mod tests {
                     cell_temp_c: air_temp_c,
                     polarization_v: 0.0,
                     hysteresis_v: 0.0,
+                    soc_reported: 0.5,
+                    sensor_offset_a: 0.0,
+                    sensor_gain: 1.0,
                     resistance_scale: 1.0,
                     // A spread of positions in the airflow, as the plant
                     // draws them: -1 K, 0 K, +1 K, ...

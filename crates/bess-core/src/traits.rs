@@ -62,6 +62,19 @@ pub struct BmsFlows {
     /// Heat released into the rack during the step, W. Equals `bled_wh`
     /// spread over the step: bleed resistors have nowhere else to put it.
     pub heat_w: f64,
+    /// The estimator corrected its reported SoC by a jump this step; the
+    /// kernel turns it into an event. `None` on an ordinary tick.
+    pub soc_resnap: Option<SocResnap>,
+}
+
+/// One correction jump of the reported SoC, in per mille of SoC: what a
+/// register would carry, and exact, so the event log stays comparable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct SocResnap {
+    /// Reported SoC before the jump, per mille.
+    pub from_permille: u16,
+    /// Reported SoC after the jump, per mille.
+    pub to_permille: u16,
 }
 
 /// Battery management logic for one rack.
