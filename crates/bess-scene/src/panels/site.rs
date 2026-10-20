@@ -48,7 +48,8 @@ pub fn container_air_min_max_c(state: &SiteState) -> (f64, f64) {
 
 /// State of charge and the site's electrical readings.
 pub fn electrical(ui: &mut egui::Ui, state: &SiteState) {
-    let soc = state.average_soc() as f32;
+    // The viewer shows what SCADA sees: the BMSs' reported value.
+    let soc = state.average_soc_reported() as f32;
     ui.label("State of charge");
     ui.add(ProgressBar::new(soc).text(format!("{:.1} %", soc * 100.0)));
     ui.add_space(4.0);

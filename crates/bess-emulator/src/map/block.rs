@@ -129,7 +129,8 @@ pub(super) fn points(b: usize) -> Vec<Point> {
             100.0,
             base + 3,
             Input,
-            move |s: &SiteState| s.blocks[b].average_soc() * 100.0
+            // What the block's BMSs report, not the truth (map 0.4.0).
+            move |s: &SiteState| s.blocks[b].average_soc_reported() * 100.0
         ),
         point!(
             format!("{prefix}.cell_temp_min_c"),

@@ -854,6 +854,12 @@ the limit chain couples estimator error into every calibration number at
 once. It is deferred to a later iteration, so this phase changes what the
 plant says before what it does.
 
+**The chart material.** The study series (`calibration/m1-study-series.json`,
+hot-week trace) carries the site-mean and one rack's true and reported
+SoC side by side, which is the sawtooth over the smooth truth the phase
+set as its acceptance bar; the published surfaces carry the reported
+value alone from map 0.4.0.
+
 **Known gaps.**
 
 - **No plant-scale source for the correction behavior.** Threshold,

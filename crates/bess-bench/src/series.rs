@@ -94,6 +94,16 @@ pub struct Sample {
     pub poi_mw: f64,
     /// Auxiliary draw at that instant, kW.
     pub aux_kw: f64,
+    /// Mean true state of charge over in-service racks, percent: the
+    /// kernel's own quantity, which only the research surfaces carry.
+    pub soc_true_pct: f64,
+    /// Mean reported state of charge, percent: what the plant publishes.
+    pub soc_reported_pct: f64,
+    /// One rack's true SoC (block 0, container 0, rack 0), percent, so the
+    /// sawtooth is visible unsmoothed by the site mean.
+    pub rack0_soc_true_pct: f64,
+    /// The same rack as its BMS reports it, percent.
+    pub rack0_soc_reported_pct: f64,
 }
 
 /// A named window of samples.
@@ -324,6 +334,7 @@ fn sample(state: &SiteState, unix_s: i64) -> Sample {
         }
     }
     let (cell_min, cell_max) = state.cell_temp_min_max_c();
+    let rack0 = &state.blocks[0].containers[0].racks[0];
     Sample {
         unix_s,
         ambient_c: round(state.weather.ambient_c, 1),
@@ -337,6 +348,10 @@ fn sample(state: &SiteState, unix_s: i64) -> Sample {
         heating,
         poi_mw: round(state.substation.poi_active_power_w / 1.0e6, 2),
         aux_kw: round(state.aux.total_w() / 1.0e3, 1),
+        soc_true_pct: round(state.average_soc() * 100.0, 2),
+        soc_reported_pct: round(state.average_soc_reported() * 100.0, 2),
+        rack0_soc_true_pct: round(rack0.soc * 100.0, 2),
+        rack0_soc_reported_pct: round(rack0.soc_reported * 100.0, 2),
     }
 }
 

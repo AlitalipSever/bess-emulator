@@ -38,6 +38,15 @@ figures in CALIBRATION.md; a drawn chart is left for the release piece.
 Accept: a Modbus poll and an MQTT subscribe both return the estimate;
 bench output still measures estimator error against truth.
 
+*As built (feature/m2_5-phase2-pr2, 2026-10-21):* the four site/block
+points, REST and Prometheus switched; map 0.4.0 with its COMPATIBILITY.md
+row; the viewer's site bar and rack rows show the reported value; the
+study series carries `soc_true_pct` / `soc_reported_pct` and the rack 0
+pair, regenerated; Python example comment. Grafana is left as the SCADA
+view on purpose: Prometheus carries no truth, so an overlay there would
+have meant publishing the oracle one metric over, which D1 forbids; the
+overlay is the series' job.
+
 ## Open questions
 
 - Whether aggregates should be capacity-weighted or plain means of

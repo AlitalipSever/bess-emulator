@@ -1,7 +1,7 @@
 # M2.5: SoC realism mini-iteration
 
-Status: in progress. Phase 1 landed 2026-10-21 (PR1); phase 2 PR1 the
-same day; phase 2 PR2 and phase 3 follow. Designed alongside M2, implemented after it. A
+Status: in progress. Phase 1 landed 2026-10-21 (PR1); phase 2 PR1 and PR2
+the same day; phase 3 follows. Designed alongside M2, implemented after it. A
 mini-iteration in the M0.5/M1.5 tradition: three small phases, each
 deepening exactly one thing, so the iteration discipline holds where a
 combined M2 would have bent it (the hysteresis work touches the cell
@@ -48,7 +48,7 @@ Per phase, each against public data, recorded in CALIBRATION.md:
 
 - **Crate:** v0.7.0 at iteration end. (v0.6.0 went to M2.6, the alarm
   view mini-iteration, which shipped first.)
-- **Signal map:** the headline change is a meaning change: the published
+- **Signal map:** 0.4.0 as built in phase 2 PR2. The headline change is a meaning change: the published
   SoC becomes the BMS's reported estimate, the internal truth leaves the
   SCADA surfaces (research profile and bench keep it). That is the
   honest-interface decision this iteration exists for, it is breaking,
@@ -82,8 +82,16 @@ Filled as PRs land.
   `sensor_offset_a` and `sensor_gain`; v9 files are refused.
 - **The research record gains an estimator section** (phase 2 PR1):
   mean and worst reported-SoC error and the correction count, with two
-  sanity gates. The published SoC points still carry the truth until
-  phase 2 PR2.
+  sanity gates.
+- **The published SoC is an estimate now, map 0.4.0** (phase 2 PR2, the
+  headline). `site.soc_pct`, `blockNN.soc_pct`, their MQTT mirrors, the
+  REST summary's `soc` and `bess_site_soc_ratio` carry what the BMSs
+  report: on the replayed year it sits 0.25 points from the truth on
+  average, up to 1.1 on a rack, and corrects itself by jumps at the
+  knees. Same addresses, units and scales. A client that treated the
+  point as an oracle, for a round-trip figure or a schedule, now sees
+  what a real gateway gives it; the truth is on the research surfaces
+  only (the annual record and the study series).
 - **Library records regenerated** (phase 1 PR1): all fifteen digests
   moved with the physics; `hvac-failure-both-units`,
   `hvac-failure-hot-week` and `rack-self-discharge-drift` changed their

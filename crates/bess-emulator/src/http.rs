@@ -60,7 +60,8 @@ fn summary_value(snap: &Snapshot) -> serde_json::Value {
         "tick": state.tick,
         "unix_time_s": state.unix_time_s(),
         "speed": snap.speed,
-        "soc": state.average_soc(),
+        // As the BMSs report it, like every published surface (map 0.4.0).
+        "soc": state.average_soc_reported(),
         "poi_active_power_w": state.substation.poi_active_power_w,
         "site_setpoint_w": state.ems.site_setpoint_w,
         "frequency_hz": state.substation.frequency_hz,
@@ -79,7 +80,7 @@ fn summary_value(snap: &Snapshot) -> serde_json::Value {
         "event_count": state.event_log.count,
         "blocks": state.blocks.iter().map(|b| json!({
             "p_ac_w": b.pcs.p_ac_w,
-            "soc": b.average_soc(),
+            "soc": b.average_soc_reported(),
             "mode": crate::map::block_mode_code(b.mode),
             // Named as on Modbus and MQTT, where `blockNN.alarm_bits` is
             // the rack fold and this word is `block_alarm_bits`.

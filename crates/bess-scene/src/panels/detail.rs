@@ -110,7 +110,7 @@ pub fn selection_detail(
                                     rack: i,
                                 };
                                 ui.label(format!("{i:02}"));
-                                ui.label(format!("{:.1} %", rack.soc * 100.0));
+                                ui.label(format!("{:.1} %", rack.soc_reported * 100.0));
                                 ui.label(format!("{:.1} \u{b0}C", rack.cell_temp_c));
                                 ui.label(format!("{:+.0} A", rack.current_a));
                                 alarm_cell(ui, node, rack.alarm_bits);
