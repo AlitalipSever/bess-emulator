@@ -134,6 +134,22 @@ Filled as PRs land.
   instantaneous steps will differ on every hour boundary of the plan.
 - **Checkpoint format 13** (phase 2 PR2): `PcsState::setpoint_ramped_w`,
   `setpoint_followed_w`.
+- **The converter is warm and has an overload budget** (phase 3). One
+  thermal node per converter fed by its losses (SG2500U: full power to
+  50 °C ambient, derating above; the rise and the time constant labeled
+  estimates), published as `blockNN.pcs.temperature_c` (2000 + 10b + 6,
+  Pt100 class B) with block bits `pcs_over_temperature` (4) and
+  `pcs_derated` (5). A short-term overload of 110 % (the datasheet's
+  2750 kVA) for ten minutes (labeled), published as
+  `blockNN.pcs.overload_budget_pct` (2000 + 10b + 7): a lost block's
+  share lands on the others at 105 % for twenty minutes, two lost blocks'
+  at 110 % for ten, before the site reports its limit; a staggered
+  return runs the early blocks at 110 %. New library case
+  `pcs-overload-budget`; `pcs-trip-and-reset` and the staggered return
+  tell the new story in their headers. Advertised capability stays
+  bounded by the rating.
+- **Checkpoint format 14** (phase 3): `PcsState::temperature_c`,
+  `overload_budget`, `overload_armed`, `ac_limit_w`.
 
 ## Open questions
 

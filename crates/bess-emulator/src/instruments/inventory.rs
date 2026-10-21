@@ -121,9 +121,12 @@ pub fn instrument_of(name: &str) -> Option<Instrument> {
         "site.weather.ambient_c" => Some(Instrument::Thermometer),
         _ => match block_point {
             Some("pcs.p_ac_kw" | "pcs.p_dc_kw" | "pcs.dc_voltage_v") => Some(Instrument::Analog),
-            Some("cell_temp_min_c" | "cell_temp_max_c" | "container.air_temp_c") => {
-                Some(Instrument::Thermometer)
-            }
+            Some(
+                "cell_temp_min_c"
+                | "cell_temp_max_c"
+                | "container.air_temp_c"
+                | "pcs.temperature_c",
+            ) => Some(Instrument::Thermometer),
             _ => None,
         },
     }

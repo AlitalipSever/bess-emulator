@@ -55,6 +55,10 @@ impl SiteState {
                     state_elapsed_s: 0.0,
                     setpoint_ramped_w: 0.0,
                     setpoint_followed_w: 0.0,
+                    temperature_c: ambient_c,
+                    overload_budget: 1.0,
+                    overload_armed: true,
+                    ac_limit_w: cfg.pcs_rated_w,
                 },
                 containers: (0..cfg.containers_per_block)
                     .map(|_| ContainerState {

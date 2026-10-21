@@ -76,6 +76,38 @@ fn both_units_down_shows_the_causal_chain() {
     assert!(limit - derate < 3600, "one discharge: {derate}..{limit}");
 }
 
+/// Two converters trip; the eighteen left carry the site on their overload
+/// budgets for ten minutes, then the site reports its limit, and no block
+/// ever calls it a miss.
+#[test]
+fn the_overload_budget_carries_the_site_for_ten_minutes_then_the_limit() {
+    let (sim, log) = played("pcs-overload-budget");
+    let trip = log
+        .iter()
+        .position(|(_, e)| *e == Event::FaultApplied(FaultAction::PcsTrip { block: 3 }))
+        .expect("the trip fired");
+    let trip_tick = log[trip].0;
+    let limit = raise_after(&log, trip_tick, |n, bit| {
+        n == AlarmNode::Site && bit == s::POWER_LIMITED
+    })
+    .expect("the site never reported its limit");
+    assert!(
+        (trip_tick + 560..=trip_tick + 700).contains(&limit),
+        "the limit came at {limit}, {} s after the trip",
+        limit - trip_tick
+    );
+    let misses = log
+        .iter()
+        .filter(|(_, e)| {
+            matches!(e, Event::AlarmRaised { node: AlarmNode::Block { .. }, bit, .. } if *bit == b::SETPOINT_NOT_MET)
+        })
+        .count();
+    assert_eq!(misses, 0, "a block called the budget's end a miss");
+    let st = sim.state();
+    assert!(st.blocks[0].pcs.overload_budget < 1.0);
+    assert!(!st.blocks[0].pcs.overload_armed);
+}
+
 /// The converter trips while it is running, and the reset brings it back
 /// to running through its startup sequence, not straight to standby.
 #[test]

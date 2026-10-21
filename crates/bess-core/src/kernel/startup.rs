@@ -106,6 +106,10 @@ mod tests {
             state_elapsed_s: 0.0,
             setpoint_ramped_w: 0.0,
             setpoint_followed_w: 0.0,
+            temperature_c: 20.0,
+            overload_budget: 1.0,
+            overload_armed: true,
+            ac_limit_w: 2.5e6,
         }
     }
 

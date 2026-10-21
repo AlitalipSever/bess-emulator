@@ -1,0 +1,14 @@
+{
+  "scenario": "pcs-overload-budget",
+  "content_hash": "0xb47e5884d8f55c05",
+  "engine_version": "0.7.0",
+  "seed": 7,
+  "start_unix_s": 1784048400,
+  "ticks": 7200,
+  "state_digest": "0xdd32793b07d029a7",
+  "event_log": {
+    "count": 44,
+    "digest": "0xa08d87a10222772b"
+  },
+  "revenue_periods_closed": 8
+}

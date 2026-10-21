@@ -69,7 +69,7 @@ fn expected(sim: &Simulation, models: &bess_core::Models) -> PowerLimits {
             dc.max_charge_w += lim.max_charge_w;
         }
         // At the DC bus voltage the kernel recorded for the block.
-        let ac = models.pcs.ac_capability_w(&dc, blk.pcs.dc_voltage_v);
+        let ac = models.pcs.ac_capability_w(&blk.pcs, &dc);
         sum.max_discharge_w += ac.max_discharge_w;
         sum.max_charge_w += ac.max_charge_w;
     }

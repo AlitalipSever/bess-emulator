@@ -1,0 +1,23 @@
+# Two converters trip a quarter of an hour into the evening discharge on
+# the warmest day. The plant controller shares the site target over the
+# eighteen that remain, 5.56 MW each, and each runs at its 110 % overload,
+# 5.5 MW, so the site stays within a percent of its target and reports no
+# limit. Ten minutes later the overload budgets are spent to the second,
+# every converter falls back to its rating in one tick, and the site
+# reports its limit, ten megawatts short for the rest of the discharge;
+# no block reports a miss, since each delivers what it permits. The
+# converters warm by their own losses but stay well under the derating
+# knee: on this site the budget runs out long before the heat sink would.
+schema: 1
+name: pcs-overload-budget
+taxonomy: bos
+seed: 7
+start: 2026-07-14T17:00:00Z
+length: PT2H
+events:
+  - at: PT15M
+    target: block[3].pcs
+    fault: trip
+  - at: PT15M
+    target: block[11].pcs
+    fault: trip

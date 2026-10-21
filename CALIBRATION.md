@@ -654,13 +654,15 @@ its live page is an application without a printable snapshot, so the
 paper's analysis is the pin, and the next pin is the next published
 analysis.
 
-**The library.** Fifteen cases on 2026-10-15, eleven of them failures:
+**The library.** Fifteen cases on 2026-10-15, eleven of them failures;
+sixteen since M3 phase 3 (`pcs-overload-budget`, a `bos` case), twelve
+of them failures:
 
 | Class | Cases | Share | Snapshot | Distance |
 |---|---|---|---|---|
-| `bos` | 5 | 45% | 43% | 2 points |
-| `controls` | 5 | 45% | 46% | 1 point |
-| `cell` | 1 | 9% | 11% | 2 points |
+| `bos` | 6 | 50% | 43% | 7 points |
+| `controls` | 5 | 42% | 46% | 4 points |
+| `cell` | 1 | 8% | 11% | 3 points |
 
 Two calendar cases (the DST days) and two maintenance cases sit outside
 the gate, since they are not failures. The gate holds each class within

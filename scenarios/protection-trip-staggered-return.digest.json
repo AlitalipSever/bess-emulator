@@ -1,14 +1,14 @@
 {
   "scenario": "protection-trip-staggered-return",
-  "content_hash": "0x6afbef620e9b5792",
+  "content_hash": "0x8e5fee4215ea57c7",
   "engine_version": "0.7.0",
   "seed": 7,
   "start_unix_s": 1784052000,
   "ticks": 7200,
-  "state_digest": "0x71bde2007c6b083e",
+  "state_digest": "0x6aaba717a0917b89",
   "event_log": {
     "count": 231,
-    "digest": "0xc18f9a2f98c6f8de"
+    "digest": "0x7f3c10880a39bf7c"
   },
   "revenue_periods_closed": 8
 }

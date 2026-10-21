@@ -1,12 +1,12 @@
 # Block 5's converter trips a quarter of an hour into the evening
-# discharge: its PCS goes to fault, the block drops out of the available
-# set, and the site falls one block short, since the other nineteen are
-# already at their rating; it raises its limit and its partial
-# availability. An operator reset of the block half an hour later leaves
-# the converter off with its contactors open; cleared, it walks precharge,
-# contactor close and synchronization and runs 16 s after the reset, and
-# the block, which kept its charge while it was out, runs on after the
-# others have emptied.
+# discharge: its PCS goes to fault, the block leaves the available set
+# and the site raises its partial availability. The other nineteen take
+# up its share at 105 % of their rating on their overload budgets for
+# twenty minutes; then every converter falls back to its rating in one
+# tick and the site, one block short, raises its limit. An operator
+# reset half an hour later leaves the converter off, contactors open;
+# cleared, it walks its startup sequence and runs 16 s on, and the
+# block, which kept its charge, outlasts the others.
 schema: 1
 name: pcs-trip-and-reset
 taxonomy: bos

@@ -128,6 +128,22 @@ pub struct PcsState {
     /// what the setpoint-miss alarm reads, so a legitimate ramp is not a
     /// miss. Published as `blockNN.pcs.setpoint_followed_kw`.
     pub setpoint_followed_w: f64,
+    /// The converter's internal temperature, °C: one thermal node fed by
+    /// its conversion loss and cooled toward the air (M3 phase 3).
+    /// Published as `blockNN.pcs.temperature_c`.
+    pub temperature_c: f64,
+    /// Short-term overload budget, 0..=1 of the datasheet's allowance;
+    /// spends above the rating, refills below. Published as
+    /// `blockNN.pcs.overload_budget_pct`.
+    pub overload_budget: f64,
+    /// Whether the overload is armed: a spent budget disarms it and only a
+    /// full one arms it again, so the limit does not flicker at the edge
+    /// of an empty budget.
+    pub overload_armed: bool,
+    /// The AC power the converter permits this tick, W: the rating times
+    /// its thermal derating, plus the overload while the budget holds.
+    /// What the follower, the capability and the request are clamped to.
+    pub ac_limit_w: f64,
 }
 
 /// One battery container.

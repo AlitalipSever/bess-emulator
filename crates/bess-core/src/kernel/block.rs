@@ -94,9 +94,14 @@ pub(super) fn step_block(
     // The DC bus the converter sees: the racks' terminal voltage as the
     // last tick left it, which carries SoC, current and hysteresis.
     block.pcs.dc_voltage_v = dc_bus_voltage_v(block, cfg);
-    let vdc = block.pcs.dc_voltage_v;
+    // The converter's own heat and budget, from the last tick's loss and
+    // power, decide what it permits this tick. It sits outdoors between
+    // the containers, so the air it cools toward is the ambient.
+    models
+        .pcs
+        .step_thermal(&mut block.pcs, weather.ambient_c, dt_s);
     let ac_capability = if in_set {
-        models.pcs.ac_capability_w(&block_limits, vdc)
+        models.pcs.ac_capability_w(&block.pcs, &block_limits)
     } else {
         PowerLimits::default()
     };
@@ -106,9 +111,7 @@ pub(super) fn step_block(
     // reached.
     block.pcs.p_ac_setpoint_w = if in_set { share_w } else { 0.0 };
     dynamics.follow(&mut block.pcs, in_set, cfg.pcs_rated_w, dt_s);
-    let dc_request_w = models
-        .pcs
-        .dc_request_w(block.pcs.setpoint_followed_w, &block_limits, vdc);
+    let dc_request_w = models.pcs.dc_request_w(&block.pcs, &block_limits);
 
     // Distribute the DC request evenly over in-service racks. A rack that
     // cannot take its share leaves the remainder undelivered (no
