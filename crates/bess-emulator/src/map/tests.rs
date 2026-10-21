@@ -164,8 +164,11 @@ fn map_digest(points: &[Point]) -> u64 {
 /// it with `blockNN.pcs.dc_voltage_v`; the 0.4.0 digest was
 /// 0xf5b0_c5b7_b546_e059. 0.5.0 is still unreleased, so phase 2 PR2's
 /// `blockNN.pcs.setpoint_followed_kw` at an unused address folds into
-/// it; the phase 1 digest was 0x7892_9a85_d256_e5b8.
-const MAP_DIGEST: u64 = 0xa433_e0d2_83ec_cebf;
+/// it; the phase 1 digest was 0x7892_9a85_d256_e5b8, and phase 3's
+/// `blockNN.pcs.temperature_c` and `blockNN.pcs.overload_budget_pct`
+/// folded in the same way (phase 2 PR2's digest was
+/// 0xa433_e0d2_83ec_cebf).
+const MAP_DIGEST: u64 = 0xbb46_67cc_ed0d_ea89;
 
 /// A version number nobody is forced to move is decoration.
 ///

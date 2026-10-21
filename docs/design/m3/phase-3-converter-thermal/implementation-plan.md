@@ -16,6 +16,13 @@ converter's temperature is published and no converter derates (the
 annual record holds), unless the datasheet curve says otherwise, in
 which case the record moves and the PR explains it.
 
+*As built (PR #43):* as the design's as-built notes say; the case is
+named `pcs-overload-budget`, since the budget, not the derate, is what
+the replayed year can show. The open question below resolved as
+expected: GW-01's racks (1C) allow 110 % of the converter's rating on
+the DC side, so no external setpoint above rating was needed; the lost
+blocks' share lands on the rest.
+
 ## Open questions
 
 - Whether the overload interacts with the BMS limit chain (a rack at 1C

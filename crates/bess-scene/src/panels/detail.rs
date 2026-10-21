@@ -152,6 +152,12 @@ pub fn selection_detail(
                 ui.label("Loss");
                 ui.label(format!("{:.0} kW", b.pcs.loss_w / 1.0e3));
                 ui.end_row();
+                ui.label("Temperature");
+                ui.label(format!("{:.1} °C", b.pcs.temperature_c));
+                ui.end_row();
+                ui.label("Overload budget");
+                ui.label(format!("{:.0} %", b.pcs.overload_budget * 100.0));
+                ui.end_row();
             });
             reset_button(ui, state, ResetScope::Block(block), "Reset block", commands);
         }

@@ -35,6 +35,7 @@ pub const CASES: &[Case] = &[
     case!("hvac-failure-hot-week"),
     case!("hvac-failure-both-units"),
     case!("pcs-trip-and-reset"),
+    case!("pcs-overload-budget"),
     case!("protection-trip-staggered-return"),
     case!("hvac-failure-winter-night"),
     case!("scada-dropout-with-backfill"),

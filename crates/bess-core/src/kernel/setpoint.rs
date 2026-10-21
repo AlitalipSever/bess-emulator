@@ -63,7 +63,13 @@ impl SetpointDynamics {
             pcs.setpoint_followed_w = 0.0;
             return;
         }
-        let target = pcs.p_ac_setpoint_w.clamp(-rated_w, rated_w);
+        // The gradient is a share of the rating; the clamp is what the
+        // converter permits this tick (rating, derated, or with the
+        // overload while its budget holds). A limit that falls is a hard
+        // one, so both values are held under it at once rather than
+        // ramped down to it.
+        let limit = pcs.ac_limit_w;
+        let target = pcs.p_ac_setpoint_w.clamp(-limit, limit);
         pcs.setpoint_ramped_w = match self.gradient_pu_per_s {
             Some(g) => {
                 let step = g * rated_w * dt_s;
@@ -71,20 +77,24 @@ impl SetpointDynamics {
                 (target).clamp(r - step, r + step)
             }
             None => target,
-        };
+        }
+        .clamp(-limit, limit);
         // Implicit Euler on y' = (x - y) / tau: y += (x - y) * dt / (tau + dt).
         let y = pcs.setpoint_followed_w;
         let k = dt_s / (self.lag_tau_s + dt_s);
-        pcs.setpoint_followed_w = y + (pcs.setpoint_ramped_w - y) * k;
+        pcs.setpoint_followed_w = (y + (pcs.setpoint_ramped_w - y) * k).clamp(-limit, limit);
     }
 
-    /// How far a connected block is still behind its (rating-clamped)
+    /// How far a connected block is still behind its (limit-clamped)
     /// setpoint because it is ramping, counted in the setpoint's own
     /// direction, W. What the site's shortfall discounts, so a legitimate
     /// ramp is not a power limitation. Zero once the follower has settled,
-    /// and zero for a block asked for nothing.
-    pub(super) fn ramp_slack_w(pcs: &PcsState, rated_w: f64) -> f64 {
-        let target = pcs.p_ac_setpoint_w.clamp(-rated_w, rated_w);
+    /// zero for a block asked for nothing, and zero for the part of the
+    /// setpoint the converter does not permit: a derated or spent
+    /// converter is a limitation.
+    pub(super) fn ramp_slack_w(pcs: &PcsState) -> f64 {
+        let limit = pcs.ac_limit_w;
+        let target = pcs.p_ac_setpoint_w.clamp(-limit, limit);
         let behind = target - pcs.setpoint_followed_w;
         if target >= 0.0 {
             behind.max(0.0)
@@ -112,6 +122,10 @@ mod tests {
             state_elapsed_s: 0.0,
             setpoint_ramped_w: 0.0,
             setpoint_followed_w: 0.0,
+            temperature_c: 20.0,
+            overload_budget: 1.0,
+            overload_armed: true,
+            ac_limit_w: 2.5e6,
         }
     }
 
@@ -156,13 +170,13 @@ mod tests {
         }
         assert!(p.setpoint_followed_w < -0.49 * RATED_W);
         assert!(p.setpoint_followed_w > -0.51 * RATED_W);
-        let slack = SetpointDynamics::ramp_slack_w(&p, RATED_W);
+        let slack = SetpointDynamics::ramp_slack_w(&p);
         assert!(slack > 0.49 * RATED_W && slack < 0.51 * RATED_W);
         // A block already past its target in the setpoint's direction has
         // no slack: it is the alarm's business, not the ramp's.
         p.setpoint_followed_w = -RATED_W;
         p.p_ac_setpoint_w = -0.5 * RATED_W;
-        assert_eq!(SetpointDynamics::ramp_slack_w(&p, RATED_W), 0.0);
+        assert_eq!(SetpointDynamics::ramp_slack_w(&p), 0.0);
     }
 
     /// Switched off, the converter is at its setpoint on the first tick.

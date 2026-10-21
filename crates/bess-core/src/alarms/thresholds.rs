@@ -28,6 +28,9 @@ pub struct BlockSiteThresholds {
     /// Site delivery short of the site setpoint, as a share of site
     /// rating.
     pub site_shortfall: Band,
+    /// Converter internal temperature, °C: the warning ahead of the
+    /// derating knee (M3 phase 3).
+    pub pcs_temperature_c: Band,
 }
 
 impl Default for BlockSiteThresholds {
@@ -50,6 +53,12 @@ impl Default for BlockSiteThresholds {
             site_shortfall: Band {
                 raise: 0.02,
                 clear: 0.01,
+            },
+            // 5 K under the SG2500U's knee on the node (50 °C ambient plus
+            // the 20 K rated rise), clearing 3 K lower.
+            pcs_temperature_c: Band {
+                raise: 65.0,
+                clear: 62.0,
             },
         }
     }

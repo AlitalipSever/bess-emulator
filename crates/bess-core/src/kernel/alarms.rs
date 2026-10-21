@@ -80,6 +80,14 @@ pub(super) fn evaluate_block(
     );
     let hvac_failed = block.containers.iter().any(|c| c.hvac.failed);
     let pcs_fault = block.pcs.op_state == PcsOpState::Fault;
+    let pcs_hot = rising(
+        has_bit(word, b::PCS_OVER_TEMPERATURE),
+        block.pcs.temperature_c,
+        th.pcs_temperature_c,
+    );
+    // Derated is the curve's doing, not the budget's: a spent budget
+    // leaves the converter at its rating, which is not a derate.
+    let pcs_derated = block.pcs.ac_limit_w < cfg.pcs_rated_w;
     let maintenance = block.mode == BlockMode::Maintenance;
 
     let mut next = word;
@@ -88,6 +96,8 @@ pub(super) fn evaluate_block(
     next = with_bit(next, b::HVAC_FAILURE, hvac_failed);
     next = with_bit(next, b::MAINTENANCE, maintenance);
     next = with_bit(next, b::PCS_FAULT, pcs_fault);
+    next = with_bit(next, b::PCS_OVER_TEMPERATURE, pcs_hot);
+    next = with_bit(next, b::PCS_DERATED, pcs_derated);
     (next, miss_s)
 }
 
@@ -106,7 +116,7 @@ fn evaluate_site(state: &SiteState, cfg: &PlantConfig, th: &BlockSiteThresholds)
     let ramping_w: f64 = state
         .blocks
         .iter()
-        .map(|blk| SetpointDynamics::ramp_slack_w(&blk.pcs, cfg.pcs_rated_w))
+        .map(|blk| SetpointDynamics::ramp_slack_w(&blk.pcs))
         .sum();
     let shortfall = if setpoint_w >= 0.0 {
         setpoint_w - delivered_w

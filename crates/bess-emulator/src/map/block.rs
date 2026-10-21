@@ -230,6 +230,29 @@ pub(super) fn points(b: usize) -> Vec<Point> {
             Input,
             move |s: &SiteState| s.blocks[b].pcs.setpoint_followed_w / 1000.0
         ),
+        // The converter's internal temperature and its overload budget
+        // (M3 phase 3). The temperature is a thermometer reading; the
+        // budget is the converter's own arithmetic, exact.
+        point!(
+            format!("{prefix}.pcs.temperature_c"),
+            "degC",
+            Medium,
+            I16,
+            10.0,
+            ext + 6,
+            Input,
+            move |s: &SiteState| s.blocks[b].pcs.temperature_c
+        ),
+        point!(
+            format!("{prefix}.pcs.overload_budget_pct"),
+            "%",
+            Medium,
+            U16,
+            10.0,
+            ext + 7,
+            Input,
+            move |s: &SiteState| s.blocks[b].pcs.overload_budget * 100.0
+        ),
         // The spread, in millivolts so a u16 covers it at 1 mV. The state
         // keeps volts like every other voltage in the tree; the unit change
         // is the projection's job.

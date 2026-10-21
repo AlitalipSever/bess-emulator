@@ -229,9 +229,13 @@ fn a_site_reset_brings_the_blocks_back_one_at_a_time() {
         "limited raised late, at {raised_at}"
     );
     let last_back = 19 * SPACING_TICKS + STARTUP_TICKS;
+    // The blocks already back lean on their overload budgets, so the gap
+    // closes before the last block is back: the limit clears while the
+    // last two or three are still on their way, and it does not come back
+    // when the budgets run out, since by then every block is in.
     assert!(
-        (last_back..last_back + 30).contains(&cleared_at),
-        "limited cleared at {cleared_at}, not with the last block"
+        (last_back - 120..last_back).contains(&cleared_at),
+        "limited cleared at {cleared_at}, not shortly before the last block ({last_back})"
     );
     // Partly there for exactly as long as some block is still out: the
     // bit the trip raised clears with the last release, not with the reset.

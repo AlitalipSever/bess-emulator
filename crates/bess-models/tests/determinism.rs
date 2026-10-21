@@ -24,6 +24,11 @@ const TICKS: u64 = 4 * 3600;
 /// If a deliberate model or state-schema change moves this value, update it
 /// from the number printed by the failing assertion. Any other change that
 /// moves it is a broken determinism contract. Last regenerated in M3
+/// phase 3, for schema alone: `PcsState` carries the converter's thermal
+/// node, its overload budget with the arming latch and the permitted AC
+/// power; in these four hours the night charge asks each converter for
+/// its rating and no more, so the budget stays full and the physics is
+/// phase 2's, 0x25a8_3c2f_d958_c932. Before that, M3
 /// phase 2 PR2, for physics and schema: the converters follow their
 /// setpoints through a ramp limit and a lag, so the night charge starts
 /// ten minutes later than the plan's step, and `PcsState` carries the
@@ -66,7 +71,7 @@ const TICKS: u64 = 4 * 3600;
 /// two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC),
 /// 0x1446_6f26_c751_bc02 (M1 PR5, the auxiliary inventory),
 /// 0xcd26_9803_d062_e1ad (M2 phase 1 PR2, cell spread and balancing).
-const GOLDEN_DIGEST: u64 = 0x25a8_3c2f_d958_c932;
+const GOLDEN_DIGEST: u64 = 0xbcc3_d38e_983b_1b37;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();

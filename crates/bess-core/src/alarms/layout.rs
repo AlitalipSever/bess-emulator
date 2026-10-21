@@ -58,6 +58,12 @@ pub mod block {
     /// is an event on every surface, as SCADA alarm lists carry it as an
     /// informational entry. The mode register is the primary record.
     pub const MAINTENANCE: u8 = 3;
+    /// The converter's internal temperature is near its derating knee.
+    /// Hysteresis (M3 phase 3).
+    pub const PCS_OVER_TEMPERATURE: u8 = 4;
+    /// The converter permits less than its rating because it is hot.
+    /// Mirrors `PcsState::ac_limit_w` against the rating (M3 phase 3).
+    pub const PCS_DERATED: u8 = 5;
     /// The PCS is in fault. Mirrors `PcsOpState::Fault`, a state that
     /// itself only leaves through an operator reset, hence the trip byte.
     pub const PCS_FAULT: u8 = 8;
@@ -68,6 +74,8 @@ pub mod block {
         (CONTAINER_OVER_TEMP, "container_over_temp"),
         (HVAC_FAILURE, "hvac_failure"),
         (MAINTENANCE, "maintenance"),
+        (PCS_OVER_TEMPERATURE, "pcs_over_temperature"),
+        (PCS_DERATED, "pcs_derated"),
         (PCS_FAULT, "pcs_fault"),
     ];
 }
