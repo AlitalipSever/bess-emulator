@@ -1,7 +1,9 @@
 # M2.5: SoC realism mini-iteration
 
-Status: in progress. Phase 1 landed 2026-10-21 (PR1); phase 2 PR1 and PR2
-the same day; phase 3 PR1 the same day; PR2 is the v0.7.0 release. Designed alongside M2, implemented after it. A
+Status: done, released as v0.7.0 (2026-10-21; the tag and the npm publish
+are the maintainer's). All three phases landed the same day in a stacked
+chain (PRs #34 to #37) and the release PR. The release note is drafted in
+[release-notes.md](release-notes.md) from the inventory below. Designed alongside M2, implemented after it. A
 mini-iteration in the M0.5/M1.5 tradition: three small phases, each
 deepening exactly one thing, so the iteration discipline holds where a
 combined M2 would have bent it (the hysteresis work touches the cell
