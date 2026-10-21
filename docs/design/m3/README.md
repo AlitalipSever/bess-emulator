@@ -1,7 +1,7 @@
 # M3: PCS and electrical
 
-Status: designed 2026-10-21, after M2.5 shipped as v0.7.0; implementation
-follows in the order below. ROADMAP.md defines the goal and the
+Status: in progress. Designed 2026-10-21 after M2.5 shipped as v0.7.0;
+phase 1 PR1 the same day. ROADMAP.md defines the goal and the
 calibration gate; this folder fixes the architecture, the decisions and
 the work breakdown, one phase per subfolder, each phase's documents to be
 marked with what was actually built. Layout per
@@ -104,7 +104,16 @@ CALIBRATION.md:
 
 Filled as PRs land.
 
-- (none yet)
+- **The converter converts on a surface** (phase 1 PR1). Conversion
+  loss follows the DC bus voltage the racks present, through the CEC
+  record's own voltage terms; `blockNN.pcs.efficiency_pct` moves with
+  SoC now, by under a point across the window. New point
+  `blockNN.pcs.dc_voltage_v` (2000 + 10b + 4). Map 0.5.0 (addition).
+- **Capability follows SoC** (phase 1 PR1). Rack limits are the current
+  limit times the voltage the rack presents, so `site.available_*_kw`
+  read a few percent lower at the bottom of the window and higher at
+  the top than the flat nominal they carried before.
+- **Checkpoint format 11** (phase 1 PR1): `PcsState::dc_voltage_v`.
 
 ## Open questions
 

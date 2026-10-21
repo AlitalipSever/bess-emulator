@@ -66,7 +66,10 @@ impl BmsLogic for BasicBms {
         if !rack.in_service {
             return PowerLimits::default();
         }
-        let rated_w = cfg.max_current_a * cfg.nominal_v();
+        // Current-bounded (M3 phase 1): the converter's DC current limit
+        // times the voltage the rack actually presents, so capability
+        // follows SoC through the OCV curve.
+        let rated_w = cfg.max_current_a * rack.voltage_v;
         let discharge_f = ((rack.soc - cfg.soc_min) / self.taper_soc_band).clamp(0.0, 1.0)
             * self.discharge_temp.factor(rack.cell_temp_c);
         let charge_f = ((cfg.soc_max - rack.soc) / self.taper_soc_band).clamp(0.0, 1.0)
@@ -107,7 +110,7 @@ mod tests {
             in_service: true,
             soc,
             soh: 1.0,
-            voltage_v: 1331.0,
+            voltage_v: 1331.2,
             current_a: 0.0,
             cell_temp_c,
             polarization_v: 0.0,

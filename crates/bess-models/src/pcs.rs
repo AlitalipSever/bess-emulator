@@ -1,8 +1,12 @@
-//! PCS conversion models: flat efficiency (M0) and the partial-load
-//! efficiency curve (M0.5).
+//! PCS conversion models: flat efficiency (M0), the partial-load
+//! efficiency curve (M0.5), and the surface with its DC-voltage axis (M3).
+
+pub mod sandia;
 
 use bess_core::state::{PcsOpState, PcsState};
 use bess_core::traits::{PcsModel, PowerLimits};
+
+pub use sandia::{SandiaSurface, CEC_SC2500UD_US};
 
 /// M0 power conversion: a single conversion efficiency in both directions
 /// plus the AC rating clamp. The two-dimensional efficiency map, the
@@ -34,14 +38,14 @@ impl FlatPcs {
 }
 
 impl PcsModel for FlatPcs {
-    fn ac_capability_w(&self, dc_limits: &PowerLimits) -> PowerLimits {
+    fn ac_capability_w(&self, dc_limits: &PowerLimits, _dc_voltage_v: f64) -> PowerLimits {
         PowerLimits {
             max_discharge_w: (dc_limits.max_discharge_w * self.efficiency).min(self.rated_w),
             max_charge_w: (dc_limits.max_charge_w / self.efficiency).min(self.rated_w),
         }
     }
 
-    fn dc_request_w(&self, p_ac_target_w: f64, dc_limits: &PowerLimits) -> f64 {
+    fn dc_request_w(&self, p_ac_target_w: f64, dc_limits: &PowerLimits, _dc_voltage_v: f64) -> f64 {
         let ac = p_ac_target_w.clamp(-self.rated_w, self.rated_w);
         if ac.abs() < self.standby_threshold_w {
             return 0.0;
@@ -165,7 +169,7 @@ impl CurvePcs {
 }
 
 impl PcsModel for CurvePcs {
-    fn ac_capability_w(&self, dc_limits: &PowerLimits) -> PowerLimits {
+    fn ac_capability_w(&self, dc_limits: &PowerLimits, _dc_voltage_v: f64) -> PowerLimits {
         PowerLimits {
             max_discharge_w: self
                 .discharge_ac_w(dc_limits.max_discharge_w)
@@ -176,7 +180,7 @@ impl PcsModel for CurvePcs {
         }
     }
 
-    fn dc_request_w(&self, p_ac_target_w: f64, dc_limits: &PowerLimits) -> f64 {
+    fn dc_request_w(&self, p_ac_target_w: f64, dc_limits: &PowerLimits, _dc_voltage_v: f64) -> f64 {
         let ac = p_ac_target_w.clamp(-self.rated_w, self.rated_w);
         if ac.abs() < self.standby_threshold_w {
             return 0.0;
@@ -214,6 +218,92 @@ impl PcsModel for CurvePcs {
     }
 }
 
+/// M3 power conversion: the Sandia surface at the DC bus voltage the racks
+/// present, so conversion loss follows state of charge, current and
+/// hysteresis through the voltage they set. Sign convention as
+/// [`CurvePcs`]; the charge direction mirrors the discharge surface (the
+/// database publishes one direction), the M0.5 simplification carried.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SurfacePcs {
+    /// AC rating, W.
+    pub rated_w: f64,
+    /// The surface, per unit of the rating.
+    pub surface: SandiaSurface,
+    /// Below this AC magnitude the unit drops to standby, W.
+    pub standby_threshold_w: f64,
+}
+
+impl SurfacePcs {
+    /// The CEC record of the Sungrow SC2500UD-US scaled to the block's
+    /// rating (`sandia::CEC_SC2500UD_US`).
+    pub fn cec_sc2500ud_us(rated_w: f64) -> Self {
+        Self {
+            rated_w,
+            surface: CEC_SC2500UD_US,
+            standby_threshold_w: 1.0e3,
+        }
+    }
+
+    /// One-way efficiency at an AC-side magnitude and a DC voltage.
+    pub fn efficiency_at(&self, p_ac_abs_w: f64, dc_voltage_v: f64) -> f64 {
+        self.surface
+            .efficiency(p_ac_abs_w / self.rated_w, dc_voltage_v)
+    }
+}
+
+impl PcsModel for SurfacePcs {
+    fn ac_capability_w(&self, dc_limits: &PowerLimits, dc_voltage_v: f64) -> PowerLimits {
+        let r = self.rated_w;
+        PowerLimits {
+            max_discharge_w: (r * self
+                .surface
+                .ac_pu(dc_limits.max_discharge_w / r, dc_voltage_v))
+            .min(r),
+            max_charge_w: (r * self.surface.dc_pu(dc_limits.max_charge_w / r, dc_voltage_v)).min(r),
+        }
+    }
+
+    fn dc_request_w(&self, p_ac_target_w: f64, dc_limits: &PowerLimits, dc_voltage_v: f64) -> f64 {
+        let r = self.rated_w;
+        let ac = p_ac_target_w.clamp(-r, r);
+        if ac.abs() < self.standby_threshold_w {
+            return 0.0;
+        }
+        if ac > 0.0 {
+            (r * self.surface.dc_pu(ac / r, dc_voltage_v)).min(dc_limits.max_discharge_w)
+        } else {
+            // What the DC side receives from an AC input: the mirrored
+            // surface; a small target that cannot cover self-consumption
+            // stands by rather than discharging the racks to run itself.
+            let dc = -r * self.surface.ac_pu(-ac / r, dc_voltage_v);
+            dc.min(0.0).max(-dc_limits.max_charge_w)
+        }
+    }
+
+    fn finalize(&self, pcs: &mut PcsState, p_dc_actual_w: f64) -> f64 {
+        let r = self.rated_w;
+        let v = pcs.dc_voltage_v;
+        let p_ac_w = if p_dc_actual_w > 0.0 {
+            r * self.surface.ac_pu(p_dc_actual_w / r, v)
+        } else if p_dc_actual_w < 0.0 {
+            -r * self.surface.dc_pu(-p_dc_actual_w / r, v)
+        } else {
+            0.0
+        };
+        pcs.p_dc_w = p_dc_actual_w;
+        pcs.p_ac_w = p_ac_w;
+        pcs.loss_w = p_dc_actual_w - p_ac_w;
+        if pcs.op_state != PcsOpState::Fault {
+            pcs.op_state = if p_dc_actual_w.abs() < f64::EPSILON {
+                PcsOpState::Standby
+            } else {
+                PcsOpState::Run
+            };
+        }
+        p_ac_w
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,6 +315,7 @@ mod tests {
             p_ac_w: 0.0,
             p_dc_w: 0.0,
             loss_w: 0.0,
+            dc_voltage_v: 1_331.2,
         }
     }
 
@@ -238,7 +329,7 @@ mod tests {
     #[test]
     fn discharge_request_accounts_for_losses() {
         let pcs = FlatPcs::new(5.0e6);
-        let dc = pcs.dc_request_w(5.0e6, &wide_limits());
+        let dc = pcs.dc_request_w(5.0e6, &wide_limits(), 1_331.2);
         assert!(dc > 5.0e6);
         let mut st = pcs_state();
         let ac = pcs.finalize(&mut st, dc);
@@ -249,7 +340,7 @@ mod tests {
     #[test]
     fn charge_request_accounts_for_losses() {
         let pcs = FlatPcs::new(5.0e6);
-        let dc = pcs.dc_request_w(-5.0e6, &wide_limits());
+        let dc = pcs.dc_request_w(-5.0e6, &wide_limits(), 1_331.2);
         assert!(dc > -5.0e6 && dc < 0.0);
         let mut st = pcs_state();
         let ac = pcs.finalize(&mut st, dc);
@@ -264,14 +355,14 @@ mod tests {
             max_charge_w: 1.0e6,
             max_discharge_w: 2.0e6,
         };
-        assert!(pcs.dc_request_w(5.0e6, &limits) <= 2.0e6);
-        assert!(pcs.dc_request_w(-5.0e6, &limits) >= -1.0e6);
+        assert!(pcs.dc_request_w(5.0e6, &limits, 1_331.2) <= 2.0e6);
+        assert!(pcs.dc_request_w(-5.0e6, &limits, 1_331.2) >= -1.0e6);
     }
 
     #[test]
     fn small_setpoints_drop_to_standby() {
         let pcs = FlatPcs::new(5.0e6);
-        assert!(pcs.dc_request_w(500.0, &wide_limits()).abs() < f64::EPSILON);
+        assert!(pcs.dc_request_w(500.0, &wide_limits(), 1_331.2).abs() < f64::EPSILON);
         let mut st = pcs_state();
         pcs.finalize(&mut st, 0.0);
         assert_eq!(st.op_state, PcsOpState::Standby);
@@ -308,7 +399,7 @@ mod tests {
     fn curve_request_then_finalize_recovers_the_ac_target() {
         let pcs = CurvePcs::cec_utility_reference(5.0e6);
         for target in [-5.0e6, -2.5e6, -0.5e6, 0.25e6, 1.5e6, 5.0e6] {
-            let dc = pcs.dc_request_w(target, &wide_limits());
+            let dc = pcs.dc_request_w(target, &wide_limits(), 1_331.2);
             let mut st = pcs_state();
             let ac = pcs.finalize(&mut st, dc);
             assert!(
@@ -335,7 +426,7 @@ mod tests {
         let pcs = CurvePcs::cec_utility_reference(5.0e6);
         // 5 kW charge target cannot cover the ~12 kW no-load loss; the unit
         // must not silently discharge the battery to run itself.
-        let dc = pcs.dc_request_w(-5.0e3, &wide_limits());
+        let dc = pcs.dc_request_w(-5.0e3, &wide_limits(), 1_331.2);
         assert!(dc.abs() < f64::EPSILON, "got dc {dc}");
     }
 
@@ -346,11 +437,96 @@ mod tests {
             max_charge_w: 3.0e6,
             max_discharge_w: 4.0e6,
         };
-        let cap = pcs.ac_capability_w(&limits);
+        let cap = pcs.ac_capability_w(&limits, 1_331.2);
         let mut st = pcs_state();
         let ac = pcs.finalize(&mut st, limits.max_discharge_w);
         assert!((ac - cap.max_discharge_w).abs() < 1.0e-3);
         let ac = pcs.finalize(&mut st, -limits.max_charge_w);
         assert!((-ac - cap.max_charge_w).abs() < 1.0e-3);
+    }
+}
+
+#[cfg(test)]
+mod surface_tests {
+    use super::*;
+
+    fn pcs_state(vdc: f64) -> PcsState {
+        PcsState {
+            op_state: PcsOpState::Standby,
+            p_ac_setpoint_w: 0.0,
+            p_ac_w: 0.0,
+            p_dc_w: 0.0,
+            loss_w: 0.0,
+            dc_voltage_v: vdc,
+        }
+    }
+
+    fn wide() -> PowerLimits {
+        PowerLimits {
+            max_charge_w: 100.0e6,
+            max_discharge_w: 100.0e6,
+        }
+    }
+
+    /// M3 phase 1 gate: at the record's reference voltage the surface
+    /// reproduces the M0.5 reference points within the M0.5 tolerance.
+    #[test]
+    fn surface_matches_the_cec_reference_at_vdco_within_the_gate() {
+        let pcs = SurfacePcs::cec_sc2500ud_us(5.0e6);
+        let reference = [
+            (0.05, 0.95370),
+            (0.10, 0.97527),
+            (0.20, 0.98493),
+            (0.30, 0.98686),
+            (0.50, 0.98595),
+            (0.75, 0.98239),
+            (1.00, 0.97797),
+        ];
+        for (frac, eta_ref) in reference {
+            let eta = pcs.efficiency_at(frac * 5.0e6, CEC_SC2500UD_US.vdco_v);
+            assert!(
+                (eta - eta_ref).abs() < 0.003,
+                "at {frac}: {eta} vs {eta_ref}"
+            );
+        }
+    }
+
+    #[test]
+    fn surface_request_then_finalize_recovers_the_ac_target_at_any_voltage() {
+        let pcs = SurfacePcs::cec_sc2500ud_us(5.0e6);
+        for vdc in [1_206.0, 1_331.2, 1_435.0] {
+            for target in [-5.0e6, -2.5e6, -0.5e6, 0.25e6, 1.5e6, 5.0e6] {
+                let dc = pcs.dc_request_w(target, &wide(), vdc);
+                let mut st = pcs_state(vdc);
+                let ac = pcs.finalize(&mut st, dc);
+                assert!(
+                    (ac - target).abs() < 1.0e-3,
+                    "{vdc} V target {target}: {ac}"
+                );
+                assert!(st.loss_w > 0.0);
+            }
+        }
+    }
+
+    #[test]
+    fn surface_capability_is_consistent_with_finalize() {
+        let pcs = SurfacePcs::cec_sc2500ud_us(5.0e6);
+        let limits = PowerLimits {
+            max_charge_w: 3.0e6,
+            max_discharge_w: 4.0e6,
+        };
+        let vdc = 1_300.0;
+        let cap = pcs.ac_capability_w(&limits, vdc);
+        let mut st = pcs_state(vdc);
+        let ac = pcs.finalize(&mut st, limits.max_discharge_w);
+        assert!((ac - cap.max_discharge_w).abs() < 1.0e-3);
+        let ac = pcs.finalize(&mut st, -limits.max_charge_w);
+        assert!((-ac - cap.max_charge_w).abs() < 1.0e-3);
+    }
+
+    #[test]
+    fn surface_small_charge_stands_by() {
+        let pcs = SurfacePcs::cec_sc2500ud_us(5.0e6);
+        assert!(pcs.dc_request_w(-5.0e3, &wide(), 1_331.2).abs() < f64::EPSILON);
     }
 }

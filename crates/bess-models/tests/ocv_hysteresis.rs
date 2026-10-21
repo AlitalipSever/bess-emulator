@@ -8,14 +8,11 @@
 //! CALIBRATION.md). The second test is the switch-off proof: with the
 //! transition rate at zero the plant is the pre-phase plant, byte for byte.
 
-use bess_core::checkpoint::state_digest;
 use bess_core::config::PlantConfig;
-use bess_core::digest::fnv1a_64;
 use bess_core::state::RackState;
 use bess_core::traits::CellModel;
-use bess_core::{Simulation, SiteState};
+use bess_core::SiteState;
 use bess_models::cell::Ecm1Rc;
-use bess_models::{gw01_models, gw01_weather, BasicBms};
 
 /// 2026-01-01 00:00:00 UTC.
 const START_UNIX_S: i64 = 1_767_225_600;
@@ -133,53 +130,10 @@ fn the_energy_books_close_through_a_hysteresis_cycle() {
     assert!(heat_wh > 0.0);
 }
 
-/// The switch-off proof. With the transition rate at zero every rack's
-/// state stays at its initial zero, and the tree, with that one field cut
-/// out of its serialization, hashes to the golden digest the plant had
-/// before this phase (M2 phase 4 PR1, `determinism.rs` history). Phase 2
-/// added the estimator beside it; the proof runs with the perfect one and
-/// cuts its three fields out as well, so the digest still reads phase 1's
-/// claim.
-#[test]
-fn switched_off_the_plant_is_the_pre_phase_plant_byte_for_byte() {
-    const PRE_PHASE_GOLDEN: u64 = 0xf3fb_8ad4_75c9_980f;
-    let cfg = PlantConfig::gw01();
-    let mut models = gw01_models(&cfg);
-    models.cell = Box::new(Ecm1Rc::lfp_314ah_rack_without_hysteresis());
-    models.bms = Box::new(BasicBms::with_perfect_estimator());
-    let mut sim = Simulation::new(cfg, models, 42, START_UNIX_S);
-    let weather = gw01_weather();
-    for _ in 0..4 * 3600 {
-        let inputs = weather.inputs_at(sim.unix_time_s());
-        sim.step(&inputs);
-    }
-    assert!(sim.state().racks().all(|r| r.hysteresis_v == 0.0));
-    let json = serde_json::to_string(sim.state()).unwrap();
-    let stripped = strip_estimator_fields(&json.replace("\"hysteresis_v\":0.0,", ""));
-    assert_ne!(json, stripped, "the field was not in the serialization");
-    let digest = fnv1a_64(stripped.as_bytes());
-    assert_eq!(
-        digest, PRE_PHASE_GOLDEN,
-        "with hysteresis off the plant moved: {digest:#018x}"
-    );
-    // And the digest with the field in place is not the pre-phase one, so
-    // the test cannot pass by the field going missing.
-    assert_ne!(state_digest(sim.state()), PRE_PHASE_GOLDEN);
-}
-
-/// Cut `soc_reported`, `sensor_offset_a` and `sensor_gain` out of a
-/// serialized tree: the three fields phase 2 added to every rack, which
-/// sit together in field order.
-fn strip_estimator_fields(json: &str) -> String {
-    let mut out = String::with_capacity(json.len());
-    let mut rest = json;
-    while let Some(start) = rest.find("\"soc_reported\":") {
-        out.push_str(&rest[..start]);
-        let after = &rest[start..];
-        let gain = after.find("\"sensor_gain\":").expect("fields sit together");
-        let end = gain + after[gain..].find(',').expect("a field follows") + 1;
-        rest = &after[end..];
-    }
-    out.push_str(rest);
-    out
-}
+// The switch-off digest proof lived here through M2.5: with the
+// transition rate at zero and the new rack fields cut out of the
+// serialization, the four-hour tree hashed to the M2 golden
+// (0xf3fb_8ad4_75c9_980f). M3 phase 1 retired it: the model bundle
+// moved to the efficiency surface and current-bounded limits, so no
+// setting of the cell model alone returns the M2 plant. The claim it
+// made is kept by `without_hysteresis_the_two_branches_coincide` above.

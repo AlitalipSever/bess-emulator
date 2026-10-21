@@ -207,6 +207,17 @@ pub(super) fn points(b: usize) -> Vec<Point> {
             Input,
             move |s: &SiteState| f64::from(block_mode_code(s.blocks[b].mode))
         ),
+        // The DC bus the converter converts at, V (M3 phase 1).
+        point!(
+            format!("{prefix}.pcs.dc_voltage_v"),
+            "V",
+            Fast,
+            U16,
+            1.0,
+            ext + 4,
+            Input,
+            move |s: &SiteState| s.blocks[b].pcs.dc_voltage_v
+        ),
         // The spread, in millivolts so a u16 covers it at 1 mV. The state
         // keeps volts like every other voltage in the tree; the unit change
         // is the projection's job.

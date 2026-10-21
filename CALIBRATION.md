@@ -992,13 +992,71 @@ library records moved in their version string and nothing else at the
 bump. The 0.8296 sits inside the M1 field band, 0.7 points under v0.6.1,
 paid to the hysteresis gap.
 
+## M3 (v0.8.0): the efficiency surface and the DC bus
+
+The converter stopped converting on one curve. `SurfacePcs`
+(`crates/bess-models/src/pcs/sandia.rs`) carries the CEC inverter
+database record of the Sungrow SC2500UD-US in the Sandia model's own
+form, voltage terms included, per unit of its rating; the kernel hands
+it the DC bus voltage every tick, the mean terminal voltage of the
+block's in-service racks, which already carries state of charge,
+current and the hysteresis of M2.5. In the same step the rack limit
+became a current limit at the voltage the rack presents, so a block's
+capability falls toward the bottom of its window and rises toward the
+top.
+
+**Gate, the surface at the reference voltage,** held by
+`surface_matches_the_cec_reference_at_vdco_within_the_gate` in
+`crates/bess-models/src/pcs.rs`: at Vdco (1,350 V) the surface
+reproduces the seven M0.5 reference points within the M0.5 tolerance of
+0.3 points; it reproduces them within 0.01 points, since they were
+computed from the same record. The voltage axis is the record's own
+(C1 = 3.22933e-6, C2 = 4.85948e-4, C3 = 4.84988e-5 per volt), so there
+is nothing to fit and nothing to gate against beyond the record; a
+sanity test holds the curve within one point of its Vdco value across
+the rack window (1,206 to 1,435 V), and the inverse round-trips to 1e-9
+at every voltage. The record's MPPT window, 1,300 to 1,500 V, sits
+inside GW-01's rack window, so no reference shift was needed.
+
+**What it moved.** The 0.5C cycle gate measured 0.9131 against 0.9129
+before the phase: the cycle runs near Vdco and the surface and the M0.5
+polynomial agree there to a hundredth of a point. The annual record is
+in the table at the end of this section.
+
+**Known gaps.**
+
+- **The charge direction mirrors the discharge surface,** the M0.5
+  simplification carried; the database publishes one direction.
+- **One record stands for every block;** a plant would carry a spread of
+  converter efficiencies as it does of rack resistances.
+- **The 1C rack rating stands** (M2's known gap about the cell's 0.5P
+  table).
+
+**Sources:** the Sungrow SC2500UD-US record of the CEC inverter database
+as distributed with [NREL SAM](https://github.com/NREL/SAM)
+(`deploy/libraries/CEC Inverters.csv`, BSD-3-Clause; underlying data
+published by the California Energy Commission), retrieved 2026-10-21:
+Paco 2,507,230 W, Pdco 2,563,700 W, Pso 6,066.41 W, Vdco 1,350 V,
+C0 -8.03897e-9 1/W, C1 to C3 as above, Pnt 169.9 W. Sandia model form:
+King, Gonzalez, Galbraith, Boyson, "Performance Model for Grid-Connected
+Photovoltaic Inverters", SAND2007-5036. Numbers cited, nothing
+reproduced.
+
+### The annual record through M3
+
+| Record | Round trip at the POI | Import | Export | Equivalent full cycles | What moved it |
+|---|---|---|---|---|---|
+| v0.7.0 | 0.8296 | 66,777.9 MWh | 55,396.9 MWh | 276.1 | the M2.5 plant |
+| after phase 1 | M3P1_RTE | M3P1_IMPORT MWh | M3P1_EXPORT MWh | M3P1_EFC | the surface at the racks' voltage and current-bounded limits |
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);
   realistic auxiliary share of throughput.
 - **M2:** failure type/frequency distribution follows the EPRI incident
   taxonomy.
-- **M3:** efficiency surfaces f(P, V_dc) match the Sandia/CEC database; the
-  M1 RTE gate still holds.
+- **M3:** efficiency surfaces f(P, V_dc) match the Sandia/CEC database (phase
+  1 done above); the M1 RTE gate still holds; phases 2 to 4 per
+  docs/design/m3/.
 - **M4:** simulated annual revenue inside public German fleet index bands.
 - **M5:** capacity fade inside published LFP field bands.

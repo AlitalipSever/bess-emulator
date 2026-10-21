@@ -160,8 +160,10 @@ fn map_digest(points: &[Point]) -> u64 {
 /// 0x8b88_5b58_55d7_88b7. Map 0.4.0 (M2.5) did not move it: a meaning
 /// change on two published points leaves names, addresses and encodings
 /// where they were, which is exactly the change this digest cannot see
-/// and the version line has to carry alone.
-const MAP_DIGEST: u64 = 0xf5b0_c5b7_b546_e059;
+/// and the version line has to carry alone. Map 0.5.0 (M3 phase 1) moved
+/// it with `blockNN.pcs.dc_voltage_v`; the 0.4.0 digest was
+/// 0xf5b0_c5b7_b546_e059.
+const MAP_DIGEST: u64 = 0x7892_9a85_d256_e5b8;
 
 /// A version number nobody is forced to move is decoration.
 ///
