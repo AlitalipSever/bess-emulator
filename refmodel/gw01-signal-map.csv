@@ -35,6 +35,10 @@ input,50,2,u32,1,site.revenue.periods_closed,count,slow,ro,exact,exact
 input,52,1,u16,1,site.substation.sequence,enum,medium,ro,exact,exact
 input,53,1,u16,1,site.substation.disconnectors_closed,bool,medium,ro,exact,exact
 input,54,1,u16,1,site.substation.earthing_closed,bool,medium,ro,exact,exact
+input,55,1,i16,10,site.transformer.top_oil_c,degC,medium,ro,thermometer,Pt100 B
+input,56,1,i16,10,site.transformer.hot_spot_c,degC,medium,ro,thermometer,Pt100 B
+input,57,1,i16,1,site.transformer.tap_position,step,medium,ro,exact,exact
+input,58,1,u16,100,site.mv_bus.voltage_kv,kV,fast,ro,scada_analog,0.5
 input,1000,1,i16,1,block00.pcs.p_ac_kw,kW,fast,ro,scada_analog,0.5
 input,1001,1,i16,1,block00.pcs.p_dc_kw,kW,fast,ro,scada_analog,0.5
 input,1002,1,u16,1,block00.pcs.state,enum,fast,ro,exact,exact

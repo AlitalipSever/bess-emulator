@@ -31,6 +31,12 @@ pub struct BlockSiteThresholds {
     /// Converter internal temperature, °C: the warning ahead of the
     /// derating knee (M3 phase 3).
     pub pcs_temperature_c: Band,
+    /// Transformer hot-spot temperature, °C: the warning at IEC 60076-7's
+    /// normal cyclic limit (M3 phase 4).
+    pub transformer_hot_spot_c: Band,
+    /// Transformer hot-spot temperature at which the kernel trips the
+    /// site, °C: IEC 60076-7's long-term emergency limit.
+    pub transformer_trip_c: f64,
 }
 
 impl Default for BlockSiteThresholds {
@@ -60,6 +66,13 @@ impl Default for BlockSiteThresholds {
                 raise: 65.0,
                 clear: 62.0,
             },
+            // IEC 60076-7's hot-spot limits for a power transformer:
+            // 120 °C normal cyclic, 140 °C long-term emergency.
+            transformer_hot_spot_c: Band {
+                raise: 120.0,
+                clear: 110.0,
+            },
+            transformer_trip_c: 140.0,
         }
     }
 }

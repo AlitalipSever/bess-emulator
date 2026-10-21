@@ -27,6 +27,7 @@ fn run_with(weather: Weather, ticks: u64) -> Simulation {
     let inputs = Inputs {
         weather,
         grid_frequency_hz: 50.0,
+        grid_voltage_pu: 1.0,
     };
     for _ in 0..ticks {
         sim.step(&inputs);

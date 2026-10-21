@@ -71,6 +71,8 @@ pub struct SiteLocation {
 pub struct GridConfig {
     /// Point-of-interconnection nominal voltage, kV.
     pub poi_nominal_kv: f64,
+    /// MV bus nominal voltage, kV (M3 phase 4).
+    pub mv_nominal_kv: f64,
     /// Site AC rating at the POI, W.
     pub site_rated_w: f64,
 }
@@ -108,6 +110,7 @@ impl PlantConfig {
             pcs_rated_w: 5.0e6,
             grid: GridConfig {
                 poi_nominal_kv: 110.0,
+                mv_nominal_kv: 33.0,
                 site_rated_w: 100.0e6,
             },
             // DWD station 3015, Lindenberg (Mark), Brandenburg: the station

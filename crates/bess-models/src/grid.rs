@@ -1,8 +1,12 @@
 //! Simple substation: constant-parameter transformer losses, POI
 //! measurements and energy meters.
 
+pub mod thermal;
+
 use bess_core::state::{BreakerState, SubstationState};
-use bess_core::traits::GridInterface;
+use bess_core::traits::{GridConditions, GridInterface};
+
+pub use thermal::{TapChanger, TransformerState, TransformerThermal};
 
 /// M0 grid coupling: transformer losses as no-load plus load-proportional
 /// (quadratic in loading) terms lumped over the MV and HV stages, and
@@ -26,6 +30,16 @@ pub struct SimpleGrid {
     pub load_loss_at_rated_w: f64,
     /// Nominal POI voltage, kV.
     pub poi_nominal_kv: f64,
+    /// Nominal MV bus voltage, kV (M3 phase 4).
+    pub mv_nominal_kv: f64,
+    /// Resistive short-circuit voltage of the transformer, per unit: the
+    /// load-dependent drop the MV bus sees at unity power factor, the
+    /// copper losses over the rating (M3 phase 4).
+    pub resistive_drop_pu: f64,
+    /// The transformer's two temperatures (M3 phase 4).
+    pub thermal: TransformerThermal,
+    /// The on-load tap changer and its regulator (M3 phase 4).
+    pub tap: TapChanger,
 }
 
 impl SimpleGrid {
@@ -37,6 +51,10 @@ impl SimpleGrid {
             no_load_loss_w: 100.0e3,
             load_loss_at_rated_w: 600.0e3,
             poi_nominal_kv: 110.0,
+            mv_nominal_kv: 33.0,
+            resistive_drop_pu: 600.0e3 / 100.0e6,
+            thermal: TransformerThermal::onaf_100_mva(),
+            tap: TapChanger::default(),
         }
     }
 }
@@ -47,12 +65,48 @@ impl GridInterface for SimpleGrid {
         substation: &mut SubstationState,
         p_ac_total_w: f64,
         aux_w: f64,
-        frequency_hz: f64,
+        grid: GridConditions,
         dt_s: f64,
     ) {
-        substation.frequency_hz = frequency_hz;
-        substation.poi_voltage_kv = self.poi_nominal_kv;
+        substation.frequency_hz = grid.frequency_hz;
+        substation.poi_voltage_kv = grid.voltage_pu * self.poi_nominal_kv;
         substation.poi_reactive_power_var = 0.0;
+
+        // The transformer's temperatures follow the through-power, or
+        // cool toward the ambient when the breaker has de-energized it;
+        // the tap changer regulates the MV bus the converters see.
+        let energized = substation.hv_breaker == BreakerState::Closed;
+        let loading = if energized {
+            p_ac_total_w / self.site_rated_w
+        } else {
+            0.0
+        };
+        let mut t = TransformerState {
+            top_oil_c: substation.top_oil_c,
+            hot_spot_rise_1_k: substation.hot_spot_rise_1_k,
+            hot_spot_rise_2_k: substation.hot_spot_rise_2_k,
+        };
+        self.thermal
+            .step(&mut t, grid.ambient_c, loading.abs(), energized, dt_s);
+        substation.top_oil_c = t.top_oil_c;
+        substation.hot_spot_rise_1_k = t.hot_spot_rise_1_k;
+        substation.hot_spot_rise_2_k = t.hot_spot_rise_2_k;
+        substation.hot_spot_c = t.hot_spot_c();
+        if energized {
+            let mv_pu = grid.voltage_pu
+                * self.tap.ratio(substation.tap_position)
+                * (1.0 + self.resistive_drop_pu * loading);
+            substation.mv_bus_voltage_kv = mv_pu * self.mv_nominal_kv;
+            substation.tap_position = self.tap.regulate(
+                substation.tap_position,
+                &mut substation.tap_timer_s,
+                mv_pu,
+                dt_s,
+            );
+        } else {
+            substation.mv_bus_voltage_kv = 0.0;
+            substation.tap_timer_s = 0.0;
+        }
 
         if substation.hv_breaker == BreakerState::Open {
             // No current crosses an open breaker: the POI reads zero, its
@@ -97,6 +151,13 @@ mod tests {
             earthing_switch: bess_core::state::SwitchPosition::Open,
             sequence: bess_core::kernel::BreakerSequence::Idle,
             sequence_elapsed_s: 0.0,
+            mv_bus_voltage_kv: 33.0,
+            tap_position: 0,
+            tap_timer_s: 0.0,
+            top_oil_c: 20.0,
+            hot_spot_c: 20.0,
+            hot_spot_rise_1_k: 0.0,
+            hot_spot_rise_2_k: 0.0,
             poi_active_power_w: 0.0,
             poi_reactive_power_var: 0.0,
             poi_voltage_kv: 110.0,
@@ -114,7 +175,17 @@ mod tests {
     fn idle_site_imports_house_load() {
         let grid = SimpleGrid::new(100.0e6);
         let mut sub = substation();
-        grid.step(&mut sub, 0.0, 66.0e3, 50.0, 3600.0);
+        grid.step(
+            &mut sub,
+            0.0,
+            66.0e3,
+            GridConditions {
+                frequency_hz: 50.0,
+                voltage_pu: 1.0,
+                ambient_c: 20.0,
+            },
+            3600.0,
+        );
         assert!(sub.poi_active_power_w < 0.0);
         assert!(sub.import_wh > 0.0);
         assert!(sub.export_wh.abs() < f64::EPSILON);
@@ -124,7 +195,17 @@ mod tests {
     fn export_is_reduced_by_losses_and_aux() {
         let grid = SimpleGrid::new(100.0e6);
         let mut sub = substation();
-        grid.step(&mut sub, 100.0e6, 450.0e3, 50.0, 1.0);
+        grid.step(
+            &mut sub,
+            100.0e6,
+            450.0e3,
+            GridConditions {
+                frequency_hz: 50.0,
+                voltage_pu: 1.0,
+                ambient_c: 20.0,
+            },
+            1.0,
+        );
         let expected = 100.0e6 - (100.0e3 + 600.0e3) - 450.0e3;
         assert!((sub.poi_active_power_w - expected).abs() < 1.0e-6);
         assert!(sub.export_wh > 0.0);
@@ -136,7 +217,17 @@ mod tests {
     fn the_metered_aux_is_the_aux_it_was_given() {
         let grid = SimpleGrid::new(100.0e6);
         let mut sub = substation();
-        grid.step(&mut sub, 0.0, 123.4e3, 50.0, 1.0);
+        grid.step(
+            &mut sub,
+            0.0,
+            123.4e3,
+            GridConditions {
+                frequency_hz: 50.0,
+                voltage_pu: 1.0,
+                ambient_c: 20.0,
+            },
+            1.0,
+        );
         assert!((sub.aux_power_w - 123.4e3).abs() < 1.0e-9);
     }
 
@@ -161,7 +252,17 @@ mod tests {
         let grid = SimpleGrid::new(100.0e6);
         let mut sub = substation();
         sub.hv_breaker = BreakerState::Open;
-        grid.step(&mut sub, 0.0, 66.0e3, 50.0, 3600.0);
+        grid.step(
+            &mut sub,
+            0.0,
+            66.0e3,
+            GridConditions {
+                frequency_hz: 50.0,
+                voltage_pu: 1.0,
+                ambient_c: 20.0,
+            },
+            3600.0,
+        );
         assert!(sub.poi_active_power_w.abs() < f64::EPSILON);
         assert!(sub.transformer_loss_w.abs() < f64::EPSILON);
         assert!(sub.import_wh.abs() < f64::EPSILON);
@@ -170,7 +271,17 @@ mod tests {
         assert!((sub.station_service_wh - 66.0e3).abs() < 1.0e-9);
 
         sub.hv_breaker = BreakerState::Closed;
-        grid.step(&mut sub, 0.0, 66.0e3, 50.0, 3600.0);
+        grid.step(
+            &mut sub,
+            0.0,
+            66.0e3,
+            GridConditions {
+                frequency_hz: 50.0,
+                voltage_pu: 1.0,
+                ambient_c: 20.0,
+            },
+            3600.0,
+        );
         assert!((sub.station_service_wh - 66.0e3).abs() < 1.0e-9);
         assert!(sub.import_wh > 0.0);
     }
@@ -183,7 +294,17 @@ mod tests {
         let mut last_export = 0.0;
         for step in 0..100 {
             let p = if step % 2 == 0 { 50.0e6 } else { -50.0e6 };
-            grid.step(&mut sub, p, 0.0, 50.0, 1.0);
+            grid.step(
+                &mut sub,
+                p,
+                0.0,
+                GridConditions {
+                    frequency_hz: 50.0,
+                    voltage_pu: 1.0,
+                    ambient_c: 20.0,
+                },
+                1.0,
+            );
             assert!(sub.import_wh >= last_import);
             assert!(sub.export_wh >= last_export);
             last_import = sub.import_wh;

@@ -9,10 +9,10 @@
 //! belongs with the alarm vocabulary, lives in `kernel/alarms.rs`.
 
 use crate::alarms::layout::site as s;
-use crate::alarms::{has_bit, with_bit, AlarmNode, Severity};
-use crate::state::{BlockMode, BreakerState, PcsOpState};
+use crate::alarms::{has_bit, AlarmNode};
+use crate::state::{BlockMode, PcsOpState};
 
-use super::{restart, Event, Simulation};
+use super::{Event, Simulation};
 
 /// Why a command was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -148,26 +148,9 @@ impl Simulation {
         if has_bit(self.state.alarm_bits, s::PROTECTION_TRIP) {
             return false;
         }
-        let state = &mut self.state;
-        state.alarm_bits = with_bit(state.alarm_bits, s::PROTECTION_TRIP, true);
-        state.pending_events.push(Event::AlarmRaised {
-            node: AlarmNode::Site,
-            bit: s::PROTECTION_TRIP,
-            severity: Severity::of_bit(s::PROTECTION_TRIP),
-        });
-        state.substation.hv_breaker = BreakerState::Open;
-        restart::start_over(&mut state.ems);
-        for (block, b) in state.blocks.iter_mut().enumerate() {
-            let from = b.pcs.op_state;
-            if from != PcsOpState::Fault {
-                b.pcs.op_state = PcsOpState::Fault;
-                state.pending_events.push(Event::PcsStateChanged {
-                    block,
-                    from,
-                    to: PcsOpState::Fault,
-                });
-            }
-        }
+        let mut events = std::mem::take(&mut self.state.pending_events);
+        super::alarms::trip_site(&mut self.state, s::PROTECTION_TRIP, &mut events);
+        self.state.pending_events = events;
         true
     }
 }

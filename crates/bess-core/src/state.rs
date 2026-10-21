@@ -149,6 +149,23 @@ pub struct SubstationState {
     pub sequence: BreakerSequence,
     /// Seconds spent in the current sequence state.
     pub sequence_elapsed_s: f64,
+    /// MV bus voltage the converters see, kV: the grid voltage through
+    /// the tap and the transformer's load-dependent drop; zero while the
+    /// breaker is open (M3 phase 4).
+    pub mv_bus_voltage_kv: f64,
+    /// On-load tap changer position, negative below neutral.
+    pub tap_position: i8,
+    /// Seconds the MV bus has sat outside the regulator's dead band.
+    pub tap_timer_s: f64,
+    /// Transformer top-oil temperature, °C (IEC 60076-7).
+    pub top_oil_c: f64,
+    /// Transformer winding hot-spot temperature, °C: the top oil plus the
+    /// gradient the two responses below carry.
+    pub hot_spot_c: f64,
+    /// The fast share of the hot-spot rise over the top oil, K.
+    pub hot_spot_rise_1_k: f64,
+    /// The slow share, subtracted, K.
+    pub hot_spot_rise_2_k: f64,
     /// Active power at the POI, W (positive = export).
     pub poi_active_power_w: f64,
     /// Reactive power at the POI, var.

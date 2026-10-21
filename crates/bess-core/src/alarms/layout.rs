@@ -90,17 +90,27 @@ pub mod site {
     pub const PARTIAL_AVAILABILITY: u8 = 1;
     /// The HV breaker is open. Mirrors `SubstationState::hv_breaker`.
     pub const HV_BREAKER_OPEN: u8 = 2;
+    /// The transformer's hot spot is past the normal-cyclic limit.
+    /// Hysteresis (M3 phase 4).
+    pub const TRANSFORMER_OVER_TEMPERATURE: u8 = 3;
     /// Protection has tripped the site. Latched: raised by
     /// `Simulation::trip_protection`, cleared by a site reset, which also
     /// closes the breaker and starts the staggered return.
     pub const PROTECTION_TRIP: u8 = 8;
+    /// The transformer's hot spot reached the long-term emergency limit
+    /// and the kernel tripped the site: breaker open, every PCS in fault.
+    /// Latched like `PROTECTION_TRIP`, cleared by the same site reset
+    /// (M3 phase 4).
+    pub const TRANSFORMER_TRIP: u8 = 9;
 
     /// Every laid-out bit and the name the surfaces publish it under.
     pub const NAMES: &[(u8, &str)] = &[
         (POWER_LIMITED, "power_limited"),
         (PARTIAL_AVAILABILITY, "partial_availability"),
         (HV_BREAKER_OPEN, "hv_breaker_open"),
+        (TRANSFORMER_OVER_TEMPERATURE, "transformer_over_temperature"),
         (PROTECTION_TRIP, "protection_trip"),
+        (TRANSFORMER_TRIP, "transformer_trip"),
     ];
 }
 

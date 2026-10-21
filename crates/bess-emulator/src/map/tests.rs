@@ -168,8 +168,10 @@ fn map_digest(points: &[Point]) -> u64 {
 /// `blockNN.pcs.temperature_c` and `blockNN.pcs.overload_budget_pct`
 /// folded in the same way (phase 2 PR2's digest was
 /// 0xa433_e0d2_83ec_cebf), and phase 4's three switchgear points at
-/// site 52 to 54 (phase 3's digest was 0xbb46_67cc_ed0d_ea89).
-const MAP_DIGEST: u64 = 0x3a86_9434_da4c_d641;
+/// site 52 to 54 (phase 3's digest was 0xbb46_67cc_ed0d_ea89), then
+/// PR2's transformer temperatures, tap position and MV bus voltage at 55
+/// to 58 (PR1's digest was 0x3a86_9434_da4c_d641).
+const MAP_DIGEST: u64 = 0x5656_1b84_a8ff_92e7;
 
 /// A version number nobody is forced to move is decoration.
 ///

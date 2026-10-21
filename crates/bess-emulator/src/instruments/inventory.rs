@@ -117,8 +117,11 @@ pub fn instrument_of(name: &str) -> Option<Instrument> {
         | "site.poi.reactive_power_var"
         | "site.poi.voltage_kv"
         | "site.meter.import_kwh"
-        | "site.meter.export_kwh" => Some(Instrument::Analog),
-        "site.weather.ambient_c" => Some(Instrument::Thermometer),
+        | "site.meter.export_kwh"
+        | "site.mv_bus.voltage_kv" => Some(Instrument::Analog),
+        "site.weather.ambient_c" | "site.transformer.top_oil_c" | "site.transformer.hot_spot_c" => {
+            Some(Instrument::Thermometer)
+        }
         _ => match block_point {
             Some("pcs.p_ac_kw" | "pcs.p_dc_kw" | "pcs.dc_voltage_v") => Some(Instrument::Analog),
             Some(
@@ -144,6 +147,7 @@ pub fn full_scale(name: &str, cfg: &PlantConfig) -> f64 {
     match name {
         "site.poi.active_power_w" | "site.poi.reactive_power_var" => site_w,
         "site.poi.voltage_kv" => cfg.grid.poi_nominal_kv,
+        "site.mv_bus.voltage_kv" => cfg.grid.mv_nominal_kv,
         "site.meter.import_kwh"
         | "site.meter.export_kwh"
         | "site.revenue.period_import_kwh"

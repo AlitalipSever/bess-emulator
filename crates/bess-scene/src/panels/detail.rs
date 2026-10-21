@@ -186,6 +186,15 @@ pub fn selection_detail(
                 ui.label("POI voltage");
                 ui.label(format!("{:.1} kV", sub.poi_voltage_kv));
                 ui.end_row();
+                ui.label("MV bus");
+                ui.label(format!(
+                    "{:.2} kV, tap {:+}",
+                    sub.mv_bus_voltage_kv, sub.tap_position
+                ));
+                ui.end_row();
+                ui.label("Top oil / hot spot");
+                ui.label(format!("{:.1} / {:.1} °C", sub.top_oil_c, sub.hot_spot_c));
+                ui.end_row();
                 ui.label("Transformer loss");
                 ui.label(format!("{:.0} kW", sub.transformer_loss_w / 1.0e3));
                 ui.end_row();

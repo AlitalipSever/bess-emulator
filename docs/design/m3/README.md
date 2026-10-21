@@ -162,6 +162,21 @@ Filled as PRs land.
   New maintenance case `substation-earthing-work`.
 - **Checkpoint format 15** (phase 4 PR1): `SubstationState::disconnectors`,
   `earthing_switch`, `sequence`, `sequence_elapsed_s`.
+- **The transformer is warm and the bus is regulated** (phase 4 PR2).
+  IEC 60076-7's two-temperature model on the main transformer (rated
+  rises from IEC 60076-2, 60 K top oil and 78 K hot spot; the ONAF
+  constants labeled), published as `site.transformer.top_oil_c` (55)
+  and `hot_spot_c` (56) through thermometers, with site bits
+  `transformer_over_temperature` (3, 120 °C) and `transformer_trip` (9,
+  140 °C, the kernel trips the site). An on-load tap changer (±8 × 1.25
+  %, labeled) holds the MV bus at nominal against a ±2 % daily swing of
+  the grid voltage, a new kernel input: `site.transformer.tap_position`
+  (57) and `site.mv_bus.voltage_kv` (58); `site.poi.voltage_kv` swings
+  with the grid instead of reading a constant. A baseline recorded
+  against v0.7.0's constant POI voltage will differ.
+- **Checkpoint format 16** (phase 4 PR2): `SubstationState::top_oil_c`,
+  `hot_spot_c`, `hot_spot_rise_1_k`, `hot_spot_rise_2_k`,
+  `tap_position`, `tap_timer_s`, `mv_bus_voltage_kv`.
 
 ## Open questions
 

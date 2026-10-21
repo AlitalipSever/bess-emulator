@@ -27,6 +27,15 @@ pub fn synthetic_grid_frequency_hz(unix_time_s: i64) -> f64 {
     50.0 + 0.01 * (TAU * second_of_day / 600.0).sin()
 }
 
+/// Grid voltage at a UTC timestamp, per unit: a +/- 2 % daily swing,
+/// highest at 04:00 and lowest at 16:00, as a triangle so the kernel
+/// stays rational. Synthetic until M4 replays a measured series.
+pub fn synthetic_grid_voltage_pu(unix_time_s: i64) -> f64 {
+    let since_peak_s = (unix_time_s - 4 * 3600).rem_euclid(86_400) as f64;
+    let phase = since_peak_s / 86_400.0;
+    1.0 + 0.02 * (4.0 * (phase - 0.5).abs() - 1.0)
+}
+
 /// Synthetic diurnal weather and grid-frequency driver.
 ///
 /// A daily temperature sinusoid and a daylight irradiance arc, purely a
@@ -68,6 +77,7 @@ impl SyntheticWeather {
                 irradiance_wm2,
             },
             grid_frequency_hz: synthetic_grid_frequency_hz(unix_time_s),
+            grid_voltage_pu: synthetic_grid_voltage_pu(unix_time_s),
         }
     }
 }
@@ -136,6 +146,7 @@ impl HistoricalWeather {
                 irradiance_wm2: interpolate(self.year.ghi_wm2(), position_h - 0.5),
             },
             grid_frequency_hz: synthetic_grid_frequency_hz(unix_time_s),
+            grid_voltage_pu: synthetic_grid_voltage_pu(unix_time_s),
         }
     }
 

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::alarms::BlockSiteThresholds;
 use crate::config::PlantConfig;
 use crate::state::{BlockMode, BreakerState, EmsMode, PcsOpState, SiteState};
-use crate::traits::{AuxDemand, Models, PowerLimits};
+use crate::traits::{AuxDemand, GridConditions, Models, PowerLimits};
 use crate::TICK_SECONDS;
 
 mod alarms;
@@ -54,6 +54,9 @@ pub struct Inputs {
     pub weather: Weather,
     /// Grid frequency at the POI, Hz.
     pub grid_frequency_hz: f64,
+    /// Grid voltage at the POI, per unit of nominal (M3 phase 4; synthetic
+    /// until M4 replays a series).
+    pub grid_voltage_pu: f64,
 }
 
 /// A running simulation: configuration, model bundle, and the state tree.
@@ -275,7 +278,11 @@ impl Simulation {
             &mut self.state.substation,
             p_ac_site_w,
             aux.total_w(),
-            inputs.grid_frequency_hz,
+            GridConditions {
+                frequency_hz: inputs.grid_frequency_hz,
+                voltage_pu: inputs.grid_voltage_pu,
+                ambient_c: inputs.weather.ambient_c,
+            },
             dt_s,
         );
         // The fiscal meter reads the same POI power the SCADA meters just
