@@ -78,7 +78,7 @@ Energy at the point of interconnection over the run:
 
 | Quantity | Value |
 |---|---|
-| Imported | 66 778.0 MWh |
+| Imported | 66 777.9 MWh |
 | Exported | 55 396.9 MWh |
 | Round-trip efficiency | 0.8296 |
 | Round-trip efficiency, house load removed from import | 0.8543 |
@@ -118,14 +118,14 @@ Temperatures and HVAC over the run:
 | Container air, coldest to warmest | 10.0 to 29.0 C |
 | Cells, coldest to warmest | 8.7 to 39.0 C |
 | Duty, one unit / both units / heating | 16.38% / 1.02% / 0.24% |
-| Cooling starts per container | 4 765.3 |
+| Cooling starts per container | 4 765.5 |
 
-Alarms raised over the run: 0 trips (gate: none), 38 867 warnings.
+Alarms raised over the run: 0 trips (gate: none), 38 862 warnings.
 
 | Alarm | Raised |
 |---|---|
 | `block.setpoint_not_met` | 15 300 |
-| `rack.derate_active` | 22 802 |
+| `rack.derate_active` | 22 797 |
 | `site.power_limited` | 765 |
 
 Fiscal quarter-hours closed: 35 040 (gate: exactly 35 040), 92 on the 23-hour day and 100 on the 25-hour day (gates: 92 and 100).
@@ -800,7 +800,7 @@ reproduced.
 | Record | Round trip at the POI | Import | Export | Equivalent full cycles | What moved it |
 |---|---|---|---|---|---|
 | v0.6.1 | 0.8366 | 66,484.8 MWh | 55,622.2 MWh | 277.2 | the M2 plant |
-| after phase 1 | 0.8296 | 66,778.0 MWh | 55,396.9 MWh | 276.1 | OCV hysteresis: 389.1 MWh more heat in the battery row (4,562.7 to 4,951.8), 129.8 MWh more HVAC to remove it, warmest cell 38.1 to 39.0 C |
+| after phase 1 | 0.8296 | 66,777.9 MWh | 55,396.9 MWh | 276.1 | OCV hysteresis: 389.1 MWh more heat in the battery row (4,562.7 to 4,951.8), 129.8 MWh more HVAC to remove it, warmest cell 38.1 to 39.0 C |
 
 ## Planned gates (from ROADMAP.md)
 

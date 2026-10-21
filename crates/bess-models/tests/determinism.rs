@@ -29,7 +29,9 @@ const TICKS: u64 = 4 * 3600;
 /// moves it, so voltages, currents and the night charge's heat differ from
 /// the first charging tick. The switch-off proof in `ocv_hysteresis.rs`
 /// holds the previous value: with the transition rate at zero and the new
-/// field cut out of the serialization the tree still hashes to it.
+/// field cut out of the serialization the tree still hashes to it. (The
+/// first cut of the phase used `exp` in the step and its records drifted
+/// between macOS and Linux; the rational step replaced it before merge.)
 /// Earlier values: 0xf3fb_8ad4_75c9_980f (M2 phase 4 PR1, for schema
 /// alone: run identity gained the scenario (`meta.scenario`, `null` here)
 /// and every rack the excess self-discharge rate (`0.0` here)),
@@ -47,7 +49,7 @@ const TICKS: u64 = 4 * 3600;
 /// two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC),
 /// 0x1446_6f26_c751_bc02 (M1 PR5, the auxiliary inventory),
 /// 0xcd26_9803_d062_e1ad (M2 phase 1 PR2, cell spread and balancing).
-const GOLDEN_DIGEST: u64 = 0x95c3_aa5c_e7bb_3679;
+const GOLDEN_DIGEST: u64 = 0x9aab_1b4a_1051_f23e;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();
