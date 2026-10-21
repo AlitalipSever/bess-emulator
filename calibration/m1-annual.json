@@ -8,21 +8,21 @@
     "ticks": 31536000
   },
   "energy": {
-    "import_mwh": 66778.0,
-    "export_mwh": 55396.9,
-    "round_trip_efficiency": 0.8296,
-    "round_trip_efficiency_excluding_aux": 0.8543,
+    "import_mwh": 66739.3,
+    "export_mwh": 55405.9,
+    "round_trip_efficiency": 0.8302,
+    "round_trip_efficiency_excluding_aux": 0.8549,
     "equivalent_full_cycles": 276.1,
     "stored_delta_mwh": 93.8,
-    "aux_share_of_import": 0.02895,
+    "aux_share_of_import": 0.02897,
     "aux_share_of_export": 0.03489,
     "balance_residual_share": 6.7e-6
   },
   "losses": {
-    "battery_mwh": 4951.8,
-    "pcs_mwh": 2812.0,
-    "transformer_mwh": 1591.3,
-    "aux_hvac_mwh": 1364.9,
+    "battery_mwh": 4952.4,
+    "pcs_mwh": 2763.7,
+    "transformer_mwh": 1591.1,
+    "aux_hvac_mwh": 1365.1,
     "aux_bms_mwh": 301.9,
     "aux_pcs_standby_mwh": 47.1,
     "aux_controls_mwh": 131.4,
@@ -37,17 +37,17 @@
     "cell_max_c": 39.0
   },
   "hvac": {
-    "stage1_duty": 0.16383,
+    "stage1_duty": 0.16386,
     "stage2_duty": 0.01023,
     "heat_duty": 0.00241,
-    "compressor_starts_per_container": 4765.3
+    "compressor_starts_per_container": 4766.1
   },
   "alarms": {
     "trips_raised": 0,
-    "warnings_raised": 38867,
+    "warnings_raised": 38880,
     "raised_by_alarm": {
       "block.setpoint_not_met": 15300,
-      "rack.derate_active": 22802,
+      "rack.derate_active": 22815,
       "site.power_limited": 765
     }
   },
@@ -59,7 +59,7 @@
   "estimator": {
     "mean_abs_error_pct": 0.253,
     "max_abs_error_pct": 1.13,
-    "corrections": 104944,
+    "corrections": 104956,
     "corrections_per_rack_day": 0.599
   }
 }

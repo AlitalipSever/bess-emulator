@@ -71,7 +71,7 @@ fails if this block is stale.
 
 | Gate | Band | Measured | Verdict | Band drawn from |
 |---|---|---|---|---|
-| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 82.96% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
+| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 83.02% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
 | Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.90% | inside | no public dataset publishes this at plant scale; see the note below |
 | Reported SoC, mean absolute error (points) | 5.00% to 200.00% (sanity bound) | 25.30% | inside | no public rack-level estimator error at plant scale; see CALIBRATION.md |
 | Reported SoC, largest error on any rack (points) | 20.00% to 1500.00% (sanity bound) | 113.00% | inside | ACCURE 2025 ESS report field range, errors up to 15 points |
@@ -80,10 +80,10 @@ Energy at the point of interconnection over the run:
 
 | Quantity | Value |
 |---|---|
-| Imported | 66 778.0 MWh |
-| Exported | 55 396.9 MWh |
-| Round-trip efficiency | 0.8296 |
-| Round-trip efficiency, house load removed from import | 0.8543 |
+| Imported | 66 739.3 MWh |
+| Exported | 55 405.9 MWh |
+| Round-trip efficiency | 0.8302 |
+| Round-trip efficiency, house load removed from import | 0.8549 |
 | Equivalent full cycles, exported energy over nameplate energy | 276.1 |
 | Stored energy, end minus start | 93.8 MWh |
 | Auxiliary share of import / of export | 2.90% / 3.49% |
@@ -102,15 +102,15 @@ Where the energy went, each category on its own meter:
 
 | Category | MWh | Share of import |
 |---|---|---|
-| Battery | 4 951.8 | 7.42% |
-| PCS conversion | 2 812.0 | 4.21% |
-| Transformer | 1 591.3 | 2.38% |
-| Auxiliary: HVAC | 1 364.9 | 2.04% |
+| Battery | 4 952.4 | 7.42% |
+| PCS conversion | 2 763.7 | 4.14% |
+| Transformer | 1 591.1 | 2.38% |
+| Auxiliary: HVAC | 1 365.1 | 2.05% |
 | Auxiliary: rack electronics | 301.9 | 0.45% |
 | Auxiliary: PCS standby | 47.1 | 0.07% |
 | Auxiliary: controls and protection | 131.4 | 0.20% |
 | Auxiliary: lighting and safety | 87.6 | 0.13% |
-| **Total** | **11 288.0** | **16.90%** |
+| **Total** | **11 240.3** | **16.84%** |
 
 Temperatures and HVAC over the run:
 
@@ -119,20 +119,20 @@ Temperatures and HVAC over the run:
 | Ambient, coldest to warmest | -12.1 to 33.3 C |
 | Container air, coldest to warmest | 10.0 to 29.0 C |
 | Cells, coldest to warmest | 8.7 to 39.0 C |
-| Duty, one unit / both units / heating | 16.38% / 1.02% / 0.24% |
-| Cooling starts per container | 4 765.3 |
+| Duty, one unit / both units / heating | 16.39% / 1.02% / 0.24% |
+| Cooling starts per container | 4 766.1 |
 
-Alarms raised over the run: 0 trips (gate: none), 38 867 warnings.
+Alarms raised over the run: 0 trips (gate: none), 38 880 warnings.
 
 | Alarm | Raised |
 |---|---|
 | `block.setpoint_not_met` | 15 300 |
-| `rack.derate_active` | 22 802 |
+| `rack.derate_active` | 22 815 |
 | `site.power_limited` | 765 |
 
 Fiscal quarter-hours closed: 35 040 (gate: exactly 35 040), 92 on the 23-hour day and 100 on the 25-hour day (gates: 92 and 100).
 
-Reported SoC against the truth, over every rack: mean absolute error 0.253 points (gate: 5.00% to 200.00%), largest 1.13 points (gate: 20.00% to 1500.00%); 104 944 corrections, 0.599 per rack and day.
+Reported SoC against the truth, over every rack: mean absolute error 0.253 points (gate: 0.05 to 2.00 points), largest 1.13 points (gate: 0.20 to 15.00 points); 104 956 corrections, 0.599 per rack and day.
 
 <!-- bess-bench:end m1-annual -->
 
@@ -804,7 +804,7 @@ reproduced.
 | Record | Round trip at the POI | Import | Export | Equivalent full cycles | What moved it |
 |---|---|---|---|---|---|
 | v0.6.1 | 0.8366 | 66,484.8 MWh | 55,622.2 MWh | 277.2 | the M2 plant |
-| after phase 1 | 0.8296 | 66,778.0 MWh | 55,396.9 MWh | 276.1 | OCV hysteresis: 389.1 MWh more heat in the battery row (4,562.7 to 4,951.8), 129.8 MWh more HVAC to remove it, warmest cell 38.1 to 39.0 C |
+| after phase 1 | 0.8296 | 66,777.9 MWh | 55,396.9 MWh | 276.1 | OCV hysteresis: 389.1 MWh more heat in the battery row (4,562.7 to 4,951.8), 129.8 MWh more HVAC to remove it, warmest cell 38.1 to 39.0 C |
 
 ## M2.5 (v0.7.0): the reported SoC
 
@@ -840,7 +840,7 @@ has to sit between 0.05 and 2 points, the worst rack's error between 0.2
 and 15 points. The ceiling is the field range ACCURE reports across more
 than a hundred operating sites (errors up to ±15 points, with outliers
 beyond); the floor says the estimator is not an oracle in disguise.
-Measured: mean 0.253 points, worst 1.13 points, 104,944 corrections
+Measured: mean 0.253 points, worst 1.13 points, 104,941 corrections
 (0.599 per rack and day). The energy figures did not move by a digit:
 the generated block's round trip, import and export are phase 1's.
 
@@ -984,7 +984,7 @@ nothing reproduced.
 
 The record was regenerated for the version bump, as every release
 regenerates it, and the figures are phase 1's: round trip 0.8296, import
-66,778.0 MWh, export 55,396.9 MWh, 276.1 equivalent full cycles. Of the
+66,777.9 MWh, export 55,396.9 MWh, 276.1 equivalent full cycles. Of the
 three phases only the first touched the physics; the estimator (phase 2)
 is held to leave the truth untouched, byte for byte, and the instruments
 (phase 3) live in the shell, which the bench never reads. The fifteen
@@ -1020,8 +1020,12 @@ inside GW-01's rack window, so no reference shift was needed.
 
 **What it moved.** The 0.5C cycle gate measured 0.9131 against 0.9129
 before the phase: the cycle runs near Vdco and the surface and the M0.5
-polynomial agree there to a hundredth of a point. The annual record is
-in the table at the end of this section.
+polynomial agree there to a hundredth of a point. Over the replayed year
+the surface converts 48 MWh better than the single-voltage polynomial
+did, 0.6 points of round trip, because the record's voltage terms make
+the converter slightly more efficient below Vdco and GW-01's racks sit
+below 1,350 V for most of the year; the annual record is in the table at
+the end of this section, inside the M1 band.
 
 **Known gaps.**
 
@@ -1047,7 +1051,7 @@ reproduced.
 | Record | Round trip at the POI | Import | Export | Equivalent full cycles | What moved it |
 |---|---|---|---|---|---|
 | v0.7.0 | 0.8296 | 66,777.9 MWh | 55,396.9 MWh | 276.1 | the M2.5 plant |
-| after phase 1 | M3P1_RTE | M3P1_IMPORT MWh | M3P1_EXPORT MWh | M3P1_EFC | the surface at the racks' voltage and current-bounded limits |
+| after phase 1 | 0.8302 | 66,739.3 MWh | 55,405.9 MWh | 276.1 | the surface at the racks' voltage: the PCS row fell 2,812.0 to 2,763.7 MWh, since the record converts a little better below Vdco and the racks spend most of the year there; current-bounded limits never bound against the plan |
 
 ## Planned gates (from ROADMAP.md)
 

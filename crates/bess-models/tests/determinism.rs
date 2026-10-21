@@ -27,9 +27,11 @@ const TICKS: u64 = 4 * 3600;
 /// phase 1, for physics and schema: the converter converts on the Sandia
 /// surface at the racks' DC voltage, rack limits are current-bounded at
 /// the voltage the rack presents, and `PcsState` carries `dc_voltage_v`.
-/// Earlier value: 0xe46c_f1ee_8656_cf35 (M2.5 phase 2 PR1, schema and the
-/// event log: every rack gained the reported SoC and its sensor's two
-/// error parameters, the estimator's corrections are events).
+/// Earlier value: 0xa57c_9428_cb1e_3071 (M2.5 phase 2 PR1 after the
+/// hysteresis step went rational; before that 0xe46c_f1ee_8656_cf35 with
+/// the exp cut: schema and the event log, every rack gained the reported
+/// SoC and its sensor's two error parameters, the estimator's corrections
+/// are events).
 /// Before that: M2.5 phase 2 PR1, for schema and the event log: every rack gained the
 /// reported SoC and its sensor's two error parameters, and the estimator's
 /// corrections are events, so the log's count and digest move with them.
@@ -57,7 +59,7 @@ const TICKS: u64 = 4 * 3600;
 /// two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC),
 /// 0x1446_6f26_c751_bc02 (M1 PR5, the auxiliary inventory),
 /// 0xcd26_9803_d062_e1ad (M2 phase 1 PR2, cell spread and balancing).
-const GOLDEN_DIGEST: u64 = 0x726c_237d_9619_e2a5;
+const GOLDEN_DIGEST: u64 = 0x4d61_5d7b_b58a_1f8a;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();
