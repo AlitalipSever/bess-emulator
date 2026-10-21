@@ -37,6 +37,17 @@ Accept: an external setpoint step over Modbus is reached after the
 published dead time and ramp, visible on the stream, without raising
 `setpoint_not_met`.
 
+*As built (PR2):* `SetpointDynamics` in `kernel/setpoint.rs` beside the
+startup sequence, applied in `step_block` between the share and
+`dc_request_w`; `Simulation::set_setpoint_dynamics` for research and
+the switch-off; the block miss and the site shortfall both read the
+follower. The annual record moved: the plan's hourly steps are ramps
+now, so the night charge and the day's discharge each start ten minutes
+of ramp later than the step; CALIBRATION.md has the figures. Golden and
+all fifteen library records regenerated; four timing tests
+(`trip_return`, `availability`, `aux_inventory`, and the return's step
+count, which became a no-fall check) wait for the ramp. Checkpoint 13.
+
 ## Open questions
 
 - SunSpec numbering for `Precharge` and `ContactorClose` (SunSpec has

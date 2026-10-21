@@ -124,6 +124,16 @@ Filled as PRs land.
   synchronized. MQTT `pcs/state` and the stream carry the finer names
   (`precharge`, `contactor_close`, `synchronize`, `ramp`, `off`).
 - **Checkpoint format 12** (phase 2 PR1): `PcsState::state_elapsed_s`.
+- **The converter follows its setpoint** (phase 2 PR2). Per block the
+  share passes the tick's dead time, a ramp limit of 10 % of the
+  converter's rating per minute (VDE-AR-N 4110) and a 0.5 s first-order
+  lag, so a site step over Modbus is reached ten minutes later, climbing
+  at the gradient, with neither `setpoint_not_met` nor `power_limited`
+  raised on the way. New point `blockNN.pcs.setpoint_followed_kw`
+  (2000 + 10b + 5), exact. A baseline recorded against v0.7.0's
+  instantaneous steps will differ on every hour boundary of the plan.
+- **Checkpoint format 13** (phase 2 PR2): `PcsState::setpoint_ramped_w`,
+  `setpoint_followed_w`.
 
 ## Open questions
 

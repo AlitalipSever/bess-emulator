@@ -62,7 +62,9 @@ struct Tripped {
 fn trip_at_full_discharge() -> Tripped {
     let mut sim = busy_plant();
     let stored_start_wh = sim.stored_energy_wh();
-    for _ in 0..120 {
+    // Twelve minutes: the converters ramp to the setpoint at the grid
+    // code's gradient (ten minutes for a full step) and settle.
+    for _ in 0..720 {
         step(&mut sim);
     }
     let before = sim.state().substation.clone();
@@ -142,7 +144,9 @@ struct Return {
     limited_raised: Option<u64>,
     limited_cleared: Option<u64>,
     partial_cleared: Option<u64>,
-    climbs: usize,
+    /// Ticks on which the POI fell by more than the efficiency's own
+    /// jitter: a return that is a ramp per block never has one.
+    falls: usize,
 }
 
 fn watch_return(sim: &mut Simulation, ticks: u64) -> Return {
@@ -152,10 +156,11 @@ fn watch_return(sim: &mut Simulation, ticks: u64) -> Return {
         limited_raised: None,
         limited_cleared: None,
         partial_cleared: None,
-        climbs: 0,
+        falls: 0,
     };
     // The POI reads zero on the tick after the reset: the first block is
-    // still in its startup sequence, so the first climb is block 0's.
+    // still in its startup sequence, and from its ramp on the POI only
+    // climbs, each block adding its own ramp to the sum.
     let mut last_poi = 0.0;
     for tick in 0..ticks {
         let events = step(sim);
@@ -178,8 +183,8 @@ fn watch_return(sim: &mut Simulation, ticks: u64) -> Return {
         if cleared(&events, AlarmNode::Site, s::PARTIAL_AVAILABILITY) {
             seen.partial_cleared.get_or_insert(tick);
         }
-        if st.substation.poi_active_power_w > last_poi + 1.0e6 {
-            seen.climbs += 1;
+        if st.substation.poi_active_power_w < last_poi - 0.2e6 {
+            seen.falls += 1;
         }
         last_poi = st.substation.poi_active_power_w;
         assert!(
@@ -212,10 +217,7 @@ fn a_site_reset_brings_the_blocks_back_one_at_a_time() {
         want,
         "blocks did not return 30 s apart, 16 s after their release"
     );
-    assert_eq!(
-        seen.climbs, BLOCKS,
-        "the POI did not climb one step per block"
-    );
+    assert_eq!(seen.falls, 0, "the POI fell during the return");
     let raised_at = seen
         .limited_raised
         .expect("the return never reported a limited site");

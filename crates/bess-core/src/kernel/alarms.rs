@@ -14,6 +14,7 @@ use crate::config::PlantConfig;
 use crate::state::{BlockMode, BlockState, BreakerState, PcsOpState, SiteState};
 
 use super::restart::{self, dispatchable};
+use super::setpoint::SetpointDynamics;
 use super::{Event, Simulation};
 
 /// Push one raise or clear event per bit that differs between two words,
@@ -53,7 +54,9 @@ pub(super) fn evaluate_block(
 ) -> (u32, f64) {
     let word = block.alarm_bits;
 
-    let miss = (block.pcs.p_ac_setpoint_w - block.pcs.p_ac_w).abs() / cfg.pcs_rated_w;
+    // Against the followed target, not the written one: a converter on
+    // its ramp is doing what it should.
+    let miss = (block.pcs.setpoint_followed_w - block.pcs.p_ac_w).abs() / cfg.pcs_rated_w;
     let miss_s = if miss >= th.setpoint_miss.raise {
         block.setpoint_miss_s + dt_s
     } else {
@@ -95,15 +98,22 @@ fn evaluate_site(state: &SiteState, cfg: &PlantConfig, th: &BlockSiteThresholds)
     // the even split has no redistribution pass, so a block can claim its
     // rating while its hot racks leave its share undelivered. What the
     // blocks actually converted is what the plant did.
+    // Less what the connected converters are still ramping toward: a
+    // plant arriving at its target at the grid code's gradient is not
+    // power limited, a plant that cannot arrive is.
     let setpoint_w = state.ems.site_setpoint_w;
     let delivered_w: f64 = state.blocks.iter().map(|blk| blk.pcs.p_ac_w).sum();
+    let ramping_w: f64 = state
+        .blocks
+        .iter()
+        .map(|blk| SetpointDynamics::ramp_slack_w(&blk.pcs, cfg.pcs_rated_w))
+        .sum();
     let shortfall = if setpoint_w >= 0.0 {
         setpoint_w - delivered_w
     } else {
         delivered_w - setpoint_w
-    }
-    .max(0.0)
-        / cfg.grid.site_rated_w;
+    };
+    let shortfall = (shortfall - ramping_w).max(0.0) / cfg.grid.site_rated_w;
     let limited = rising(
         has_bit(word, s::POWER_LIMITED),
         shortfall,

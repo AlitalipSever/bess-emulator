@@ -7,6 +7,7 @@ use crate::state::{BlockState, ContainerState};
 use crate::traits::{Models, PowerLimits};
 
 use super::alarms::{evaluate_block, push_changes};
+use super::setpoint::SetpointDynamics;
 use super::{Event, Weather};
 
 /// What every block of one tick shares.
@@ -14,6 +15,7 @@ pub(super) struct TickContext<'a> {
     pub(super) models: &'a Models,
     pub(super) cfg: &'a PlantConfig,
     pub(super) thresholds: &'a BlockSiteThresholds,
+    pub(super) dynamics: &'a SetpointDynamics,
     pub(super) share_w: f64,
     pub(super) weather: Weather,
     pub(super) dt_s: f64,
@@ -66,6 +68,7 @@ pub(super) fn step_block(
         models,
         cfg,
         thresholds,
+        dynamics,
         share_w,
         weather,
         dt_s,
@@ -98,9 +101,14 @@ pub(super) fn step_block(
         PowerLimits::default()
     };
 
-    let block_target_w = if in_set { share_w } else { 0.0 };
-    block.pcs.p_ac_setpoint_w = block_target_w;
-    let dc_request_w = models.pcs.dc_request_w(block_target_w, &block_limits, vdc);
+    // The share is what the controller asks; the converter follows it
+    // through its dead time, ramp and lag, and converts what it has
+    // reached.
+    block.pcs.p_ac_setpoint_w = if in_set { share_w } else { 0.0 };
+    dynamics.follow(&mut block.pcs, in_set, cfg.pcs_rated_w, dt_s);
+    let dc_request_w = models
+        .pcs
+        .dc_request_w(block.pcs.setpoint_followed_w, &block_limits, vdc);
 
     // Distribute the DC request evenly over in-service racks. A rack that
     // cannot take its share leaves the remainder undelivered (no

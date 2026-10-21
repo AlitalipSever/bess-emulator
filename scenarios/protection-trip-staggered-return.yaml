@@ -3,9 +3,11 @@
 # moves to the station-service meter. The site reset ten minutes later
 # closes the breaker and starts the staggered return, block k released
 # k x 30 s later; each released converter walks precharge, contactor
-# close and synchronization (16 s) before it runs, so the available power
-# climbs back over ten minutes and the partial-availability bit stays up
-# until the last block has synchronized.
+# close and synchronization (16 s) before it runs and ramps to its share
+# at 10 % of its rating per minute, so the available power climbs back
+# over ten minutes, the delivered power follows it as a sum of ramps, and
+# the partial-availability bit stays up until the last block has
+# synchronized.
 schema: 1
 name: protection-trip-staggered-return
 taxonomy: bos

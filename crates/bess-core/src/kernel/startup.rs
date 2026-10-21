@@ -104,6 +104,8 @@ mod tests {
             loss_w: 0.0,
             dc_voltage_v: 1_331.2,
             state_elapsed_s: 0.0,
+            setpoint_ramped_w: 0.0,
+            setpoint_followed_w: 0.0,
         }
     }
 

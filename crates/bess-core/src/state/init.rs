@@ -53,6 +53,8 @@ impl SiteState {
                     loss_w: 0.0,
                     dc_voltage_v: cfg.rack.nominal_v(),
                     state_elapsed_s: 0.0,
+                    setpoint_ramped_w: 0.0,
+                    setpoint_followed_w: 0.0,
                 },
                 containers: (0..cfg.containers_per_block)
                     .map(|_| ContainerState {

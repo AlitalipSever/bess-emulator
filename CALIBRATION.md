@@ -71,8 +71,8 @@ fails if this block is stale.
 
 | Gate | Band | Measured | Verdict | Band drawn from |
 |---|---|---|---|---|
-| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 83.02% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
-| Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.90% | inside | no public dataset publishes this at plant scale; see the note below |
+| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 83.23% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
+| Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.85% | inside | no public dataset publishes this at plant scale; see the note below |
 | Reported SoC, mean absolute error (points) | 5.00% to 200.00% (sanity bound) | 25.30% | inside | no public rack-level estimator error at plant scale; see CALIBRATION.md |
 | Reported SoC, largest error on any rack (points) | 20.00% to 1500.00% (sanity bound) | 113.00% | inside | ACCURE 2025 ESS report field range, errors up to 15 points |
 
@@ -80,14 +80,14 @@ Energy at the point of interconnection over the run:
 
 | Quantity | Value |
 |---|---|
-| Imported | 66 739.3 MWh |
-| Exported | 55 405.9 MWh |
-| Round-trip efficiency | 0.8302 |
-| Round-trip efficiency, house load removed from import | 0.8549 |
-| Equivalent full cycles, exported energy over nameplate energy | 276.1 |
+| Imported | 66 655.7 MWh |
+| Exported | 55 478.3 MWh |
+| Round-trip efficiency | 0.8323 |
+| Round-trip efficiency, house load removed from import | 0.8568 |
+| Equivalent full cycles, exported energy over nameplate energy | 276.5 |
 | Stored energy, end minus start | 93.8 MWh |
-| Auxiliary share of import / of export | 2.90% / 3.49% |
-| Unexplained residual | 0.00067% of throughput, gate below 0.2% |
+| Auxiliary share of import / of export | 2.85% / 3.43% |
+| Unexplained residual | 0.00063% of throughput, gate below 0.2% |
 
 Three definitions the figures above depend on. The round-trip ratio is
 uncorrected for the stored-energy endpoints, matching how the fleet figure
@@ -102,15 +102,15 @@ Where the energy went, each category on its own meter:
 
 | Category | MWh | Share of import |
 |---|---|---|
-| Battery | 4 952.4 | 7.42% |
-| PCS conversion | 2 763.7 | 4.14% |
-| Transformer | 1 591.1 | 2.38% |
-| Auxiliary: HVAC | 1 365.1 | 2.05% |
+| Battery | 4 862.9 | 7.30% |
+| PCS conversion | 2 742.3 | 4.11% |
+| Transformer | 1 577.1 | 2.37% |
+| Auxiliary: HVAC | 1 335.0 | 2.00% |
 | Auxiliary: rack electronics | 301.9 | 0.45% |
-| Auxiliary: PCS standby | 47.1 | 0.07% |
+| Auxiliary: PCS standby | 46.2 | 0.07% |
 | Auxiliary: controls and protection | 131.4 | 0.20% |
 | Auxiliary: lighting and safety | 87.6 | 0.13% |
-| **Total** | **11 240.3** | **16.84%** |
+| **Total** | **11 084.4** | **16.63%** |
 
 Temperatures and HVAC over the run:
 
@@ -119,20 +119,20 @@ Temperatures and HVAC over the run:
 | Ambient, coldest to warmest | -12.1 to 33.3 C |
 | Container air, coldest to warmest | 10.0 to 29.0 C |
 | Cells, coldest to warmest | 8.7 to 39.0 C |
-| Duty, one unit / both units / heating | 16.39% / 1.02% / 0.24% |
-| Cooling starts per container | 4 766.1 |
+| Duty, one unit / both units / heating | 16.10% / 0.95% / 0.25% |
+| Cooling starts per container | 4 760.0 |
 
-Alarms raised over the run: 0 trips (gate: none), 38 880 warnings.
+Alarms raised over the run: 0 trips (gate: none), 38 932 warnings.
 
 | Alarm | Raised |
 |---|---|
 | `block.setpoint_not_met` | 15 300 |
-| `rack.derate_active` | 22 815 |
-| `site.power_limited` | 765 |
+| `rack.derate_active` | 22 917 |
+| `site.power_limited` | 715 |
 
 Fiscal quarter-hours closed: 35 040 (gate: exactly 35 040), 92 on the 23-hour day and 100 on the 25-hour day (gates: 92 and 100).
 
-Reported SoC against the truth, over every rack: mean absolute error 0.253 points (gate: 0.05 to 2.00 points), largest 1.13 points (gate: 0.20 to 15.00 points); 104 956 corrections, 0.599 per rack and day.
+Reported SoC against the truth, over every rack: mean absolute error 0.253 points (gate: 0.05 to 2.00 points), largest 1.13 points (gate: 0.20 to 15.00 points); 104 891 corrections, 0.599 per rack and day.
 
 <!-- bess-bench:end m1-annual -->
 
@@ -1052,6 +1052,7 @@ reproduced.
 |---|---|---|---|---|---|
 | v0.7.0 | 0.8296 | 66,777.9 MWh | 55,396.9 MWh | 276.1 | the M2.5 plant |
 | after phase 1 | 0.8302 | 66,739.3 MWh | 55,405.9 MWh | 276.1 | the surface at the racks' voltage: the PCS row fell 2,812.0 to 2,763.7 MWh, since the record converts a little better below Vdco and the racks spend most of the year there; current-bounded limits never bound against the plan |
+| after phase 2 | 0.8323 | 66,655.7 MWh | 55,478.3 MWh | 276.5 | the setpoint follower: every hourly step of the plan is a ten-minute ramp now, so the plant spends the first minutes of each charge and discharge hour at partial load, where the battery and the converter both lose less per MWh (battery row 4,952.4 to 4,862.9 MWh, PCS row 2,763.7 to 2,742.3 MWh), and the HVAC row falls with the heat (1,365.1 to 1,335.0 MWh) |
 
 ## M3 (v0.8.0): the converter's state machine
 
@@ -1071,9 +1072,9 @@ this order and in seconds, but no public manual found gives the three
 figures for one unit, so these are the order of magnitude the manuals
 describe, not a cited column, and the gate is the sequence's own
 arithmetic: `a_cleared_converter_reaches_ramp_after_the_published_durations`
-holds the walk to 0, 10, 11 and 16 s. The ramp itself (phase 2 PR2) will
-take its gradient from VDE-AR-N 4110's 10 % of agreed power per minute,
-the public figure the return's spacing already rests on.
+holds the walk to 0, 10, 11 and 16 s. The ramp itself takes its gradient
+from VDE-AR-N 4110's 10 % of agreed power per minute, the public figure
+the return's spacing already rests on; the next section has it.
 
 **On the wire.** `blockNN.pcs.state` carries SunSpec's operating-state
 numbering (models 701/702 `InvSt`: 1 off, 3 starting, 4 running, 7 fault,
@@ -1090,7 +1091,9 @@ for the new states and the later returns; their headers say so.
 
 - **The durations are estimates** (above); a public manual with the
   three figures would pin them.
-- **`Ramp` lasts one tick** until phase 2 PR2 gives it the gradient.
+- **`Ramp` lasts one tick** as a state: the ramp itself runs on under
+  `Run` (next section), since the converter is converting while it
+  climbs, which is what `Run` says.
 - **No shutdown sequence.** A converter that is asked for nothing drops
   to `Standby` in one tick, as since M0; a graceful stop is not modeled.
 
@@ -1099,6 +1102,64 @@ Specification, models 701 and 702 (DER AC measurement and capacity),
 operating-state enumeration, public specification; VDE-AR-N 4110:2018,
 section on active power gradients after reconnection (public summary
 cited at the M2 return policy). Numbers cited, nothing reproduced.
+
+## M3 (v0.8.0): the setpoint follower
+
+A converter does not jump to the share the plant controller hands it.
+Each block's share passes a dead time, a ramp limit and a first-order
+lag (`crates/bess-core/src/kernel/setpoint.rs`), and the converter
+converts what the follower has reached. The followed target is a
+published point, `blockNN.pcs.setpoint_followed_kw`, and both the block's
+setpoint-miss bit and the site's power-limited bit judge against it, so
+a plant climbing at the grid code's gradient raises nothing, and a plant
+that cannot climb still does.
+
+**Gradient, sourced.** 10 % of the converter's rating per minute, the
+active-power gradient VDE-AR-N 4110:2018 asks of a generating plant
+after reconnection, the same public figure the M2 return policy's
+spacing rests on. A full step from idle to rating therefore takes ten
+minutes; `a_step_is_reached_after_the_ramp_without_an_alarm` holds the
+site to 98 % between 560 and 620 s and to the gradient tick by tick. The
+code states the gradient for reconnection; applying it to every setpoint
+change is a choice, documented here, and the conservative one for anyone
+testing a dispatcher against the emulator. A plant contracted for faster
+services (FCR asks full activation inside 30 s) would carry a different
+figure; it is one parameter.
+
+**Dead time and lag, labeled estimates.** The dead time is the kernel's
+tick: a setpoint written between ticks acts on the next one, and the
+filter starts from what the previous tick left, one second at the M0 tick.
+The lag is a first-order 0.5 s, chosen so the lag is visible at the tick
+without competing with the ramp; a converter's current controller settles
+in tens of milliseconds, so the figure stands in for the controller plus
+the plant controller's own cycle rather than for either. No public
+datasheet gives a utility converter's closed-loop settling time; the
+estimate is labeled and the switch-off (`SetpointDynamics::off`) removes
+it along with the ramp.
+
+**What it moved.** Every hourly step of the day-ahead plan became a
+ramp, so the plant spends the first minutes of each charge and discharge
+hour at partial load. Partial load is cheaper per MWh on every loss row:
+the battery row fell 4,952.4 to 4,862.9 MWh, the PCS row 2,763.7 to
+2,742.3 MWh, and the HVAC row with the heat, 1,365.1 to 1,335.0 MWh.
+Import fell 66,739.3 to 66,655.7 MWh, export rose 55,405.9 to 55,478.3
+MWh, and the annual round trip at the POI 0.8302 to 0.8323, inside the
+sourced band. The estimator did not move (0.25 points mean, 1.13 worst):
+it counts coulombs whatever the shape of the current.
+
+**Known gaps.**
+
+- **One gradient for every change.** Up and down, charge and discharge,
+  reconnection and routine dispatch all ramp at the reconnection figure;
+  real plants carry a service-dependent gradient.
+- **The lag figure** is an estimate, above.
+- **No rate limit on the site setpoint itself.** The EMS still steps;
+  only the converters ramp. A plant controller that pre-shapes the site
+  command would ramp at the site level and share the ramped value.
+
+**Sources:** VDE-AR-N 4110:2018, section on active power gradients after
+reconnection (public summary cited at the M2 return policy). Numbers
+cited, nothing reproduced.
 
 ## Planned gates (from ROADMAP.md)
 

@@ -216,6 +216,20 @@ pub(super) fn points(b: usize) -> Vec<Point> {
             Input,
             move |s: &SiteState| s.blocks[b].pcs.dc_voltage_v
         ),
+        // The target the converter is actually pursuing after its dead
+        // time, ramp and lag, kW (M3 phase 2 PR2). A controller value, so
+        // exact; the difference to `pcs.p_ac_kw` is what the setpoint-miss
+        // alarm judges.
+        point!(
+            format!("{prefix}.pcs.setpoint_followed_kw"),
+            "kW",
+            Fast,
+            I16,
+            1.0,
+            ext + 5,
+            Input,
+            move |s: &SiteState| s.blocks[b].pcs.setpoint_followed_w / 1000.0
+        ),
         // The spread, in millivolts so a u16 covers it at 1 mV. The state
         // keeps volts like every other voltage in the tree; the unit change
         // is the projection's job.
