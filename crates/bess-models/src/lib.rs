@@ -20,7 +20,7 @@ pub use bms::BasicBms;
 pub use cell::Ecm1Rc;
 pub use ems::DayAheadEms;
 pub use grid::SimpleGrid;
-pub use pcs::{CurvePcs, FlatPcs};
+pub use pcs::{CurvePcs, FlatPcs, SurfacePcs};
 pub use thermal::LumpedThermal;
 pub use weather::{
     month_day_from_unix_days, synthetic_grid_frequency_hz, HistoricalWeather, SyntheticWeather,
@@ -43,7 +43,7 @@ pub fn gw01_models(cfg: &PlantConfig) -> Models {
         cell: Box::new(Ecm1Rc::lfp_314ah_rack()),
         bms: Box::new(BasicBms::default()),
         thermal: Box::new(LumpedThermal::default()),
-        pcs: Box::new(CurvePcs::cec_utility_reference(cfg.pcs_rated_w)),
+        pcs: Box::new(SurfacePcs::cec_sc2500ud_us(cfg.pcs_rated_w)),
         ems: Box::new(DayAheadEms::from_price_year(
             bess_data::dayahead_de_lu_2024(),
             cfg.grid.site_rated_w,

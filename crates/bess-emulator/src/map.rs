@@ -47,7 +47,9 @@ pub(crate) use encode::write_point;
 /// M2.5's, major again: `site.soc_pct` and `blockNN.soc_pct` keep their
 /// addresses and units and change meaning, from the kernel's true state of
 /// charge to what the BMSs report, which drifts and snaps. No address moved.
-pub const MAP_VERSION: &str = "0.4.0";
+/// 0.5.0 is M3's: an addition first (`blockNN.pcs.dc_voltage_v`, phase 1),
+/// then the major step phase 2 brings to `blockNN.pcs.state`.
+pub const MAP_VERSION: &str = "0.5.0";
 
 /// Register space a point lives in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

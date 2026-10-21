@@ -88,15 +88,19 @@ pub(super) fn step_block(
         bms_heat,
         events,
     );
+    // The DC bus the converter sees: the racks' terminal voltage as the
+    // last tick left it, which carries SoC, current and hysteresis.
+    block.pcs.dc_voltage_v = dc_bus_voltage_v(block, cfg);
+    let vdc = block.pcs.dc_voltage_v;
     let ac_capability = if in_set {
-        models.pcs.ac_capability_w(&block_limits)
+        models.pcs.ac_capability_w(&block_limits, vdc)
     } else {
         PowerLimits::default()
     };
 
     let block_target_w = if in_set { share_w } else { 0.0 };
     block.pcs.p_ac_setpoint_w = block_target_w;
-    let dc_request_w = models.pcs.dc_request_w(block_target_w, &block_limits);
+    let dc_request_w = models.pcs.dc_request_w(block_target_w, &block_limits, vdc);
 
     // Distribute the DC request evenly over in-service racks. A rack that
     // cannot take its share leaves the remainder undelivered (no
@@ -170,6 +174,25 @@ pub(super) fn step_block(
         hvac_w,
         battery_heat_w,
         ac_capability,
+    }
+}
+
+/// Mean terminal voltage of the block's in-service racks, or the rack
+/// nominal when none is in service (a de-energized bus has no better
+/// number and the converter converts nothing then).
+fn dc_bus_voltage_v(block: &BlockState, cfg: &PlantConfig) -> f64 {
+    let mut sum = 0.0;
+    let mut n = 0u32;
+    for rack in block.containers.iter().flat_map(|c| c.racks.iter()) {
+        if rack.in_service {
+            sum += rack.voltage_v;
+            n += 1;
+        }
+    }
+    if n == 0 {
+        cfg.rack.nominal_v()
+    } else {
+        sum / f64::from(n)
     }
 }
 

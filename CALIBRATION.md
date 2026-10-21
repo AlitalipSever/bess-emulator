@@ -71,7 +71,7 @@ fails if this block is stale.
 
 | Gate | Band | Measured | Verdict | Band drawn from |
 |---|---|---|---|---|
-| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 82.96% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
+| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 83.02% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
 | Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.90% | inside | no public dataset publishes this at plant scale; see the note below |
 | Reported SoC, mean absolute error (points) | 5.00% to 200.00% (sanity bound) | 25.30% | inside | no public rack-level estimator error at plant scale; see CALIBRATION.md |
 | Reported SoC, largest error on any rack (points) | 20.00% to 1500.00% (sanity bound) | 113.00% | inside | ACCURE 2025 ESS report field range, errors up to 15 points |
@@ -80,10 +80,10 @@ Energy at the point of interconnection over the run:
 
 | Quantity | Value |
 |---|---|
-| Imported | 66 777.9 MWh |
-| Exported | 55 396.9 MWh |
-| Round-trip efficiency | 0.8296 |
-| Round-trip efficiency, house load removed from import | 0.8543 |
+| Imported | 66 739.3 MWh |
+| Exported | 55 405.9 MWh |
+| Round-trip efficiency | 0.8302 |
+| Round-trip efficiency, house load removed from import | 0.8549 |
 | Equivalent full cycles, exported energy over nameplate energy | 276.1 |
 | Stored energy, end minus start | 93.8 MWh |
 | Auxiliary share of import / of export | 2.90% / 3.49% |
@@ -102,15 +102,15 @@ Where the energy went, each category on its own meter:
 
 | Category | MWh | Share of import |
 |---|---|---|
-| Battery | 4 951.8 | 7.42% |
-| PCS conversion | 2 812.0 | 4.21% |
-| Transformer | 1 591.3 | 2.38% |
-| Auxiliary: HVAC | 1 364.9 | 2.04% |
+| Battery | 4 952.4 | 7.42% |
+| PCS conversion | 2 763.7 | 4.14% |
+| Transformer | 1 591.1 | 2.38% |
+| Auxiliary: HVAC | 1 365.1 | 2.05% |
 | Auxiliary: rack electronics | 301.9 | 0.45% |
 | Auxiliary: PCS standby | 47.1 | 0.07% |
 | Auxiliary: controls and protection | 131.4 | 0.20% |
 | Auxiliary: lighting and safety | 87.6 | 0.13% |
-| **Total** | **11 288.0** | **16.90%** |
+| **Total** | **11 240.3** | **16.84%** |
 
 Temperatures and HVAC over the run:
 
@@ -119,20 +119,20 @@ Temperatures and HVAC over the run:
 | Ambient, coldest to warmest | -12.1 to 33.3 C |
 | Container air, coldest to warmest | 10.0 to 29.0 C |
 | Cells, coldest to warmest | 8.7 to 39.0 C |
-| Duty, one unit / both units / heating | 16.38% / 1.02% / 0.24% |
-| Cooling starts per container | 4 765.5 |
+| Duty, one unit / both units / heating | 16.39% / 1.02% / 0.24% |
+| Cooling starts per container | 4 766.1 |
 
-Alarms raised over the run: 0 trips (gate: none), 38 862 warnings.
+Alarms raised over the run: 0 trips (gate: none), 38 880 warnings.
 
 | Alarm | Raised |
 |---|---|
 | `block.setpoint_not_met` | 15 300 |
-| `rack.derate_active` | 22 797 |
+| `rack.derate_active` | 22 815 |
 | `site.power_limited` | 765 |
 
 Fiscal quarter-hours closed: 35 040 (gate: exactly 35 040), 92 on the 23-hour day and 100 on the 25-hour day (gates: 92 and 100).
 
-Reported SoC against the truth, over every rack: mean absolute error 0.253 points (gate: 0.05 to 2.00 points), largest 1.13 points (gate: 0.20 to 15.00 points); 104 941 corrections, 0.599 per rack and day.
+Reported SoC against the truth, over every rack: mean absolute error 0.253 points (gate: 0.05 to 2.00 points), largest 1.13 points (gate: 0.20 to 15.00 points); 104 956 corrections, 0.599 per rack and day.
 
 <!-- bess-bench:end m1-annual -->
 
@@ -992,13 +992,75 @@ library records moved in their version string and nothing else at the
 bump. The 0.8296 sits inside the M1 field band, 0.7 points under v0.6.1,
 paid to the hysteresis gap.
 
+## M3 (v0.8.0): the efficiency surface and the DC bus
+
+The converter stopped converting on one curve. `SurfacePcs`
+(`crates/bess-models/src/pcs/sandia.rs`) carries the CEC inverter
+database record of the Sungrow SC2500UD-US in the Sandia model's own
+form, voltage terms included, per unit of its rating; the kernel hands
+it the DC bus voltage every tick, the mean terminal voltage of the
+block's in-service racks, which already carries state of charge,
+current and the hysteresis of M2.5. In the same step the rack limit
+became a current limit at the voltage the rack presents, so a block's
+capability falls toward the bottom of its window and rises toward the
+top.
+
+**Gate, the surface at the reference voltage,** held by
+`surface_matches_the_cec_reference_at_vdco_within_the_gate` in
+`crates/bess-models/src/pcs.rs`: at Vdco (1,350 V) the surface
+reproduces the seven M0.5 reference points within the M0.5 tolerance of
+0.3 points; it reproduces them within 0.01 points, since they were
+computed from the same record. The voltage axis is the record's own
+(C1 = 3.22933e-6, C2 = 4.85948e-4, C3 = 4.84988e-5 per volt), so there
+is nothing to fit and nothing to gate against beyond the record; a
+sanity test holds the curve within one point of its Vdco value across
+the rack window (1,206 to 1,435 V), and the inverse round-trips to 1e-9
+at every voltage. The record's MPPT window, 1,300 to 1,500 V, sits
+inside GW-01's rack window, so no reference shift was needed.
+
+**What it moved.** The 0.5C cycle gate measured 0.9131 against 0.9129
+before the phase: the cycle runs near Vdco and the surface and the M0.5
+polynomial agree there to a hundredth of a point. Over the replayed year
+the surface converts 48 MWh better than the single-voltage polynomial
+did, 0.6 points of round trip, because the record's voltage terms make
+the converter slightly more efficient below Vdco and GW-01's racks sit
+below 1,350 V for most of the year; the annual record is in the table at
+the end of this section, inside the M1 band.
+
+**Known gaps.**
+
+- **The charge direction mirrors the discharge surface,** the M0.5
+  simplification carried; the database publishes one direction.
+- **One record stands for every block;** a plant would carry a spread of
+  converter efficiencies as it does of rack resistances.
+- **The 1C rack rating stands** (M2's known gap about the cell's 0.5P
+  table).
+
+**Sources:** the Sungrow SC2500UD-US record of the CEC inverter database
+as distributed with [NREL SAM](https://github.com/NREL/SAM)
+(`deploy/libraries/CEC Inverters.csv`, BSD-3-Clause; underlying data
+published by the California Energy Commission), retrieved 2026-10-21:
+Paco 2,507,230 W, Pdco 2,563,700 W, Pso 6,066.41 W, Vdco 1,350 V,
+C0 -8.03897e-9 1/W, C1 to C3 as above, Pnt 169.9 W. Sandia model form:
+King, Gonzalez, Galbraith, Boyson, "Performance Model for Grid-Connected
+Photovoltaic Inverters", SAND2007-5036. Numbers cited, nothing
+reproduced.
+
+### The annual record through M3
+
+| Record | Round trip at the POI | Import | Export | Equivalent full cycles | What moved it |
+|---|---|---|---|---|---|
+| v0.7.0 | 0.8296 | 66,777.9 MWh | 55,396.9 MWh | 276.1 | the M2.5 plant |
+| after phase 1 | 0.8302 | 66,739.3 MWh | 55,405.9 MWh | 276.1 | the surface at the racks' voltage: the PCS row fell 2,812.0 to 2,763.7 MWh, since the record converts a little better below Vdco and the racks spend most of the year there; current-bounded limits never bound against the plan |
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);
   realistic auxiliary share of throughput.
 - **M2:** failure type/frequency distribution follows the EPRI incident
   taxonomy.
-- **M3:** efficiency surfaces f(P, V_dc) match the Sandia/CEC database; the
-  M1 RTE gate still holds.
+- **M3:** efficiency surfaces f(P, V_dc) match the Sandia/CEC database (phase
+  1 done above); the M1 RTE gate still holds; phases 2 to 4 per
+  docs/design/m3/.
 - **M4:** simulated annual revenue inside public German fleet index bands.
 - **M5:** capacity fade inside published LFP field bands.

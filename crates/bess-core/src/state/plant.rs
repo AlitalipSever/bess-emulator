@@ -56,6 +56,11 @@ pub struct PcsState {
     pub p_dc_w: f64,
     /// Conversion loss during the last tick, W.
     pub loss_w: f64,
+    /// DC bus voltage the converter sees this tick, V: the mean terminal
+    /// voltage of the block's in-service racks as the last tick left them
+    /// (M3 phase 1). Derived every tick, kept in the tree so a checkpoint
+    /// says what the converter converted at.
+    pub dc_voltage_v: f64,
 }
 
 /// One battery container.

@@ -138,15 +138,17 @@ pub trait ThermalModel: Send + Sync {
 /// Power conversion system of one block.
 pub trait PcsModel: Send + Sync {
     /// AC-side capability right now, given the DC-side limits aggregated
-    /// over the block's racks.
-    fn ac_capability_w(&self, dc_limits: &PowerLimits) -> PowerLimits;
+    /// over the block's racks and the DC bus voltage the converter sees
+    /// (M3: the efficiency surface's second axis).
+    fn ac_capability_w(&self, dc_limits: &PowerLimits, dc_voltage_v: f64) -> PowerLimits;
 
     /// DC-side power request for an AC-side target (W, positive =
-    /// discharge), respecting the AC rating and the DC limits.
-    fn dc_request_w(&self, p_ac_target_w: f64, dc_limits: &PowerLimits) -> f64;
+    /// discharge), respecting the AC rating and the DC limits, at the DC
+    /// bus voltage.
+    fn dc_request_w(&self, p_ac_target_w: f64, dc_limits: &PowerLimits, dc_voltage_v: f64) -> f64;
 
     /// Update PCS state from the DC power the racks actually delivered;
-    /// returns the AC-side power, W.
+    /// returns the AC-side power, W. Converts at `pcs.dc_voltage_v`.
     fn finalize(&self, pcs: &mut PcsState, p_dc_actual_w: f64) -> f64;
 }
 

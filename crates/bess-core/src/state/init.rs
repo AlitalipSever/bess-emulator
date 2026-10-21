@@ -51,6 +51,7 @@ impl SiteState {
                     p_ac_w: 0.0,
                     p_dc_w: 0.0,
                     loss_w: 0.0,
+                    dc_voltage_v: cfg.rack.nominal_v(),
                 },
                 containers: (0..cfg.containers_per_block)
                     .map(|_| ContainerState {

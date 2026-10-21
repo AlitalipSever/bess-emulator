@@ -120,7 +120,7 @@ pub fn instrument_of(name: &str) -> Option<Instrument> {
         | "site.meter.export_kwh" => Some(Instrument::Analog),
         "site.weather.ambient_c" => Some(Instrument::Thermometer),
         _ => match block_point {
-            Some("pcs.p_ac_kw" | "pcs.p_dc_kw") => Some(Instrument::Analog),
+            Some("pcs.p_ac_kw" | "pcs.p_dc_kw" | "pcs.dc_voltage_v") => Some(Instrument::Analog),
             Some("cell_temp_min_c" | "cell_temp_max_c" | "container.air_temp_c") => {
                 Some(Instrument::Thermometer)
             }
@@ -150,6 +150,7 @@ pub fn full_scale(name: &str, cfg: &PlantConfig) -> f64 {
         n if n.starts_with("site.aux") => 1.0e6,
         _ => match block_point {
             Some("pcs.p_ac_kw" | "pcs.p_dc_kw") => cfg.pcs_rated_w / 1000.0,
+            Some("pcs.dc_voltage_v") => cfg.rack.nominal_v(),
             // Temperatures carry an absolute class; their scale is the unit.
             _ => 1.0,
         },
