@@ -1,0 +1,82 @@
+{
+  "run": {
+    "site_id": "GW-01",
+    "engine_version": "0.8.0",
+    "seed": 7,
+    "start_unix_s": 1767225600,
+    "days": 365,
+    "ticks": 31536000,
+    "market": true
+  },
+  "energy": {
+    "import_mwh": 69916.0,
+    "export_mwh": 61376.5,
+    "round_trip_efficiency": 0.8779,
+    "round_trip_efficiency_excluding_aux": 0.8942,
+    "equivalent_full_cycles": 305.9,
+    "stored_delta_mwh": 55.4,
+    "aux_share_of_import": 0.01827,
+    "aux_share_of_export": 0.02081,
+    "balance_residual_share": 3.5e-6
+  },
+  "losses": {
+    "battery_mwh": 2766.7,
+    "pcs_mwh": 3176.8,
+    "transformer_mwh": 1263.9,
+    "aux_hvac_mwh": 752.3,
+    "aux_bms_mwh": 301.9,
+    "aux_pcs_standby_mwh": 3.9,
+    "aux_controls_mwh": 131.4,
+    "aux_lighting_and_safety_mwh": 87.6
+  },
+  "thermal": {
+    "ambient_min_c": -12.1,
+    "ambient_max_c": 33.3,
+    "container_air_min_c": 10.0,
+    "container_air_max_c": 29.0,
+    "cell_min_c": 8.6,
+    "cell_max_c": 38.9
+  },
+  "hvac": {
+    "stage1_duty": 0.08157,
+    "stage2_duty": 0.00227,
+    "heat_duty": 0.01662,
+    "compressor_starts_per_container": 5912.4
+  },
+  "alarms": {
+    "trips_raised": 0,
+    "warnings_raised": 710023,
+    "raised_by_alarm": {
+      "block.setpoint_not_met": 51600,
+      "rack.derate_active": 40541,
+      "rack.imbalance_warning": 47569,
+      "site.power_limited": 566193,
+      "site.schedule_deviation": 4120
+    }
+  },
+  "periods": {
+    "closed": 35040,
+    "on_short_dst_day": 92,
+    "on_long_dst_day": 100
+  },
+  "estimator": {
+    "mean_abs_error_pct": 0.357,
+    "max_abs_error_pct": 2.21,
+    "corrections": 82784,
+    "corrections_per_rack_day": 0.473
+  },
+  "control": {
+    "availability_discharge": 0.9428,
+    "availability_charge": 0.9438,
+    "mean_abs_deviation_share": 0.09212,
+    "periods_over_frame": 14922
+  },
+  "revenue": {
+    "day_ahead_keur": 2849.8,
+    "capacity_keur": 9898.0,
+    "afrr_energy_keur": 2047.6,
+    "imbalance_keur": -2059.8,
+    "total_keur": 12735.6,
+    "total_keur_per_mw": 127.36
+  }
+}

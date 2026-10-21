@@ -216,6 +216,10 @@ impl Simulation {
                 .ems
                 .awards_at(self.state.unix_time_s(), &self.state);
         }
+        self.state.ems.block_use = self
+            .models
+            .ems
+            .block_use_at(self.state.unix_time_s(), &self.state);
         let awards = self.state.ems.awards;
         self.state.ems.fcr_prequalified_w = awards.fcr_w.max(0.0);
         let energy_wh = self.cfg.nominal_energy_wh();

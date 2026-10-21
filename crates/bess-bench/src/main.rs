@@ -33,6 +33,9 @@ use run::{Kpis, RunSpec, DEFAULT_DAYS, DEFAULT_SEED, DEFAULT_START_UNIX_S};
 
 /// Committed machine-readable record of the annual run.
 const RECORD_PATH: &str = "calibration/m1-annual.json";
+/// The market participant's year (M4 phase 4): its own record, no series
+/// and no generated block, the revenue band as its gate.
+const MARKET_RECORD_PATH: &str = "calibration/m4-market.json";
 /// Document carrying the generated block.
 const CALIBRATION_PATH: &str = "CALIBRATION.md";
 /// Committed chart material: the year month by month, and one hard week.
@@ -73,6 +76,12 @@ struct Cli {
     /// like `--frequency`.
     #[arg(long, value_name = "PATH", conflicts_with_all = ["write", "check"])]
     balancing: Option<PathBuf>,
+
+    /// Run the market participant's strategy (M4 phase 4) in place of the
+    /// day-ahead plan: its own record (`calibration/m4-market.json`), the
+    /// revenue band as its gate, no series and no generated block.
+    #[arg(long)]
+    market: bool,
 
     /// Replay a per-second aFRR request year (`compile-afrr` output) in
     /// place of the synthetic request. A research run.
@@ -126,6 +135,17 @@ impl Cli {
             seed: self.seed,
             start_unix_s: self.start,
             days: self.days,
+            market: self.market,
+        }
+    }
+
+    /// The record a published run reads and writes: the market year has
+    /// its own unless one was named.
+    fn record_path(&self) -> PathBuf {
+        if self.market && self.record == Path::new(RECORD_PATH) {
+            PathBuf::from(MARKET_RECORD_PATH)
+        } else {
+            self.record.clone()
         }
     }
 }
@@ -183,7 +203,11 @@ fn main() -> ExitCode {
     }
 
     let spec = cli.spec();
-    if (cli.write || cli.check) && spec != RunSpec::default() {
+    let published = RunSpec {
+        market: cli.market,
+        ..RunSpec::default()
+    };
+    if (cli.write || cli.check) && spec != published {
         return fail(
             "--write and --check publish the annual run, so they only accept the \
              default --days, --seed and --start. Drop them, or drop --write/--check \
@@ -208,6 +232,28 @@ fn main() -> ExitCode {
             return fail(&message);
         }
         println!("wrote {} periods to {}", period_rows.len(), path.display());
+    }
+
+    if cli.write && cli.market {
+        let record = cli.record_path();
+        return match write_file(&record, &report::to_json(&kpis)) {
+            Ok(()) => {
+                println!("wrote {}", record.display());
+                ExitCode::SUCCESS
+            }
+            Err(message) => fail(&message),
+        };
+    }
+
+    if cli.check && cli.market {
+        let record = cli.record_path();
+        return match check_market(&kpis, &record) {
+            Ok(()) => {
+                println!("the market year's gate holds and its record is current");
+                ExitCode::SUCCESS
+            }
+            Err(message) => fail(&message),
+        };
     }
 
     if cli.write {
@@ -295,6 +341,32 @@ fn render_document(record: &Path, calibration: &Path) -> Result<(), String> {
     let spliced = report::splice(&document, &report::render(&published))
         .map_err(|err| format!("{}: {err}", calibration.display()))?;
     write_file(calibration, &spliced)
+}
+
+/// The market year's gate (M4 phase 4): the bands, the revenue band among
+/// them, and its own record current; no series, no generated block.
+fn check_market(kpis: &Kpis, record: &Path) -> Result<(), String> {
+    let mut failures = bands::check(kpis);
+    match read_record(record) {
+        Ok(published) => {
+            let drift = report::drift(kpis, &published);
+            if !drift.is_empty() {
+                failures.push(format!(
+                    "{} is stale ({} figures moved); regenerate with \
+                     `cargo run --release -p bess-bench -- --market --write`:\n    {}",
+                    record.display(),
+                    drift.len(),
+                    drift.join("\n    ")
+                ));
+            }
+        }
+        Err(message) => failures.push(message),
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(failures.join("\n"))
+    }
 }
 
 /// The CI gate: bands hold, the record is current, the document matches it.

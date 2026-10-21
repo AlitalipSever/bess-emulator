@@ -28,6 +28,29 @@ impl DayPlan {
         Self { charge, discharge }
     }
 
+    /// A plan from explicit slots (M4 phase 4): the ordering rule builds
+    /// one after it has re-ranked the discharges.
+    ///
+    /// # Panics
+    /// Panics when a slot is 32 or more.
+    pub fn with_slots(
+        charge: impl Iterator<Item = usize>,
+        discharge: impl Iterator<Item = usize>,
+    ) -> Self {
+        let fold = |slots: &mut dyn Iterator<Item = usize>| {
+            slots.fold(0u32, |acc, s| {
+                assert!(s < 32, "slot {s}");
+                acc | 1 << s
+            })
+        };
+        let mut charge = charge;
+        let mut discharge = discharge;
+        Self {
+            charge: fold(&mut charge),
+            discharge: fold(&mut discharge),
+        }
+    }
+
     /// True when slot `slot` of the day charges.
     pub fn charges(self, slot: usize) -> bool {
         self.charge >> slot & 1 == 1

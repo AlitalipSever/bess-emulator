@@ -1879,6 +1879,101 @@ regelleistung.net (the capacity and energy figures, cited); the German
 imbalance settlement's single price (public: the TSOs' reBAP
 methodology, named, not reproduced). Numbers cited, nothing reproduced.
 
+## M4 (v0.9.0, unreleased): the market participant's year
+
+Phase 4 PR1 gives the plant a strategy that decides
+(`crates/bess-models/src/ems/market.rs`, `MarketEms`): each local day,
+per four-hour block, the value of three uses of the plant's power is
+compared and the best use takes the block; the day-ahead plan for the
+hours arbitrage keeps follows the M0 rule with the ordering the M2
+finding asked for. The bench runs this plant through the replayed year
+beside the clean one (`--market`), with its own record
+(`calibration/m4-market.json`) and the revenue band as its gate.
+
+**The band, written before the number.** The public reference for
+German large-scale storage revenue is the ISEA (RWTH Aachen) and
+enspired Battery Revenue Index: a one- or two-hour system, up to two
+full cycles a day, 90 % AC/AC efficiency, perfect daily foresight, 80 %
+of power offered to FCR at the German local marginal price, aFRR
+capacity at the German/Austrian average price, trading on EPEX ID1, no
+aFRR energy revenue; a 365-day rolling figure updated daily. Its
+published twelve-month figures to October 2024 for a two-hour system:
+about 195 kEUR/MW cross-market, 125 aFRR-only, 145 trading-only, as
+reported by the trade press (regelleistung-online.de, 2024-10-24; the
+index's own site was unreachable from here on 2026-10-21 and the
+figures carry that provenance). **The gate:** the market year's total
+per MW of rating between 50 % and 100 % of the cross-market figure,
+97.5 to 195 kEUR/MW (`bands::MARKET_REVENUE_KEUR_PER_MW`); the lower
+bound for the intraday markets the emulator does not model and the
+perfect foresight it only partly shares (inside the day, not across
+days), the upper bound because a plant that beat an index built on
+perfect foresight would be a plant with a bug.
+
+**The decision, the index's own method.** Per block, three values in
+EUR per MW: arbitrage, the day's spread (the discharge hours' prices
+discounted by the round trip less the charge hours' prices, one MWh per
+MW and hour, scaled by the plant's hours of energy per MW) shared over
+the blocks the plan uses in proportion to their plan hours; FCR, the
+block's settlement price times the 80 % share the index offers; aFRR,
+the block's average capacity price in both directions over four hours
+times a 50 % share each way (a labeled choice: the plant can hold both
+directions at once, and half its rating each way leaves the plan half).
+The best takes the block, FCR and aFRR exclusive of the plan's power
+through the headroom rule. A ranking, not an optimizer, which is how the
+index describes its own method ("simple enough to be calculable in
+Excel").
+
+**The ordering rule.** A discharge slot is kept only when a charge slot
+precedes it in the day; the discharges are re-ranked among the slots
+after the first charge, so the morning peak before a midday trough is
+no longer sold from an empty plant (`the_ordering_rule_puts_charges_
+before_discharges`, the M2 counter-example). The three-charge,
+two-discharge rule is kept; the clean year's record is unchanged,
+since the day-ahead plant keeps the unordered plan behind
+`MarketRules::ordered`.
+
+**What the market year earned.** The record (`calibration/m4-market.json`,
+2026-10-21): capacity 9,898 kEUR, aFRR energy 2,048 kEUR, day-ahead
+2,850 kEUR, imbalance −2,060 kEUR; 12,736 kEUR in all, **127.4 kEUR/MW,
+inside the band** (65 % of the index's cross-market figure). The mix is
+balancing-heavy (78 % capacity, 16 % aFRR energy, 22 % day-ahead, the
+imbalance taking 16 % back), between the index's two single-market
+figures as the gate's second clause asked. The plant cycled 305.9
+equivalent full cycles at a round trip of 0.878 (the clean year 276.5
+and 0.832: the reserve blocks sit at partial load, which is cheaper on
+every loss row; the figure sits above the M1 field band, which is the
+arbitrage fleet's and is not applied to the market year, whose gate is
+its revenue) and was available 94 % of the time each way (the clean
+year 57 and 66 %: a plant holding reserve keeps its reservoir in the
+middle of the window). The deviation side is the honest number: 14,922
+closed periods (43 %) over the 5 % frame and a mean absolute deviation
+of 9.2 % of the rating, because the quarter-hour report counts the
+balancing energy the plant delivers as deviation from its schedule, and
+the imbalance row charges it at the day-ahead price. A real plant's
+balancing energy is settled as balancing energy, not as imbalance, and
+its schedule carries the reserve; this is the first known gap below.
+
+**Known gaps.**
+
+- **Balancing energy counts as schedule deviation.** The report's
+  schedule is the plant's own target and the FCR and aFRR services are
+  fast terms beside it, so a period of reserve delivery reads as a
+  deviation and is charged at the imbalance price (−2,060 kEUR over the
+  year). A schedule that carries the reserve, and a settlement that
+  nets the balancing energy out, are the next step; the gate holds with
+  the charge in.
+- **No intraday**, and foresight inside the day only; both are what the
+  lower bound is for.
+- **The aFRR share** (50 % each way) and the FCR share (the index's
+  80 %) are choices, labeled.
+- **The index's figures** are second-hand (the press summary), above.
+
+**Sources:** ISEA, RWTH Aachen, and enspired GmbH, Battery Revenue
+Index (methodology from its public description; figures as reported
+on regelleistung-online.de, 2024-10-24, and energy-storage.news); the
+price figures of the phase's price section. Numbers cited, nothing
+reproduced.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);
@@ -1891,6 +1986,9 @@ methodology, named, not reproduced). Numbers cited, nothing reproduced.
   gradient, the converter's knee and overload, the switchgear and the
   transformer, each with its sources and its labeled estimates.
 - **M4:** simulated annual revenue inside public German fleet index bands
-  (the band to be written before the number; phase 1's frequency and
-  grid-code section above carries its sources and labeled estimates).
+  (the band written before the number in the market participant's
+  section above; the seven M4 sections carry the sources and the labeled
+  estimates of the frequency, the grid code, reactive power, the
+  control surface, the quarter-hour report, the products, the aFRR
+  service and the EUR meter).
 - **M5:** capacity fade inside published LFP field bands.

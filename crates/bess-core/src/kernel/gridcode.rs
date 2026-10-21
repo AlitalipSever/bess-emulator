@@ -211,6 +211,7 @@ mod tests {
             afrr_followed_w: 0.0,
             afrr_energy_pos_wh: 0.0,
             afrr_energy_neg_wh: 0.0,
+            block_use: 0,
         }
     }
 

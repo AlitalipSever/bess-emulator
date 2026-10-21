@@ -156,6 +156,7 @@ pub(crate) fn fixture() -> Kpis {
             start_unix_s: 1_767_225_600,
             days: 365,
             ticks: 31_536_000,
+            market: false,
         },
         energy: EnergyKpis {
             import_mwh: 38_000.0,
@@ -261,16 +262,19 @@ mod tests {
                 checked += 1;
             }
         }
-        // Every field of every section: 6 run, 9 energy, 8 loss, 6 thermal,
+        // Every field of every section: 7 run, 9 energy, 8 loss, 6 thermal,
         // 4 HVAC, 3 alarms, 3 periods, 4 estimator, 4 control, 6 revenue.
         // Pinned so a field added without a thought about whether it
         // belongs in the published record fails here.
-        assert_eq!(checked, 53, "the record changed shape");
+        assert_eq!(checked, 54, "the record changed shape");
     }
 
     /// Move a value far enough to be drift, without changing its JSON type:
     /// a record that no longer deserializes would prove nothing.
     fn disturb(value: &Value) -> Value {
+        if let Some(flag) = value.as_bool() {
+            return Value::Bool(!flag);
+        }
         if let Some(number) = value.as_f64() {
             if value.is_f64() {
                 return serde_json::json!(number * 1.5 + 1.0);

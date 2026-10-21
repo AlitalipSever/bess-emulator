@@ -64,6 +64,7 @@ input,91,2,i32,100,site.revenue.period_afrr_energy_eur_x100,EUR,slow,ro,exact,ex
 input,93,2,i32,100,site.revenue.period_imbalance_eur_x100,EUR,slow,ro,exact,exact
 input,95,2,i32,100,site.revenue.period_total_eur_x100,EUR,slow,ro,exact,exact
 input,97,2,i32,1,site.revenue.total_eur,EUR,slow,ro,exact,exact
+input,99,1,u16,1,site.market.block_use,enum,slow,ro,exact,exact
 input,1000,1,i16,1,block00.pcs.p_ac_kw,kW,fast,ro,scada_analog,0.5
 input,1001,1,i16,1,block00.pcs.p_dc_kw,kW,fast,ro,scada_analog,0.5
 input,1002,1,u16,1,block00.pcs.state,enum,fast,ro,exact,exact

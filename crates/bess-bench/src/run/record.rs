@@ -22,6 +22,10 @@ pub struct RunRecord {
     pub days: u64,
     /// Ticks simulated.
     pub ticks: u64,
+    /// Whether the market participant's strategy ran (M4 phase 4); the
+    /// clean year is the day-ahead plan.
+    #[serde(default)]
+    pub market: bool,
 }
 
 /// Energy at the point of interconnection, and what it implies.
