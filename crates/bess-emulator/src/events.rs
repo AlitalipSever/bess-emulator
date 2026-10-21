@@ -60,6 +60,12 @@ pub fn topic(prefix: &str, event: &Event) -> String {
                 rack
             })
         ),
+        Event::BreakerSequenceChanged { .. } => {
+            format!("{prefix}events/site/substation/sequence")
+        }
+        Event::SwitchOperated { switch, .. } => {
+            format!("{prefix}events/site/substation/{}", switch.name())
+        }
     }
 }
 
@@ -124,6 +130,22 @@ pub fn payload(event: &Event, seq: u64, ts: i64) -> Value {
             "event": "soc_resnap",
             "from_pct": f64::from(jump.from_permille) / 10.0,
             "to_pct": f64::from(jump.to_permille) / 10.0,
+        }),
+        Event::BreakerSequenceChanged { from, to } => json!({
+            "seq": seq,
+            "ts": ts,
+            "node": "site",
+            "event": "breaker_sequence",
+            "from": from.name(),
+            "to": to.name(),
+        }),
+        Event::SwitchOperated { switch, closed } => json!({
+            "seq": seq,
+            "ts": ts,
+            "node": "site",
+            "event": "switch",
+            "switch": switch.name(),
+            "closed": closed,
         }),
     }
 }

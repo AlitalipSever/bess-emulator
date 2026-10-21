@@ -9,7 +9,7 @@ mod support;
 
 use bess_core::alarms::layout::{block as b, rack as r, site as s};
 use bess_core::alarms::AlarmNode;
-use bess_core::kernel::{Event, FaultAction};
+use bess_core::kernel::{BreakerSequence, Event, FaultAction, Switch};
 use bess_core::state::PcsOpState;
 use bess_core::{PlantConfig, Simulation};
 use bess_models::gw01_models;
@@ -150,4 +150,93 @@ fn the_pcs_trips_mid_discharge_and_the_reset_returns_it_to_run() {
         "the site loses a block at the trip"
     );
     assert_eq!(sim.state().blocks[5].alarm_bits & (1 << b::PCS_FAULT), 0);
+}
+
+/// The night of work on the bus: the breaker opens by hand and every
+/// converter goes to off, the disconnectors and the earthing switch move
+/// in the only order the interlocks allow, and the close lands on the
+/// tick after the command, the return following.
+#[test]
+fn the_earthing_work_runs_the_switchgear_in_order() {
+    let (sim, log) = played("substation-earthing-work");
+    let open = log
+        .iter()
+        .position(|(_, e)| *e == Event::FaultApplied(FaultAction::HvBreakerOpen))
+        .expect("the open fired");
+    let offs = log[open..]
+        .iter()
+        .take_while(|(t, _)| *t == log[open].0)
+        .filter(|(_, e)| {
+            matches!(
+                e,
+                Event::PcsStateChanged {
+                    to: PcsOpState::Off,
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(
+        offs, 20,
+        "every converter opened its contactors on the open"
+    );
+    let order: Vec<&Event> = log
+        .iter()
+        .filter_map(|(_, e)| {
+            matches!(
+                e,
+                Event::SwitchOperated { .. } | Event::BreakerSequenceChanged { .. }
+            )
+            .then_some(e)
+        })
+        .collect();
+    assert_eq!(
+        order,
+        vec![
+            &Event::SwitchOperated {
+                switch: Switch::Disconnectors,
+                closed: false
+            },
+            &Event::SwitchOperated {
+                switch: Switch::EarthingSwitch,
+                closed: true
+            },
+            &Event::SwitchOperated {
+                switch: Switch::EarthingSwitch,
+                closed: false
+            },
+            &Event::SwitchOperated {
+                switch: Switch::Disconnectors,
+                closed: true
+            },
+            &Event::BreakerSequenceChanged {
+                from: BreakerSequence::Idle,
+                to: BreakerSequence::Closing
+            },
+            &Event::BreakerSequenceChanged {
+                from: BreakerSequence::Closing,
+                to: BreakerSequence::Idle
+            },
+        ]
+    );
+    let close = log
+        .iter()
+        .position(|(_, e)| *e == Event::FaultApplied(FaultAction::HvBreakerClose))
+        .expect("the close fired");
+    let closed = log
+        .iter()
+        .position(|(_, e)| {
+            *e == Event::BreakerSequenceChanged {
+                from: BreakerSequence::Closing,
+                to: BreakerSequence::Idle,
+            }
+        })
+        .expect("the breaker closed");
+    assert_eq!(
+        log[closed].0, log[close].0,
+        "the close lands on the command's tick"
+    );
+    let st = sim.state();
+    assert_eq!(st.ems.blocks_released, 20);
+    assert!(st.blocks.iter().all(|b| b.pcs.op_state.is_connected()));
 }

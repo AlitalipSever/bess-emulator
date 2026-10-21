@@ -655,8 +655,9 @@ paper's analysis is the pin, and the next pin is the next published
 analysis.
 
 **The library.** Fifteen cases on 2026-10-15, eleven of them failures;
-sixteen since M3 phase 3 (`pcs-overload-budget`, a `bos` case), twelve
-of them failures:
+seventeen since M3 phase 4 (`pcs-overload-budget`, a `bos` case, in
+phase 3; `substation-earthing-work`, a maintenance case, in phase 4),
+twelve of them failures:
 
 | Class | Cases | Share | Snapshot | Distance |
 |---|---|---|---|---|
@@ -664,8 +665,8 @@ of them failures:
 | `controls` | 5 | 42% | 46% | 4 points |
 | `cell` | 1 | 8% | 11% | 3 points |
 
-Two calendar cases (the DST days) and two maintenance cases sit outside
-the gate, since they are not failures. The gate holds each class within
+Two calendar cases (the DST days) and three maintenance cases sit
+outside the gate, since they are not failures. The gate holds each class within
 15 percentage points of its snapshot share, the cell class smallest and
 never empty: with a dozen failure cases one case is about nine points,
 so the band admits one case of drift and refuses two. Deleting a `bos`
@@ -1241,6 +1242,49 @@ trip cases of the library changed their stories and their records.
 1.22, public (operating temperature range and derating threshold, output
 power against ambient, cooling method), retrieved 2026-10-21. Numbers
 cited, nothing reproduced.
+
+## M3 (v0.8.0): the substation's switchgear
+
+The HV breaker stopped being a bit that flips. Beside it sit the line
+disconnectors and an earthing switch (`SubstationState`), moved by
+operator commands that the interlocks a substation enforces
+mechanically can refuse (`crates/bess-core/src/kernel/switchgear.rs`):
+nothing moves under a closed or closing breaker, the earthing switch
+closes only on an isolated bus, and the breaker closes only with the
+disconnectors closed, the earthing switch open and no protection trip
+latched. Closing the breaker is a sequence, `idle -> closing -> idle`,
+that ends with the breaker in and the staggered return started; a site
+reset on a tripped site clears the trip and starts it.
+
+**The close, one tick; the travel times, a gap.** IEC 62271-100 breakers
+close in tens of milliseconds, under the kernel's one-second tick, so
+the close lands on the tick after the command and the sequence shows
+for one tick: the finest the plant can say, not a measured figure. The
+disconnectors and the earthing switch take seconds to travel on a real
+145 kV bay (motor drives); no public datasheet found states the figure,
+so they move between ticks and the travel is a known gap rather than a
+guessed constant.
+
+**What it moved.** Nothing in a clean year: no breaker opens in the
+annual run. The trip case's reset closes the breaker one tick later than
+before, with the return's timing unchanged; the new maintenance case
+`substation-earthing-work` shows the switchgear in the only order the
+interlocks allow. The library is seventeen cases, five of them outside
+the failure gate (two calendar, three maintenance).
+
+**Known gaps.**
+
+- **Travel times** of the disconnectors and the earthing switch, above.
+- **No shell commands.** The switchgear is driven by scenario files and
+  the kernel API; REST and Modbus carry reset, maintenance, HVAC and
+  trip as before.
+- **No synchronism check** on the close: the grid side is always there
+  and in phase until M4 brings a replayed grid.
+
+**Sources:** IEC 62271-100, high-voltage alternating-current circuit
+breakers (closing times, public summaries); IEC 62271-102,
+alternating-current disconnectors and earthing switches (the interlock
+requirements, public summaries). Numbers cited, nothing reproduced.
 
 ## Planned gates (from ROADMAP.md)
 

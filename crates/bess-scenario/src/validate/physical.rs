@@ -22,6 +22,12 @@ pub(super) fn physical(spec: &EventSpec, path: &str, cfg: &PlantConfig) -> Resul
         (Target::Hvac { block, container }, "repair") => Ready(A::HvacRepair { block, container }),
         (Target::Pcs { block }, "trip") => Ready(A::PcsTrip { block }),
         (Target::Site, "protection_trip") => Ready(A::ProtectionTrip),
+        (Target::Substation, "breaker_open") => Ready(A::HvBreakerOpen),
+        (Target::Substation, "breaker_close") => Ready(A::HvBreakerClose),
+        (Target::Substation, "disconnectors_close") => Ready(A::Disconnectors { closed: true }),
+        (Target::Substation, "disconnectors_open") => Ready(A::Disconnectors { closed: false }),
+        (Target::Substation, "earthing_close") => Ready(A::EarthingSwitch { closed: true }),
+        (Target::Substation, "earthing_open") => Ready(A::EarthingSwitch { closed: false }),
         (Target::Block { block }, "maintenance_enter") => Ready(A::BlockMaintenanceEnter { block }),
         (Target::Block { block }, "maintenance_exit") => Ready(A::BlockMaintenanceExit { block }),
         (
@@ -85,6 +91,10 @@ pub(super) fn physical(spec: &EventSpec, path: &str, cfg: &PlantConfig) -> Resul
 fn not_for(spec: &EventSpec, target: Target) -> Refusal {
     let allowed = match target {
         Target::Site => "protection_trip or alarm_reset",
+        Target::Substation => {
+            "breaker_open, breaker_close, disconnectors_open, disconnectors_close, \
+             earthing_open or earthing_close"
+        }
         Target::Block { .. } => "maintenance_enter, maintenance_exit or alarm_reset",
         Target::Pcs { .. } => "trip",
         Target::Hvac { .. } => "failure or repair",

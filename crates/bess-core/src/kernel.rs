@@ -21,6 +21,7 @@ mod fault;
 mod restart;
 mod setpoint;
 mod startup;
+mod switchgear;
 
 use block::{step_block, Scratch, TickContext};
 pub use commands::CommandError;
@@ -30,6 +31,7 @@ use restart::dispatchable;
 pub use restart::ReturnPolicy;
 pub use setpoint::SetpointDynamics;
 pub use startup::StartupSequence;
+pub use switchgear::{BreakerSequence, Switch, SwitchgearTimes};
 
 /// The weather one tick applies.
 ///
@@ -64,6 +66,7 @@ pub struct Simulation {
     return_policy: ReturnPolicy,
     startup: StartupSequence,
     dynamics: SetpointDynamics,
+    switchgear: SwitchgearTimes,
     scratch: Scratch,
 }
 
@@ -87,6 +90,7 @@ impl Simulation {
             return_policy: ReturnPolicy::default(),
             startup: StartupSequence::default(),
             dynamics: SetpointDynamics::default(),
+            switchgear: SwitchgearTimes::default(),
             scratch: Scratch {
                 rack_limits: vec![PowerLimits::default(); racks_per_block],
                 bms_heat: vec![0.0; racks_per_block],
@@ -178,6 +182,15 @@ impl Simulation {
         self.events.append(&mut self.state.pending_events);
 
         self.state.weather = inputs.weather;
+
+        // 0. The switchgear: a breaker on its closing sequence closes when
+        //    its time is up, and the site is connected from this tick on.
+        self.switchgear.advance(
+            &mut self.state.substation,
+            &mut self.state.ems,
+            dt_s,
+            &mut self.events,
+        );
 
         // 1. EMS: site active-power target.
         let connected = self.state.substation.hv_breaker == BreakerState::Closed;

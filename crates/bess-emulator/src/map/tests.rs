@@ -167,8 +167,9 @@ fn map_digest(points: &[Point]) -> u64 {
 /// it; the phase 1 digest was 0x7892_9a85_d256_e5b8, and phase 3's
 /// `blockNN.pcs.temperature_c` and `blockNN.pcs.overload_budget_pct`
 /// folded in the same way (phase 2 PR2's digest was
-/// 0xa433_e0d2_83ec_cebf).
-const MAP_DIGEST: u64 = 0xbb46_67cc_ed0d_ea89;
+/// 0xa433_e0d2_83ec_cebf), and phase 4's three switchgear points at
+/// site 52 to 54 (phase 3's digest was 0xbb46_67cc_ed0d_ea89).
+const MAP_DIGEST: u64 = 0x3a86_9434_da4c_d641;
 
 /// A version number nobody is forced to move is decoration.
 ///

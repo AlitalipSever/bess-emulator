@@ -1,7 +1,7 @@
 //! The site's telemetry: grid connection, energy, weather, house load and
 //! the run's own bookkeeping, at input 0 onward.
 
-use bess_core::state::{BreakerState, EmsMode, SiteState};
+use bess_core::state::{BreakerState, EmsMode, SiteState, SwitchPosition};
 
 use super::{point, Class, Encoding, Point, Space};
 
@@ -120,6 +120,43 @@ pub(super) fn points() -> Vec<Point> {
             44,
             Input,
             |s: &SiteState| s.substation.station_service_wh / 1000.0
+        ),
+        // The switchgear beside the breaker (M3 phase 4): the closing
+        // sequence (0 idle, 1 closing), the line disconnectors and the
+        // earthing switch, each a position. States, so exact.
+        point!(
+            "site.substation.sequence",
+            "enum",
+            Medium,
+            U16,
+            1.0,
+            52,
+            Input,
+            |s: &SiteState| f64::from(s.substation.sequence.code())
+        ),
+        point!(
+            "site.substation.disconnectors_closed",
+            "bool",
+            Medium,
+            U16,
+            1.0,
+            53,
+            Input,
+            |s: &SiteState| f64::from(u8::from(
+                s.substation.disconnectors == SwitchPosition::Closed
+            ))
+        ),
+        point!(
+            "site.substation.earthing_closed",
+            "bool",
+            Medium,
+            U16,
+            1.0,
+            54,
+            Input,
+            |s: &SiteState| f64::from(u8::from(
+                s.substation.earthing_switch == SwitchPosition::Closed
+            ))
         ),
         point!(
             "site.substation.hv_breaker_closed",

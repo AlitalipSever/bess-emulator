@@ -11,6 +11,13 @@ Three PRs, each landing green.
 Accept: after a protection trip the site's breaker closes only after
 the sequence, and the journal shows the sequence states.
 
+*As built (PR #44):* as the design's as-built notes say. Scenario kinds
+for the switchgear and a maintenance case `substation-earthing-work`
+came with it, so the sequence and the interlocks are visible in the
+library and not only in a test. No shell command surface yet (REST and
+Modbus keep reset, maintenance, HVAC and trip); the switchgear is driven
+by scenarios and the kernel API, a candidate for the release PR.
+
 ## PR2: the transformer and the tap changer
 
 - IEC 60076-7 model in `SimpleGrid` (behind `GridInterface`), the two

@@ -150,6 +150,18 @@ Filled as PRs land.
   bounded by the rating.
 - **Checkpoint format 14** (phase 3): `PcsState::temperature_c`,
   `overload_budget`, `overload_armed`, `ac_limit_w`.
+- **The substation has switchgear** (phase 4 PR1). Line disconnectors
+  and an earthing switch beside the HV breaker, with the interlocks a
+  substation enforces: nothing moves under a closed breaker, the
+  earthing switch closes only on an isolated bus, the breaker closes
+  only onto a connected, unearthed bus with no trip latched. The close
+  is a sequence that lands on the tick after the command; a site reset
+  on a tripped site starts it. Points `site.substation.sequence` (52),
+  `disconnectors_closed` (53), `earthing_closed` (54); events
+  `breaker_sequence` and `switch`; scenario kinds on `site.substation`.
+  New maintenance case `substation-earthing-work`.
+- **Checkpoint format 15** (phase 4 PR1): `SubstationState::disconnectors`,
+  `earthing_switch`, `sequence`, `sequence_elapsed_s`.
 
 ## Open questions
 

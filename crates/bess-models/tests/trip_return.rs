@@ -206,7 +206,13 @@ fn a_site_reset_brings_the_blocks_back_one_at_a_time() {
         step(&mut sim);
     }
     sim.reset_alarms(ResetScope::Site).expect("site scope");
-    assert_eq!(sim.state().substation.hv_breaker, BreakerState::Closed);
+    // The reset starts the breaker's closing sequence; the breaker is in
+    // on the next tick, and the return starts from it.
+    assert_eq!(sim.state().substation.hv_breaker, BreakerState::Open);
+    assert_eq!(
+        sim.state().substation.sequence,
+        bess_core::kernel::BreakerSequence::Closing
+    );
     let seen = watch_return(&mut sim, BLOCKS as u64 * SPACING_TICKS + 60);
 
     let want: Vec<Option<u64>> = (0..BLOCKS as u64)

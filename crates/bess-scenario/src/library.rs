@@ -48,6 +48,7 @@ pub const CASES: &[Case] = &[
     case!("dst-fall-back"),
     case!("block-maintenance-window"),
     case!("rack-isolation-and-restore"),
+    case!("substation-earthing-work"),
 ];
 
 /// Longest a headline may be, characters: a paragraph, not a page.

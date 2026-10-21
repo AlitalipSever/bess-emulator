@@ -93,6 +93,10 @@ mod tests {
     fn substation() -> SubstationState {
         SubstationState {
             hv_breaker: BreakerState::Closed,
+            disconnectors: bess_core::state::SwitchPosition::Closed,
+            earthing_switch: bess_core::state::SwitchPosition::Open,
+            sequence: bess_core::kernel::BreakerSequence::Idle,
+            sequence_elapsed_s: 0.0,
             poi_active_power_w: 0.0,
             poi_reactive_power_var: 0.0,
             poi_voltage_kv: 110.0,

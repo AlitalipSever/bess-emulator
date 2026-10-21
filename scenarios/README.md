@@ -62,9 +62,10 @@ a case is added or removed on the wrong side.
 | `dst-fall-back` | calendar | 25 h | the long local day: 25 planned hours, 100 closed quarter-hours, the 02:xx quarters twice |
 | `block-maintenance-window` | maintenance | 1 day | a block out for a working day, its standby tare gone, handed back at 16:00 |
 | `rack-isolation-and-restore` | maintenance | 2 days | a rack isolated for a day of cycling and restored with the state of charge it was left with |
+| `substation-earthing-work` | maintenance | 3 h | the HV breaker opened by hand, the bus isolated and earthed for two hours of work, then the sequence back and the staggered return |
 
-Fifteen cases: eleven failure cases (five `bos`, 45%; five `controls`,
-45%; one `cell`, 9%) and four that are calendar or maintenance.
+Seventeen cases: twelve failure cases (six `bos`, 50%; five `controls`,
+42%; one `cell`, 8%) and five that are calendar or maintenance.
 
 ## Adding a case
 
