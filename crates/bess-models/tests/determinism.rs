@@ -57,7 +57,10 @@ const TICKS: u64 = 4 * 3600;
 /// corrections are events, so the log's count and digest move with them.
 /// The physics did not: the decoupling proof in `reported_soc.rs` holds
 /// the truth trajectory to phase 1's value with the new fields cut out.
-/// Earlier values: 0x6944_3f7f_0627_570e (M3 phase 4 PR2, the value before
+/// Earlier values: 0x2006_7e9a_3e7a_0417 (M4 phase 1 PR1, before PR2 added
+/// each converter's reactive power, the controller's mode and target and
+/// the POI's power factor to the tree, zero and unity in a plant left at
+/// its default), 0x6944_3f7f_0627_570e (M3 phase 4 PR2, the value before
 /// M4 phase 1 PR1 replaced the frequency sinusoid with the synthetic
 /// Continental European series and added the grid-code state; inside the
 /// band the plant's energy figures do not move, the frequency in the tree
@@ -83,7 +86,7 @@ const TICKS: u64 = 4 * 3600;
 /// two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC),
 /// 0x1446_6f26_c751_bc02 (M1 PR5, the auxiliary inventory),
 /// 0xcd26_9803_d062_e1ad (M2 phase 1 PR2, cell spread and balancing).
-const GOLDEN_DIGEST: u64 = 0x2006_7e9a_3e7a_0417;
+const GOLDEN_DIGEST: u64 = 0x2dc6_1238_f107_e3ae;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();

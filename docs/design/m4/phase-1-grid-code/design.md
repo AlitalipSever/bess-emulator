@@ -79,13 +79,22 @@ Each decision is proposed here and confirmed or revised in its PR.
   time of seconds to tens of seconds). The transformer consumes
   I²·X with a 12 % short-circuit impedance on the 100 MVA base (labeled,
   the common figure for an HV/MV unit of that size) and the POI reads
-  the difference; the power factor is published.
+  the difference; the power factor is published. *As built (PR2):*
+  `ReactiveMode` in `state.rs` (`FixedCosPhi { cos_phi, under_excited }`,
+  `FixedQ { var }`, `QofU`), `ReactiveControl` in `kernel/reactive.rs`
+  (10 s settling, ±2 % dead band, the range at ±5 %, the range 48.4 % of
+  rated from cos φ 0.9), `PcsModel::apparent_rating_va` with a provided
+  `reactive` on the circle, `SimpleGrid::reactance_pu` 0.12;
+  `GridInterface::step` takes the converters' total vars. The site
+  target is shared evenly like the active share and each converter
+  bounds its own; a block outside the dispatchable set delivers none.
 - **D5, checkpoint bump.** Format 17: `PcsState::q_var`,
   `EmsState::reactive_mode`, the droop block's output state and the Q(U)
   filter state, `SubstationState::poi_power_factor`. *As built (PR1):*
   format 17 carries the droop's state, the LFSM cut, the fast term and
-  the substation's `frequency_offset_mhz`; PR2 adds the reactive fields
-  to the same format, since 17 is unreleased.
+  the substation's `frequency_offset_mhz`; PR2 added `EmsState::
+  reactive_mode` and `q_site_target_var`, `PcsState::q_var` and
+  `SubstationState::poi_power_factor` to the same format.
 - **D6, points and bits.** Per block `blockNN.pcs.q_kvar` (2000 + 10b +
   8, analog class 0.5); site `site.poi.power_factor` (59),
   `site.grid_code.state` (60: 0 normal, 1 lfsm_o, 2 lfsm_u, 3 fcr),
@@ -98,7 +107,10 @@ Each decision is proposed here and confirmed or revised in its PR.
   `site.poi.frequency_hz` carries the new series. Map 0.6.0. The scenario
   engine gained `site.grid` with `frequency_offset` (`mhz`, −3000 to
   3000, 0 ends it) and a `grid` taxonomy for stories that are the grid's,
-  not the plant's.
+  not the plant's. *As built (PR2):* `blockNN.pcs.q_kvar` (2000 + 10b +
+  8, analog class 0.5, the instrument inventory grows to 18 + 8 × 20)
+  and `site.poi.power_factor` (59, exact); `site.poi.reactive_power_var`
+  reads the converters' vars less the transformer's.
 
 ## Signal map impact
 
@@ -124,7 +136,10 @@ One format bump (D5).
   half of that; inside ±10 mHz nothing.
 - **Property: P² + Q² ≤ S²** per block over a day in every mode; the POI
   power factor at unity in the default mode within the transformer's
-  consumption.
+  consumption. *As built (PR2):* `bess-models/tests/reactive_power.rs`:
+  the circle over three hours in each of the four modes, the idle plant
+  at 100 Mvar, and the energy accounting equal across modes; the unit
+  tests of `reactive.rs` hold each mode's target and the filter.
 - **Integration:** a new library case `frequency-event` (a synthetic
   −300 mHz dip for 60 s, the plant answers through the droop and LFSM-U,
   then returns); the annual record with the synthetic driver (the M1

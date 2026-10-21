@@ -93,6 +93,56 @@ pub enum EmsMode {
     External,
 }
 
+/// How the plant sets its reactive power (M4 phase 1 PR2), VDE-AR-N
+/// 4110's three modes. Positive reactive power is over-excited: vars
+/// delivered to the grid.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum ReactiveMode {
+    /// A fixed displacement factor on the active power.
+    FixedCosPhi {
+        /// cos φ, 0 to 1.
+        cos_phi: f64,
+        /// Under-excited (absorbing vars) rather than over-excited.
+        under_excited: bool,
+    },
+    /// A fixed reactive power, var.
+    FixedQ {
+        /// Reactive power, var, positive over-excited.
+        var: f64,
+    },
+    /// The voltage characteristic: vars against the POI voltage's
+    /// deviation from nominal.
+    QofU,
+}
+
+impl ReactiveMode {
+    /// The register value: 0 fixed cos φ, 1 fixed Q, 2 Q(U).
+    pub fn code(self) -> u16 {
+        match self {
+            Self::FixedCosPhi { .. } => 0,
+            Self::FixedQ { .. } => 1,
+            Self::QofU => 2,
+        }
+    }
+
+    /// The name the surfaces publish.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::FixedCosPhi { .. } => "fixed_cos_phi",
+            Self::FixedQ { .. } => "fixed_q",
+            Self::QofU => "q_of_u",
+        }
+    }
+
+    /// Unity power factor: the M3 plant.
+    pub fn unity() -> Self {
+        Self::FixedCosPhi {
+            cos_phi: 1.0,
+            under_excited: false,
+        }
+    }
+}
+
 /// Plant controller state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EmsState {
@@ -123,6 +173,33 @@ pub struct EmsState {
     /// The limited-frequency-sensitive cut this tick, W, signed like
     /// active power: negative above the over-frequency threshold.
     pub lfsm_cut_w: f64,
+    /// How the plant sets its reactive power (M4 phase 1 PR2).
+    pub reactive_mode: ReactiveMode,
+    /// The site's reactive-power target after the settling filter, var:
+    /// what the converters share this tick.
+    pub q_site_target_var: f64,
+}
+
+impl EmsState {
+    /// A controller at rest with every block released, for unit tests
+    /// of the kernel's own modules.
+    #[doc(hidden)]
+    pub fn default_for_tests() -> Self {
+        Self {
+            mode: EmsMode::FollowPlan,
+            site_setpoint_w: 0.0,
+            external_setpoint_w: 0.0,
+            available_discharge_w: 0.0,
+            available_charge_w: 0.0,
+            blocks_released: 20,
+            next_release_s: 0.0,
+            fcr_prequalified_w: 0.0,
+            fcr_output_w: 0.0,
+            lfsm_cut_w: 0.0,
+            reactive_mode: ReactiveMode::unity(),
+            q_site_target_var: 0.0,
+        }
+    }
 }
 
 /// High-voltage breaker position.
@@ -178,8 +255,12 @@ pub struct SubstationState {
     pub hot_spot_rise_2_k: f64,
     /// Active power at the POI, W (positive = export).
     pub poi_active_power_w: f64,
-    /// Reactive power at the POI, var.
+    /// Reactive power at the POI, var, positive over-excited: what the
+    /// converters deliver less the transformer's consumption (M4 phase 1
+    /// PR2; zero until then).
     pub poi_reactive_power_var: f64,
+    /// Displacement power factor at the POI, 0 to 1 (M4 phase 1 PR2).
+    pub poi_power_factor: f64,
     /// POI voltage, kV.
     pub poi_voltage_kv: f64,
     /// Grid frequency, Hz: the driver's (replayed or synthetic), plus any

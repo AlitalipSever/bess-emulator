@@ -40,6 +40,10 @@ impl FlatPcs {
 }
 
 impl PcsModel for FlatPcs {
+    fn apparent_rating_va(&self) -> f64 {
+        self.rated_w
+    }
+
     fn step_thermal(&self, pcs: &mut PcsState, _air_c: f64, _dt_s: f64) {
         pcs.ac_limit_w = self.rated_w;
     }
@@ -177,6 +181,10 @@ impl CurvePcs {
 }
 
 impl PcsModel for CurvePcs {
+    fn apparent_rating_va(&self) -> f64 {
+        self.rated_w
+    }
+
     fn step_thermal(&self, pcs: &mut PcsState, _air_c: f64, _dt_s: f64) {
         pcs.ac_limit_w = self.rated_w;
     }
@@ -284,6 +292,12 @@ impl SurfacePcs {
 }
 
 impl PcsModel for SurfacePcs {
+    /// The datasheet rates the SG2500U's apparent power equal to its
+    /// active power at unity (labeled; CALIBRATION.md).
+    fn apparent_rating_va(&self) -> f64 {
+        self.rated_w
+    }
+
     fn step_thermal(&self, pcs: &mut PcsState, air_c: f64, dt_s: f64) {
         let t = &self.thermal;
         pcs.temperature_c = t.step_node(
@@ -380,6 +394,7 @@ mod tests {
             overload_armed: true,
             ac_limit_w: 2.5e6,
             fast_term_w: 0.0,
+            q_var: 0.0,
         }
     }
 
@@ -544,6 +559,7 @@ mod surface_tests {
             overload_armed: true,
             ac_limit_w: 2.5e6,
             fast_term_w: 0.0,
+            q_var: 0.0,
         }
     }
 

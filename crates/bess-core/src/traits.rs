@@ -160,6 +160,21 @@ pub trait PcsModel: Send + Sync {
     /// Update PCS state from the DC power the racks actually delivered;
     /// returns the AC-side power, W. Converts at `pcs.dc_voltage_v`.
     fn finalize(&self, pcs: &mut PcsState, p_dc_actual_w: f64) -> f64;
+
+    /// The converter's apparent-power rating, VA: the radius of the
+    /// circle its reactive power lives on (M4 phase 1 PR2).
+    fn apparent_rating_va(&self) -> f64;
+
+    /// The reactive power the converter delivers for a target
+    /// `q_target_var`, var, positive over-excited: the target bounded by
+    /// what the circle leaves beside this tick's active power
+    /// (`pcs.p_ac_w`), the full rating at zero active power.
+    fn reactive(&self, pcs: &PcsState, q_target_var: f64) -> f64 {
+        let s = self.apparent_rating_va();
+        let p = pcs.p_ac_w.abs().min(s);
+        let room = (s * s - p * p).sqrt();
+        q_target_var.clamp(-room, room)
+    }
 }
 
 /// Plant-level dispatch strategy.
@@ -209,8 +224,9 @@ pub struct GridConditions {
 
 /// Substation and grid coupling.
 pub trait GridInterface: Send + Sync {
-    /// Propagate the total PCS AC power and the site auxiliary load through
-    /// the substation to the POI: transformer losses and temperatures, the
+    /// Propagate the total PCS AC power, the converters' reactive power
+    /// and the site auxiliary load through the substation to the POI:
+    /// transformer losses and temperatures, its reactive consumption, the
     /// tap changer and the MV bus, POI measurements, energy meters, and
     /// grid frequency and voltage pass-through. The auxiliary total
     /// arrives itemized from the auxiliary model; the substation meters it
@@ -219,6 +235,7 @@ pub trait GridInterface: Send + Sync {
         &self,
         substation: &mut SubstationState,
         p_ac_total_w: f64,
+        q_ac_total_var: f64,
         aux_w: f64,
         grid: GridConditions,
         dt_s: f64,
