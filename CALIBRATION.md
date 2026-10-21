@@ -1163,6 +1163,85 @@ it counts coulombs whatever the shape of the current.
 reconnection (public summary cited at the M2 return policy). Numbers
 cited, nothing reproduced.
 
+## M3 (v0.8.0): the warm converter and its overload budget
+
+The converter has a temperature and an allowance. One thermal node per
+converter is fed by its conversion loss and cooled toward the ambient
+(`crates/bess-models/src/pcs/thermal.rs`); from the node comes a derating
+factor, and beside it a bounded short-term overload budget. Both are
+published (`blockNN.pcs.temperature_c` through a Pt100 class B
+thermometer, `blockNN.pcs.overload_budget_pct` exact) and the block word
+gained `pcs_over_temperature` and `pcs_derated`.
+
+**The knee, sourced; the slope, labeled.** The Sungrow SG2500U, the unit
+behind the CEC record the surface uses, publishes its operating range as
+-30 to 60 °C with derating above 50 °C ambient, and temperature-controlled
+forced-air cooling. The curve is shifted onto the node by the rise at
+rated loss, so full power holds to 70 °C on the node; the slope beyond,
+to zero at 90 °C, is a labeled estimate, since the datasheet gives the
+knee and not the curve. The replayed year never reaches it: on the
+warmest evening at full power the node sits about 15 K under the knee
+(`the_node_settles_under_the_knee_on_the_warmest_evening`), so no
+public-weather case can show a derate, and the derate is exercised by a
+node set hot by hand (`a_hot_converter_derates_and_says_so`).
+
+**The rise and the time constant, labeled.** 20 K over the ambient at
+rated loss and a 15-minute time constant. Forced-air central inverters
+hold their heat sinks a few tens of kelvin over the inlet and settle in
+the order of ten minutes to half an hour; no public datasheet gives
+either figure for this unit. The node steps by implicit Euler, so the
+kernel stays rational.
+
+**The overload, sourced; its duration, labeled.** 110 % is the
+datasheet's: 2750 kVA at 45 °C against 2500 kVA at 50 °C. Ten minutes at
+110 % is the figure utility inverter specifications commonly ask for and
+no datasheet of this unit publishes; the thirty-minute refill is an
+estimate of the same kind. The budget spends in proportion to the excess
+(105 % lasts twenty minutes) and carries an arming latch: a spent budget
+disarms the overload and only a full one re-arms it, so the limit does
+not flicker at the edge of an empty budget.
+`the_budget_spends_and_refills_at_the_published_rates` holds the three
+durations to the second.
+
+**Who spends it.** The plant controller, without knowing: its share is
+the site target over the dispatchable blocks, so a lost block's share
+lands on the others at 105 %, two lost blocks' at 110 %, and a staggered
+return runs the early blocks at 110 % while the late ones are still on
+their way. `pcs-overload-budget` is the library's case: two converters
+trip on the warmest evening, the eighteen left hold the site within a
+percent of its target for ten minutes to the second, then every
+converter falls to its rating in one tick and the site reports its
+limit. `pcs-trip-and-reset` tells the same story at 105 % for twenty
+minutes. Advertised capability (`site.available_*_kw`) stays bounded by
+the ratings: the overload is a reserve, not capability.
+
+**What it moved.** Nothing in a clean year: the day-ahead plan asks each
+converter for its rating and no more, so no budget spends and no node
+nears the knee, and the annual record is phase 2's figure for figure
+(round trip 0.8323, import 66,655.7 MWh, export 55,478.3 MWh). The two
+trip cases of the library changed their stories and their records.
+
+**Known gaps.**
+
+- **The slope, the rise, the time constant, the duration and the
+  refill** are labeled estimates, above; the unit's manual would pin
+  them.
+- **One node.** No junction, capacitor or filter temperatures; the
+  interface is the one temperature a converter publishes.
+- **No overload policy in the controller.** The share is divided evenly
+  and the converters spend their budgets as it falls; a plant controller
+  that rations overload across blocks, or holds it back for frequency
+  services, is M4's.
+- **A block at its rating asked for more reports no setpoint miss.** It
+  delivers what it follows and what it follows is bounded by what it
+  permits; the site reports the limit. A per-block "asked above rating"
+  flag is a candidate for the block word.
+
+**Sources:** Sungrow Power Supply Co., SG3150U/SG2500U datasheet, version
+1.22, public (operating temperature range and derating threshold, output
+power against ambient, cooling method), retrieved 2026-10-21. Numbers
+cited, nothing reproduced.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

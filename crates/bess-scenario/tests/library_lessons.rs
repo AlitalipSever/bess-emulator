@@ -96,16 +96,21 @@ fn the_overload_budget_carries_the_site_for_ten_minutes_then_the_limit() {
         "the limit came at {limit}, {} s after the trip",
         limit - trip_tick
     );
+    // No block calls the budget's end a miss; the misses that come later
+    // are the racks running empty at the end of the discharge.
     let misses = log
         .iter()
-        .filter(|(_, e)| {
-            matches!(e, Event::AlarmRaised { node: AlarmNode::Block { .. }, bit, .. } if *bit == b::SETPOINT_NOT_MET)
+        .filter(|(tick, e)| {
+            *tick <= limit + 300
+                && matches!(e, Event::AlarmRaised { node: AlarmNode::Block { .. }, bit, .. } if *bit == b::SETPOINT_NOT_MET)
         })
         .count();
     assert_eq!(misses, 0, "a block called the budget's end a miss");
+    // An hour and a half at the rating refills the budget and re-arms
+    // the overload by the end of the case.
     let st = sim.state();
-    assert!(st.blocks[0].pcs.overload_budget < 1.0);
-    assert!(!st.blocks[0].pcs.overload_armed);
+    assert_eq!(st.blocks[0].pcs.overload_budget, 1.0);
+    assert!(st.blocks[0].pcs.overload_armed);
 }
 
 /// The converter trips while it is running, and the reset brings it back
