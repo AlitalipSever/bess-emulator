@@ -30,9 +30,9 @@ pub fn object_of_event(event: &Event) -> Selection {
     match *event {
         Event::AlarmRaised { node, .. } | Event::AlarmCleared { node, .. } => object_of(node),
         Event::PcsStateChanged { block, .. } => Selection::Pcs { block },
-        Event::BreakerSequenceChanged { .. } | Event::SwitchOperated { .. } => {
-            Selection::Transformer
-        }
+        Event::BreakerSequenceChanged { .. }
+        | Event::SwitchOperated { .. }
+        | Event::CommandRefused { .. } => Selection::Transformer,
         Event::SocResnapped {
             block, container, ..
         } => Selection::Container { block, container },
@@ -61,7 +61,9 @@ pub fn object_of_event(event: &Event) -> Selection {
             | FaultAction::HvBreakerClose
             | FaultAction::Disconnectors { .. }
             | FaultAction::EarthingSwitch { .. }
-            | FaultAction::GridFrequencyOffset { .. } => Selection::Transformer,
+            | FaultAction::GridFrequencyOffset { .. }
+            | FaultAction::ExternalLimit { .. }
+            | FaultAction::ExternalLimitClear => Selection::Transformer,
         },
     }
 }

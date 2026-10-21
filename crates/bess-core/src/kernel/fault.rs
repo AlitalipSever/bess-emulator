@@ -106,6 +106,17 @@ pub enum FaultAction {
         /// Millihertz added to the driver's frequency.
         mhz: i32,
     },
+    /// A grid operator's order: cap the exchange at the POI (M4 phase 2
+    /// PR1), in tenths of a percent of the rating, reverting after
+    /// `revert_s` seconds when that is positive.
+    ExternalLimit {
+        /// The cap, tenths of a percent of the rating (0 to 1000).
+        pct_x10: u16,
+        /// Seconds until the cap clears itself; 0 keeps it.
+        revert_s: u32,
+    },
+    /// The order lifted.
+    ExternalLimitClear,
 }
 
 impl FaultAction {
@@ -131,6 +142,8 @@ impl FaultAction {
             Self::EarthingSwitch { closed: true } => "earthing_close",
             Self::EarthingSwitch { closed: false } => "earthing_open",
             Self::GridFrequencyOffset { .. } => "frequency_offset",
+            Self::ExternalLimit { .. } => "limit",
+            Self::ExternalLimitClear => "limit_clear",
         }
     }
 }
@@ -224,6 +237,12 @@ impl Simulation {
                 self.set_grid_frequency_offset_mhz(mhz);
                 changed
             }
+            FaultAction::ExternalLimit { pct_x10, revert_s } => {
+                let before = self.state.ems.external_limit;
+                self.set_external_limit(f64::from(pct_x10) / 10.0, f64::from(revert_s))?;
+                before != self.state.ems.external_limit
+            }
+            FaultAction::ExternalLimitClear => self.clear_external_limit(),
             FaultAction::AlarmReset(scope) => {
                 // What a reset still finds present re-raises on the next
                 // tick, which the log shows; the list itself is the HMI's.

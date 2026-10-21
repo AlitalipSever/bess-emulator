@@ -6,7 +6,7 @@
 //! what another said.
 
 use bess_core::alarms::{AlarmNode, Severity};
-use bess_core::kernel::{Event, FaultAction};
+use bess_core::kernel::{ControlCommand, Event, FaultAction};
 use serde_json::{json, Value};
 
 /// Path of an alarm node as topics and payloads spell it: `site`, `block02`,
@@ -66,6 +66,7 @@ pub fn topic(prefix: &str, event: &Event) -> String {
         Event::SwitchOperated { switch, .. } => {
             format!("{prefix}events/site/substation/{}", switch.name())
         }
+        Event::CommandRefused { .. } => format!("{prefix}events/site/command_refused"),
     }
 }
 
@@ -146,6 +147,14 @@ pub fn payload(event: &Event, seq: u64, ts: i64) -> Value {
             "event": "switch",
             "switch": switch.name(),
             "closed": closed,
+        }),
+        Event::CommandRefused { command } => json!({
+            "seq": seq,
+            "ts": ts,
+            "node": "site",
+            "event": "command_refused",
+            "command": command,
+            "name": ControlCommand::from_code(command).map(ControlCommand::name),
         }),
     }
 }

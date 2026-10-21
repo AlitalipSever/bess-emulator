@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::alarms::EventLog;
-use crate::kernel::{BreakerSequence, Event, Weather};
+use crate::kernel::{BreakerSequence, Event, ExternalLimit, Weather};
 use crate::rng::Rng;
 
 mod energy;
@@ -178,6 +178,21 @@ pub struct EmsState {
     /// The site's reactive-power target after the settling filter, var:
     /// what the converters share this tick.
     pub q_site_target_var: f64,
+    /// The operator's last-written reactive settings, what the holding
+    /// bank reads back (M4 phase 2 PR1): the displacement factor and its
+    /// direction, and the fixed reactive power, each kept whichever mode
+    /// is in force.
+    pub reactive_cos_phi: f64,
+    /// See `reactive_cos_phi`.
+    pub reactive_under_excited: bool,
+    /// See `reactive_cos_phi`; var, positive over-excited.
+    pub reactive_q_var: f64,
+    /// The external active-power limit a grid operator wrote (M4 phase 2
+    /// PR1): the cap on the exchange at the POI, in both directions.
+    pub external_limit: ExternalLimit,
+    /// Whether the limit bound the target this tick: the unlimited target
+    /// exceeded the cap. Mirrored by `site.external_limitation`.
+    pub limit_binding: bool,
 }
 
 impl EmsState {
@@ -198,6 +213,11 @@ impl EmsState {
             lfsm_cut_w: 0.0,
             reactive_mode: ReactiveMode::unity(),
             q_site_target_var: 0.0,
+            reactive_cos_phi: 1.0,
+            reactive_under_excited: false,
+            reactive_q_var: 0.0,
+            external_limit: ExternalLimit::none(),
+            limit_binding: false,
         }
     }
 }

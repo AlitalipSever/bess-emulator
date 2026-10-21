@@ -89,7 +89,9 @@ impl FaultAction {
             | Self::HvBreakerClose
             | Self::Disconnectors { .. }
             | Self::EarthingSwitch { .. }
-            | Self::GridFrequencyOffset { .. } => AlarmNode::Site.path(),
+            | Self::GridFrequencyOffset { .. }
+            | Self::ExternalLimit { .. }
+            | Self::ExternalLimitClear => AlarmNode::Site.path(),
             Self::RackSelfDischarge {
                 block,
                 container,

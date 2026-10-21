@@ -114,6 +114,11 @@ mod tests {
             lfsm_cut_w: 0.0,
             reactive_mode: crate::state::ReactiveMode::unity(),
             q_site_target_var: 0.0,
+            reactive_cos_phi: 1.0,
+            reactive_under_excited: false,
+            reactive_q_var: 0.0,
+            external_limit: crate::kernel::ExternalLimit::none(),
+            limit_binding: false,
         }
     }
 

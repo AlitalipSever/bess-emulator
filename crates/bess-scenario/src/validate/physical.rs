@@ -28,26 +28,9 @@ pub(super) fn physical(spec: &EventSpec, path: &str, cfg: &PlantConfig) -> Resul
         (Target::Substation, "disconnectors_open") => Ready(A::Disconnectors { closed: false }),
         (Target::Substation, "earthing_close") => Ready(A::EarthingSwitch { closed: true }),
         (Target::Substation, "earthing_open") => Ready(A::EarthingSwitch { closed: false }),
-        (Target::Grid, "frequency_offset") => {
-            let mhz = spec.mhz.ok_or((
-                "mhz",
-                Reason::ParameterMissing {
-                    fault: "frequency_offset",
-                    parameter: "mhz",
-                },
-            ))?;
-            if !(-3000..=3000).contains(&mhz) {
-                return Err((
-                    "mhz",
-                    Reason::ParameterOutOfRange {
-                        parameter: "mhz",
-                        value: f64::from(mhz),
-                        range: "-3000 to 3000 (millihertz; 0 ends the event)",
-                    },
-                ));
-            }
-            Ready(A::GridFrequencyOffset { mhz })
-        }
+        (Target::Grid, "frequency_offset") => Ready(frequency_offset(spec)?),
+        (Target::Ems, "limit") => Ready(limit(spec)?),
+        (Target::Ems, "limit_clear") => Ready(A::ExternalLimitClear),
         (Target::Block { block }, "maintenance_enter") => Ready(A::BlockMaintenanceEnter { block }),
         (Target::Block { block }, "maintenance_exit") => Ready(A::BlockMaintenanceExit { block }),
         (
@@ -102,10 +85,62 @@ pub(super) fn physical(spec: &EventSpec, path: &str, cfg: &PlantConfig) -> Resul
     let takes: &[&str] = match fault {
         "self_discharge" => &["rate_pct_per_month"],
         "frequency_offset" => &["mhz"],
+        "limit" => &["pct", "revert"],
         _ => &[],
     };
     only_taken(spec, fault, takes)?;
     Ok(Fault::Physical { target, action })
+}
+
+/// `frequency_offset`'s one parameter, millihertz in a sane range.
+fn frequency_offset(spec: &EventSpec) -> Result<FaultAction, Refusal> {
+    let mhz = spec.mhz.ok_or((
+        "mhz",
+        Reason::ParameterMissing {
+            fault: "frequency_offset",
+            parameter: "mhz",
+        },
+    ))?;
+    if !(-3000..=3000).contains(&mhz) {
+        return Err((
+            "mhz",
+            Reason::ParameterOutOfRange {
+                parameter: "mhz",
+                value: f64::from(mhz),
+                range: "-3000 to 3000 (millihertz; 0 ends the event)",
+            },
+        ));
+    }
+    Ok(FaultAction::GridFrequencyOffset { mhz })
+}
+
+/// `limit`'s parameters: the cap in percent and an optional revert time.
+fn limit(spec: &EventSpec) -> Result<FaultAction, Refusal> {
+    let pct = spec.pct.ok_or((
+        "pct",
+        Reason::ParameterMissing {
+            fault: "limit",
+            parameter: "pct",
+        },
+    ))?;
+    if !(0.0..=100.0).contains(&pct) {
+        return Err((
+            "pct",
+            Reason::ParameterOutOfRange {
+                parameter: "pct",
+                value: pct,
+                range: "0 to 100 (percent of the site rating)",
+            },
+        ));
+    }
+    let revert_s = match &spec.revert {
+        Some(text) => crate::schema::duration::parse(text).map_err(|e| ("revert", e.into()))?,
+        None => 0,
+    };
+    Ok(FaultAction::ExternalLimit {
+        pct_x10: (pct * 10.0).round() as u16,
+        revert_s: u32::try_from(revert_s).unwrap_or(u32::MAX),
+    })
 }
 
 fn not_for(spec: &EventSpec, target: Target) -> Refusal {
@@ -116,6 +151,7 @@ fn not_for(spec: &EventSpec, target: Target) -> Refusal {
              earthing_open or earthing_close"
         }
         Target::Grid => "frequency_offset",
+        Target::Ems => "limit or limit_clear",
         Target::Block { .. } => "maintenance_enter, maintenance_exit or alarm_reset",
         Target::Pcs { .. } => "trip",
         Target::Hvac { .. } => "failure or repair",

@@ -32,6 +32,13 @@ pub enum Event {
         /// Its new position.
         closed: bool,
     },
+    /// A command-register command was refused between ticks (M4 phase 2
+    /// PR1): the plant is unchanged, and a client that cannot read the
+    /// refusal's body sees it on the event counter.
+    CommandRefused {
+        /// The register value that named the command.
+        command: u16,
+    },
     /// A PCS changed operating state.
     PcsStateChanged {
         /// Block index.

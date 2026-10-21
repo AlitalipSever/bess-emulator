@@ -33,6 +33,9 @@ pub enum CommandError {
     /// message says which one (M3 phase 4).
     #[error("interlocked: {0}")]
     Interlocked(&'static str),
+    /// A written value is outside what the register accepts (M4 phase 2).
+    #[error("out of range: {0}")]
+    OutOfRange(&'static str),
 }
 
 impl Simulation {

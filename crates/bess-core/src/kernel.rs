@@ -21,6 +21,7 @@ mod commands;
 mod event;
 mod fault;
 mod gridcode;
+mod limit;
 mod reactive;
 mod restart;
 mod setpoint;
@@ -32,6 +33,7 @@ pub use commands::CommandError;
 pub use event::Event;
 pub use fault::{FaultAction, FaultError};
 pub use gridcode::{FcrDroop, GridCode, GridCodeState};
+pub use limit::{ControlCommand, ExternalLimit};
 pub use reactive::ReactiveControl;
 use restart::dispatchable;
 pub use restart::ReturnPolicy;
@@ -170,12 +172,6 @@ impl Simulation {
         self.state.substation.frequency_offset_mhz = mhz;
     }
 
-    /// Choose how the plant sets its reactive power (M4 phase 1 PR2):
-    /// the operator's mode, in force from the next tick.
-    pub fn set_reactive_mode(&mut self, mode: ReactiveMode) {
-        self.state.ems.reactive_mode = mode;
-    }
-
     /// Replace the reactive-power rules (settling, the Q(U) band and
     /// slope). Research runs.
     pub fn set_reactive_control(&mut self, control: ReactiveControl) {
@@ -256,6 +252,40 @@ impl Simulation {
         raw_target.clamp(-rated, rated)
     }
 
+    /// The external limit's cap on the site target (M4 phase 2 PR1):
+    /// the target held inside the cap in both directions, the binding
+    /// noted for the site word, and the revert timer counted down.
+    fn apply_external_limit(&mut self, target_w: f64, dt_s: f64) -> f64 {
+        let cap_w = self
+            .state
+            .ems
+            .external_limit
+            .cap_w(self.cfg.grid.site_rated_w);
+        let capped = target_w.clamp(-cap_w, cap_w);
+        self.state.ems.limit_binding = target_w.abs() > cap_w;
+        self.state.ems.external_limit.tick(dt_s);
+        capped
+    }
+
+    /// Choose how the plant sets its reactive power (M4 phase 1 PR2):
+    /// the operator's mode, in force from the next tick. The settings
+    /// the mode carries are kept for the holding bank to read back.
+    pub fn set_reactive_mode(&mut self, mode: ReactiveMode) {
+        let ems = &mut self.state.ems;
+        match mode {
+            ReactiveMode::FixedCosPhi {
+                cos_phi,
+                under_excited,
+            } => {
+                ems.reactive_cos_phi = cos_phi.clamp(0.0, 1.0);
+                ems.reactive_under_excited = under_excited;
+            }
+            ReactiveMode::FixedQ { var } => ems.reactive_q_var = var,
+            ReactiveMode::QofU => {}
+        }
+        ems.reactive_mode = mode;
+    }
+
     /// The frequency the plant sees this tick (the driver's plus a
     /// scenario's offset) and what the grid asks on top of the EMS target
     /// at it: the LFSM cut plus the FCR droop's output, W, the fast term
@@ -324,6 +354,7 @@ impl Simulation {
         //    trips at the end of the tick.
         let connected = self.state.substation.hv_breaker == BreakerState::Closed;
         let target_w = self.site_target_w(connected);
+        let target_w = self.apply_external_limit(target_w, dt_s);
         self.state.ems.site_setpoint_w = target_w;
         let (frequency_hz, fast_site_w) = self.grid_response(inputs, connected, dt_s);
 

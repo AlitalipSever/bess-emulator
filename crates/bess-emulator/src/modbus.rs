@@ -14,7 +14,13 @@ use tokio_modbus::server::tcp::Server;
 use tokio_modbus::{ExceptionCode, Request, Response};
 use tracing::{error, info, warn};
 
-use crate::map::{HOLDING_MODE_ADDR, HOLDING_SETPOINT_ADDR};
+use bess_core::kernel::ControlCommand;
+
+use crate::map::{
+    HOLDING_COMMAND_ADDR, HOLDING_COS_PHI_ADDR, HOLDING_COS_PHI_UNDER_ADDR,
+    HOLDING_LIMIT_ENABLE_ADDR, HOLDING_LIMIT_PCT_ADDR, HOLDING_LIMIT_REVERT_ADDR,
+    HOLDING_MODE_ADDR, HOLDING_Q_MODE_ADDR, HOLDING_Q_SETPOINT_ADDR, HOLDING_SETPOINT_ADDR,
+};
 use crate::sim::{Command, SimHandle};
 
 #[derive(Clone)]
@@ -46,6 +52,70 @@ impl PlantService {
         })
     }
 
+    /// One holding register written: the control surface's single-word
+    /// registers (M4 phase 2), each a command into the task. A value the
+    /// register does not accept is an illegal data value; a register that
+    /// is not writable one word at a time, an illegal address.
+    fn write_single(&self, addr: u16, word: u16) -> Result<(), ExceptionCode> {
+        let flag = |w: u16| match w {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(ExceptionCode::IllegalDataValue),
+        };
+        let limit =
+            |pct: Option<f64>, enable: Option<bool>, revert_s: Option<f64>| Command::SetLimit {
+                pct,
+                enable,
+                revert_s,
+                reply: None,
+            };
+        let reactive =
+            |mode: Option<u16>, cos_phi: Option<f64>, under: Option<bool>| Command::SetReactive {
+                mode,
+                q_var: None,
+                cos_phi,
+                under_excited: under,
+                reply: None,
+            };
+        let cmd = match addr {
+            HOLDING_MODE_ADDR => match word {
+                0 => Command::SetSetpointW(None),
+                1 => Command::SetSetpointW(Some(self.current_setpoint_w())),
+                _ => return Err(ExceptionCode::IllegalDataValue),
+            },
+            HOLDING_LIMIT_PCT_ADDR => {
+                if word > 1000 {
+                    return Err(ExceptionCode::IllegalDataValue);
+                }
+                limit(Some(f64::from(word) / 10.0), None, None)
+            }
+            HOLDING_LIMIT_ENABLE_ADDR => limit(None, Some(flag(word)?), None),
+            HOLDING_LIMIT_REVERT_ADDR => limit(None, None, Some(f64::from(word))),
+            HOLDING_Q_MODE_ADDR => {
+                if word > 2 {
+                    return Err(ExceptionCode::IllegalDataValue);
+                }
+                reactive(Some(word), None, None)
+            }
+            HOLDING_COS_PHI_ADDR => {
+                if word > 1000 {
+                    return Err(ExceptionCode::IllegalDataValue);
+                }
+                reactive(None, Some(f64::from(word) / 1000.0), None)
+            }
+            HOLDING_COS_PHI_UNDER_ADDR => reactive(None, None, Some(flag(word)?)),
+            HOLDING_COMMAND_ADDR => match ControlCommand::from_code(word) {
+                Some(command) => Command::Control {
+                    command,
+                    reply: None,
+                },
+                None => return Err(ExceptionCode::IllegalDataValue),
+            },
+            _ => return Err(ExceptionCode::IllegalDataAddress),
+        };
+        self.send(cmd)
+    }
+
     fn handle_request(&self, req: Request<'static>) -> Result<Response, ExceptionCode> {
         match req {
             Request::ReadInputRegisters(addr, count) => {
@@ -63,24 +133,26 @@ impl PlantService {
                 Self::read_bank(&snap.holding_regs, addr, count).map(Response::ReadHoldingRegisters)
             }
             Request::WriteMultipleRegisters(addr, words) => {
-                if addr == HOLDING_SETPOINT_ADDR && words.len() == 2 {
-                    let raw = (u32::from(words[0]) << 16) | u32::from(words[1]);
-                    let setpoint_w = f64::from(raw as i32);
-                    self.send(Command::SetSetpointW(Some(setpoint_w)))?;
-                    Ok(Response::WriteMultipleRegisters(addr, 2))
-                } else {
-                    Err(ExceptionCode::IllegalDataAddress)
-                }
-            }
-            Request::WriteSingleRegister(addr, word) => {
-                if addr != HOLDING_MODE_ADDR {
+                if words.len() != 2 {
                     return Err(ExceptionCode::IllegalDataAddress);
                 }
-                match word {
-                    0 => self.send(Command::SetSetpointW(None))?,
-                    1 => self.send(Command::SetSetpointW(Some(self.current_setpoint_w())))?,
-                    _ => return Err(ExceptionCode::IllegalDataValue),
+                let raw = (u32::from(words[0]) << 16) | u32::from(words[1]);
+                let value = f64::from(raw as i32);
+                match addr {
+                    HOLDING_SETPOINT_ADDR => self.send(Command::SetSetpointW(Some(value)))?,
+                    HOLDING_Q_SETPOINT_ADDR => self.send(Command::SetReactive {
+                        mode: None,
+                        q_var: Some(value * 1000.0),
+                        cos_phi: None,
+                        under_excited: None,
+                        reply: None,
+                    })?,
+                    _ => return Err(ExceptionCode::IllegalDataAddress),
                 }
+                Ok(Response::WriteMultipleRegisters(addr, 2))
+            }
+            Request::WriteSingleRegister(addr, word) => {
+                self.write_single(addr, word)?;
                 Ok(Response::WriteSingleRegister(addr, word))
             }
             _ => Err(ExceptionCode::IllegalFunction),

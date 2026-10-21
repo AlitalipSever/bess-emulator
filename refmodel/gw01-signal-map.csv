@@ -424,3 +424,11 @@ input,2197,1,u16,10,block19.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2198,1,i16,1,block19.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
 holding,0,2,i32,1,control.site_setpoint_w,W,fast,rw,exact,exact
 holding,2,1,u16,1,control.ems_mode,enum,fast,rw,exact,exact
+holding,3,1,u16,10,control.p_limit_pct,%,fast,rw,exact,exact
+holding,4,1,u16,1,control.p_limit_enable,bool,fast,rw,exact,exact
+holding,5,1,u16,1,control.p_limit_revert_s,s,fast,rw,exact,exact
+holding,6,1,u16,1,control.q_mode,enum,fast,rw,exact,exact
+holding,7,2,i32,1,control.q_setpoint_kvar,kvar,fast,rw,exact,exact
+holding,9,1,u16,1000,control.cos_phi_x1000,ratio,fast,rw,exact,exact
+holding,10,1,u16,1,control.cos_phi_under_excited,bool,fast,rw,exact,exact
+holding,11,1,u16,1,control.command,enum,fast,rw,exact,exact

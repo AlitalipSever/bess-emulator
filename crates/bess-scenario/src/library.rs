@@ -44,6 +44,7 @@ pub const CASES: &[Case] = &[
     case!("unit-error-audit-trap"),
     case!("alarm-chatter-storm"),
     case!("clock-drift-and-nan"),
+    case!("curtailment-order"),
     case!("rack-self-discharge-drift"),
     case!("dst-spring-forward"),
     case!("dst-fall-back"),

@@ -1,7 +1,7 @@
 # M4: EMS and market signals
 
 Status: designed 2026-10-21 after M3 shipped as v0.8.0; phase 1 landed
-the same day (PRs #48 and #49). ROADMAP.md defines the goal and the calibration gate; this folder
+the same day (PRs #48 and #49), phase 2 PR1 after it (PR #50). ROADMAP.md defines the goal and the calibration gate; this folder
 fixes the architecture, the decisions and the work breakdown, one phase
 per subfolder, each phase's documents to be marked with what was actually
 built. Layout per [docs/design/README.md](../README.md).
@@ -170,6 +170,22 @@ Filled as PRs land.
   and `blockNN.pcs.q_kvar` (2000 + 10b + 8, analog class 0.5) are new.
   Checkpoint 17 widened: the mode, the settled target, each converter's
   vars, the power factor.
+- **A written limit is obeyed and flagged** (phase 2 PR1). The holding
+  bank grows from three registers to twelve in SunSpec's
+  immediate-controls shape: a percent limit with an enable and a revert
+  time, the reactive mode with its setpoints, and a command register
+  (site reset, the switchgear, clear limit). A limit caps the site
+  target in both directions from the next tick, the plant walks to it
+  at the follower's 10 %/min (inside the TSOs' 6 to 20 %/min band for
+  third-party changes), `external_limitation` (site bit 5) says the
+  shortfall is the order's while `power_limited` stays clear. A refused
+  command leaves a `command_refused` event on the counter. REST gains
+  `/api/v1/limit`, `/api/v1/reactive` and
+  `/api/v1/substation/{switch}`; scenario files gain `site.ems` with
+  `limit` and `limit_clear`; a new case `curtailment-order`.
+- **Checkpoint format 18** (phase 2 PR1): `EmsState::external_limit`,
+  `limit_binding`, `reactive_cos_phi`, `reactive_under_excited`,
+  `reactive_q_var`.
 
 ## Open questions
 

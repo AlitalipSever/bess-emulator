@@ -29,7 +29,11 @@ use bess_core::config::PlantConfig;
 use bess_core::state::SiteState;
 
 pub(crate) use block::block_mode_code;
-pub use control::{HOLDING_MODE_ADDR, HOLDING_SETPOINT_ADDR};
+pub use control::{
+    HOLDING_COMMAND_ADDR, HOLDING_COS_PHI_ADDR, HOLDING_COS_PHI_UNDER_ADDR,
+    HOLDING_LIMIT_ENABLE_ADDR, HOLDING_LIMIT_PCT_ADDR, HOLDING_LIMIT_REVERT_ADDR,
+    HOLDING_MODE_ADDR, HOLDING_Q_MODE_ADDR, HOLDING_Q_SETPOINT_ADDR, HOLDING_SETPOINT_ADDR,
+};
 pub use csv::dump_signal_map_csv;
 pub use encode::write_banks;
 pub(crate) use encode::write_point;
@@ -157,7 +161,7 @@ pub struct Point {
 /// for 20 power blocks.
 pub const INPUT_BANK_LEN: usize = BLOCK_EXT_BASE as usize + 20 * BLOCK_STRIDE as usize;
 /// Size of the holding register bank.
-pub const HOLDING_BANK_LEN: usize = 3;
+pub const HOLDING_BANK_LEN: usize = 12;
 
 /// First register of block `b`'s original range in the input space.
 const BLOCK_BASE: u16 = 1000;

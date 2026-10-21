@@ -1,0 +1,20 @@
+# The grid operator curtails the plant in the evening discharge. Ten
+# minutes into the full-power hour an order caps the exchange at 60 % of
+# the rating for forty minutes: the target drops at once, the converters
+# walk down at 10 % of rating a minute, external_limitation is raised and
+# power_limited stays clear, since the plant delivers what it is asked.
+# At 18:50 the order reverts on its timer, the flag clears, and the plant
+# walks back up to its hour. The record carries the limit's write and
+# its lift as events.
+schema: 1
+name: curtailment-order
+taxonomy: controls
+seed: 7
+start: 2026-07-14T18:00:00Z
+length: PT1H
+events:
+  - at: PT10M
+    target: site.ems
+    fault: limit
+    pct: 60
+    revert: PT40M

@@ -267,3 +267,33 @@ fn the_frequency_event_answers_the_grid_and_survives_the_excursion() {
     assert_eq!(st.ems.blocks_released, 20);
     assert!(st.blocks.iter().all(|b| b.pcs.op_state.is_connected()));
 }
+
+/// `curtailment-order`: the limit binds from the write, `external_
+/// limitation` raises at once and `power_limited` never does, the plant
+/// sits at 60 % after its walk down, and the revert lifts the flag.
+#[test]
+fn the_curtailment_order_is_obeyed_flagged_and_lifted() {
+    let (sim, log) = played("curtailment-order");
+    let site_bit = |bit: u8| move |node: AlarmNode, b: u8| node == AlarmNode::Site && b == bit;
+    let flagged = raise_after(&log, 0, site_bit(s::EXTERNAL_LIMITATION)).expect("flagged");
+    assert!((600..=602).contains(&flagged), "flag at {flagged}");
+    assert!(
+        raise_after(&log, 0, site_bit(s::POWER_LIMITED)).is_none(),
+        "the plant delivered what it was asked"
+    );
+    let lifted = log
+        .iter()
+        .find_map(|(tick, e)| match *e {
+            Event::AlarmCleared {
+                node: AlarmNode::Site,
+                bit,
+                ..
+            } if bit == s::EXTERNAL_LIMITATION => Some(*tick),
+            _ => None,
+        })
+        .expect("lifted");
+    assert!((3000..=3002).contains(&lifted), "lifted at {lifted}");
+    let st = sim.state();
+    assert!(!st.ems.external_limit.enabled);
+    assert!(st.substation.poi_active_power_w > 90.0e6);
+}

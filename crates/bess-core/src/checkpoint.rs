@@ -18,6 +18,9 @@ use crate::state::SiteState;
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
 ///
+/// v18 (M4 phase 2 PR1): the external limit with its revert timer and
+/// whether it binds, and the operator's reactive settings as the holding
+/// bank reads them back.
 /// v17 (M4 phase 1): the plant controller's grid-code state (the FCR
 /// prequalified power and output, the LFSM cut), each converter's fast
 /// term, and the substation's scenario frequency offset.
@@ -61,7 +64,7 @@ pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Pre-1.0 checkpoints are not migrated; an older file is rejected with its
 /// version named rather than half-restored, since a missing item would
 /// otherwise restore as a plant whose auxiliary meters silently read zero.
-pub const FORMAT_VERSION: u32 = 17;
+pub const FORMAT_VERSION: u32 = 18;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {
