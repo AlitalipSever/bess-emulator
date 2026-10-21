@@ -318,6 +318,11 @@ headless run committed, and the kernel-side gates come back unmoved.
 **Goal:** the electrical path stops being a constant and starts being a
 character in the causal chain.
 
+Detailed design: [docs/design/m3/](docs/design/m3/), one folder per phase
+(efficiency surface, PCS state machine and setpoint dynamics, converter
+thermal and overload, substation depth and the v0.8.0 release), designed
+2026-10-21 after M2.5 shipped.
+
 Scope:
 
 - The V_dc dimension of the PCS efficiency map (the partial-load dimension
