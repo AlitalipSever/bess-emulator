@@ -55,12 +55,21 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Annual calibration gate
         run: cargo run --release -p bess-bench -- --check
-      # The market participant's year (M4): its own record and the revenue
-      # band as its gate.
-      - name: Market year gate
-        run: cargo run --release -p bess-bench -- --check --market
       # The library, headless, every case against its committed record: a
       # scenario whose digest moved is a physics change to regenerate
       # loudly or a regression caught.
       - name: Scenario library holds its records
         run: scripts/assert-library.sh
+
+  # The market participant's year (M4): its own record and the revenue band
+  # as its gate. A second full year, so a second runner: two in one job
+  # outgrew the job's timeout.
+  market:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Market year gate
+        run: cargo run --release -p bess-bench -- --check --market
