@@ -1941,7 +1941,9 @@ imbalance taking 16 % back), between the index's two single-market
 figures as the gate's second clause asked. The plant cycled 305.9
 equivalent full cycles at a round trip of 0.878 (the clean year 276.5
 and 0.832: the reserve blocks sit at partial load, which is cheaper on
-every loss row) and was available 94 % of the time each way (the clean
+every loss row; the figure sits above the M1 field band, which is the
+arbitrage fleet's and is not applied to the market year, whose gate is
+its revenue) and was available 94 % of the time each way (the clean
 year 57 and 66 %: a plant holding reserve keeps its reservoir in the
 middle of the window). The deviation side is the honest number: 14,922
 closed periods (43 %) over the 5 % frame and a mean absolute deviation

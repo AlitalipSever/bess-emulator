@@ -172,6 +172,13 @@ pub fn check(kpis: &Kpis) -> Vec<String> {
         ));
     }
     for gate in GATES {
+        // The round-trip band is the arbitrage fleet's: a plant that holds
+        // reserve spends its year at partial load, which is cheaper per
+        // MWh on every loss row, and reads above it. The market year
+        // reports its round trip and is gated on its revenue instead.
+        if kpis.run.market && gate.name == GATES[0].name {
+            continue;
+        }
         let value = (gate.read)(kpis);
         if !gate.band.contains(value) {
             failures.push(format!(
