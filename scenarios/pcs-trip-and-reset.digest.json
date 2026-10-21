@@ -1,11 +1,11 @@
 {
   "scenario": "pcs-trip-and-reset",
-  "content_hash": "0x2ee1def80933e151",
+  "content_hash": "0xdc18c9edf26a8e66",
   "engine_version": "0.7.0",
   "seed": 7,
   "start_unix_s": 1784048400,
   "ticks": 10800,
-  "state_digest": "0x24708b6868eba01f",
+  "state_digest": "0xd3f269856ebc6c93",
   "event_log": {
     "count": 94,
     "digest": "0xb8344b00a0718b3c"
