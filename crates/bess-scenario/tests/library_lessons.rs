@@ -307,7 +307,10 @@ fn the_staggered_return_shows_on_the_quarter_hour_report() {
     let (sim, log) = played("protection-trip-staggered-return");
     let site_bit = |bit: u8| move |node: AlarmNode, b: u8| node == AlarmNode::Site && b == bit;
     let raised = raise_after(&log, 0, site_bit(s::SCHEDULE_DEVIATION)).expect("the trip's period");
-    assert!((raised + 1).is_multiple_of(900), "on a period close, not at {raised}");
+    assert!(
+        (raised + 1).is_multiple_of(900),
+        "on a period close, not at {raised}"
+    );
     assert!(
         log.iter().any(|(tick, e)| *tick > raised
             && matches!(
