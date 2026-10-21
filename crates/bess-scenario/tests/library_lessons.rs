@@ -297,3 +297,31 @@ fn the_curtailment_order_is_obeyed_flagged_and_lifted() {
     assert!(!st.ems.external_limit.enabled);
     assert!(st.substation.poi_active_power_w > 90.0e6);
 }
+
+/// `protection-trip-staggered-return`: the period the trip lands in
+/// misses its schedule by more than the frame, so `schedule_deviation`
+/// raises on its close and clears once the return has the plant back on
+/// plan.
+#[test]
+fn the_staggered_return_shows_on_the_quarter_hour_report() {
+    let (sim, log) = played("protection-trip-staggered-return");
+    let site_bit = |bit: u8| move |node: AlarmNode, b: u8| node == AlarmNode::Site && b == bit;
+    let raised = raise_after(&log, 0, site_bit(s::SCHEDULE_DEVIATION)).expect("the trip's period");
+    assert!((raised + 1).is_multiple_of(900), "on a period close, not at {raised}");
+    assert!(
+        log.iter().any(|(tick, e)| *tick > raised
+            && matches!(
+                e,
+                Event::AlarmCleared {
+                    node: AlarmNode::Site,
+                    bit,
+                    ..
+                } if *bit == s::SCHEDULE_DEVIATION
+            )),
+        "never cleared"
+    );
+    // The case ends on the plan's last discharge hour, where the plant
+    // runs down; whether that last period is over the frame is the
+    // plan's business, not the trip's.
+    let _ = sim;
+}

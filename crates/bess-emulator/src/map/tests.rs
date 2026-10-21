@@ -171,7 +171,7 @@ fn map_digest(points: &[Point]) -> u64 {
 /// site 52 to 54 (phase 3's digest was 0xbb46_67cc_ed0d_ea89), then
 /// PR2's transformer temperatures, tap position and MV bus voltage at 55
 /// to 58 (PR1's digest was 0x3a86_9434_da4c_d641).
-const MAP_DIGEST: u64 = 0x6314_21d0_1259_58a1;
+const MAP_DIGEST: u64 = 0x507e_e3ec_3eee_8903;
 
 /// A version number nobody is forced to move is decoration.
 ///

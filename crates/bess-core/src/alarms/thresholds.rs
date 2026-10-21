@@ -37,6 +37,11 @@ pub struct BlockSiteThresholds {
     /// Transformer hot-spot temperature at which the kernel trips the
     /// site, °C: IEC 60076-7's long-term emergency limit.
     pub transformer_trip_c: f64,
+    /// The frame a closed quarter-hour's mean may deviate from its
+    /// schedule by, as a share of the site rating, before
+    /// `site.schedule_deviation` raises (M4 phase 2 PR2). The TSOs leave
+    /// the frame to the connection agreement; 5 % is a labeled estimate.
+    pub schedule_frame: f64,
 }
 
 impl Default for BlockSiteThresholds {
@@ -73,6 +78,7 @@ impl Default for BlockSiteThresholds {
                 clear: 110.0,
             },
             transformer_trip_c: 140.0,
+            schedule_frame: 0.05,
         }
     }
 }

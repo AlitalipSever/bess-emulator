@@ -26,6 +26,11 @@ parameterized kinds moved into helpers.
 Accept: the annual record publishes availability and the deviation
 distribution; the staggered-return case raises the bit.
 
+*As built (PR #51):* the annual record gains a `control` section (the
+two mean availabilities, the mean absolute deviation, the periods over
+the frame), reported and not gated; the staggered-return case's lesson
+test holds the bit on the period the trip empties.
+
 ## Open questions
 
 - Whether the command register should also carry maintenance mode and

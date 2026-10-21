@@ -10,7 +10,7 @@ use bess_core::{PlantConfig, Simulation, SiteState, TICK_SECONDS};
 use bess_models::{gw01_models, gw01_weather};
 mod record;
 
-pub use record::{EnergyKpis, HvacKpis, Kpis, LossKpis, RunRecord, ThermalKpis};
+pub use record::{ControlKpis, EnergyKpis, HvacKpis, Kpis, LossKpis, RunRecord, ThermalKpis};
 
 /// 2026-01-01 00:00:00 UTC. The replayed weather year is mapped onto the
 /// simulated calendar by date, so the run starts on the reference year's
@@ -68,6 +68,12 @@ struct Tallies {
     heat_ticks: u64,
     starts: u64,
     cooling: Vec<bool>,
+    /// The quarter-hour report's running sums (M4 phase 2 PR2).
+    periods_seen: u32,
+    avail_discharge_sum: f64,
+    avail_charge_sum: f64,
+    abs_deviation_sum: f64,
+    over_frame: u64,
 }
 
 impl Tallies {
@@ -84,6 +90,22 @@ impl Tallies {
             heat_ticks: 0,
             starts: 0,
             cooling: vec![false; containers],
+            periods_seen: 0,
+            avail_discharge_sum: 0.0,
+            avail_charge_sum: 0.0,
+            abs_deviation_sum: 0.0,
+            over_frame: 0,
+        }
+    }
+
+    /// The report over the periods seen.
+    fn control(&self) -> ControlKpis {
+        let n = f64::from(self.periods_seen.max(1));
+        ControlKpis {
+            availability_discharge: round(self.avail_discharge_sum / n, 4),
+            availability_charge: round(self.avail_charge_sum / n, 4),
+            mean_abs_deviation_share: round(self.abs_deviation_sum / n, 5),
+            periods_over_frame: self.over_frame,
         }
     }
 
@@ -118,6 +140,17 @@ impl Tallies {
             let (min, max) = state.cell_temp_min_max_c();
             self.cell_min_c = self.cell_min_c.min(min);
             self.cell_max_c = self.cell_max_c.max(max);
+        }
+
+        // The quarter-hour report: one reading per closed period, on the
+        // tick that closed it.
+        let closed = state.substation.revenue.periods_closed;
+        if closed != self.periods_seen {
+            self.periods_seen = closed;
+            self.avail_discharge_sum += state.kpi.last_availability_discharge;
+            self.avail_charge_sum += state.kpi.last_availability_charge;
+            self.abs_deviation_sum += state.kpi.last_deviation_share.abs();
+            self.over_frame += u64::from(state.kpi.over_frame);
         }
     }
 }
@@ -216,6 +249,7 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
         alarms,
         periods: period_kpis,
         estimator: estimator.finish(racks, spec.days),
+        control: tallies.control(),
     };
     let series = series.finish(&sim, kpis.run.clone());
     (kpis, series, period_rows)

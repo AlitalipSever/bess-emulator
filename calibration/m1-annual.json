@@ -44,11 +44,12 @@
   },
   "alarms": {
     "trips_raised": 0,
-    "warnings_raised": 38932,
+    "warnings_raised": 40535,
     "raised_by_alarm": {
       "block.setpoint_not_met": 15300,
       "rack.derate_active": 22917,
-      "site.power_limited": 715
+      "site.power_limited": 715,
+      "site.schedule_deviation": 1603
     }
   },
   "periods": {
@@ -61,5 +62,11 @@
     "max_abs_error_pct": 1.13,
     "corrections": 104891,
     "corrections_per_rack_day": 0.599
+  },
+  "control": {
+    "availability_discharge": 0.5677,
+    "availability_charge": 0.657,
+    "mean_abs_deviation_share": 0.07673,
+    "periods_over_frame": 3338
   }
 }

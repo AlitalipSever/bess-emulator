@@ -19,6 +19,7 @@ pub fn render(kpis: &Kpis) -> String {
     write_alarms(&mut out, kpis);
     write_periods(&mut out, kpis);
     write_estimator(&mut out, kpis);
+    write_control(&mut out, kpis);
     out.push_str(END);
     out
 }
@@ -240,6 +241,20 @@ fn write_estimator(out: &mut String, kpis: &Kpis) {
         points_band_text(bands::ESTIMATOR_MAX_ABS_ERROR_PCT),
         thousands_int(e.corrections),
         e.corrections_per_rack_day
+    );
+}
+
+fn write_control(out: &mut String, kpis: &Kpis) {
+    let c = &kpis.control;
+    let _ = write!(
+        out,
+        "The quarter-hour report over the run: availability {} to discharge \
+         and {} to charge (gate: none, reported), mean absolute schedule \
+         deviation {} of the rating, {} closed periods over the 5 % frame.\n\n",
+        percent(c.availability_discharge),
+        percent(c.availability_charge),
+        percent(c.mean_abs_deviation_share),
+        thousands_int(c.periods_over_frame)
     );
 }
 

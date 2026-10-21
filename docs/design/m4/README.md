@@ -1,7 +1,7 @@
 # M4: EMS and market signals
 
 Status: designed 2026-10-21 after M3 shipped as v0.8.0; phase 1 landed
-the same day (PRs #48 and #49), phase 2 PR1 after it (PR #50). ROADMAP.md defines the goal and the calibration gate; this folder
+the same day (PRs #48 and #49), phase 2 after it (PRs #50 and #51). ROADMAP.md defines the goal and the calibration gate; this folder
 fixes the architecture, the decisions and the work breakdown, one phase
 per subfolder, each phase's documents to be marked with what was actually
 built. Layout per [docs/design/README.md](../README.md).
@@ -186,6 +186,15 @@ Filled as PRs land.
 - **Checkpoint format 18** (phase 2 PR1): `EmsState::external_limit`,
   `limit_binding`, `reactive_cos_phi`, `reactive_under_excited`,
   `reactive_q_var`.
+- **The plant reports its tracking and availability** (phase 2 PR2).
+  Per closed quarter-hour, on the fiscal meter's boundary: the schedule
+  deviation (metered mean less scheduled mean, kW and % of rating), the
+  availability to discharge and to charge (the capability over the
+  rating, time-averaged), the tracking error's RMS, and the redispatch
+  potential (the energy the racks hold above the window's floor and
+  below its ceiling, every tick); `site.kpi.*` at inputs 63 to 71,
+  `schedule_deviation` (site bit 6) past a 5 % frame (labeled). The
+  annual record gains a `control` section. Checkpoint 18 widened.
 
 ## Open questions
 

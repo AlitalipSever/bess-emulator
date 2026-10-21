@@ -214,6 +214,79 @@ pub(super) fn points() -> Vec<Point> {
             Input,
             |s: &SiteState| s.substation.poi_power_factor
         ),
+        // The quarter-hour report (M4 phase 2 PR2): the last closed
+        // period's schedule deviation, availability and tracking error,
+        // and the energy the plant could still move. Derived, exact.
+        point!(
+            "site.kpi.schedule_deviation_kw",
+            "kW",
+            Slow,
+            I32,
+            1.0,
+            63,
+            Input,
+            |s: &SiteState| s.kpi.last_deviation_w / 1000.0
+        ),
+        point!(
+            "site.kpi.schedule_deviation_pct",
+            "%",
+            Slow,
+            I16,
+            10.0,
+            65,
+            Input,
+            |s: &SiteState| s.kpi.last_deviation_share * 100.0
+        ),
+        point!(
+            "site.kpi.availability_discharge_pct",
+            "%",
+            Slow,
+            U16,
+            10.0,
+            66,
+            Input,
+            |s: &SiteState| s.kpi.last_availability_discharge * 100.0
+        ),
+        point!(
+            "site.kpi.availability_charge_pct",
+            "%",
+            Slow,
+            U16,
+            10.0,
+            67,
+            Input,
+            |s: &SiteState| s.kpi.last_availability_charge * 100.0
+        ),
+        point!(
+            "site.kpi.tracking_rms_kw",
+            "kW",
+            Slow,
+            U32,
+            1.0,
+            68,
+            Input,
+            |s: &SiteState| s.kpi.last_tracking_rms_w / 1000.0
+        ),
+        point!(
+            "site.kpi.redispatch_up_mwh",
+            "MWh",
+            Slow,
+            U16,
+            10.0,
+            70,
+            Input,
+            |s: &SiteState| s.kpi.redispatch_up_wh / 1.0e6
+        ),
+        point!(
+            "site.kpi.redispatch_down_mwh",
+            "MWh",
+            Slow,
+            U16,
+            10.0,
+            71,
+            Input,
+            |s: &SiteState| s.kpi.redispatch_down_wh / 1.0e6
+        ),
         // The grid-code block (M4 phase 1): what it is doing, and what
         // the FCR droop delivers. Controller values, exact.
         point!(

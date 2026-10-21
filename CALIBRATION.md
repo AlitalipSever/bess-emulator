@@ -122,17 +122,20 @@ Temperatures and HVAC over the run:
 | Duty, one unit / both units / heating | 16.10% / 0.95% / 0.25% |
 | Cooling starts per container | 4 760.0 |
 
-Alarms raised over the run: 0 trips (gate: none), 38 932 warnings.
+Alarms raised over the run: 0 trips (gate: none), 40 535 warnings.
 
 | Alarm | Raised |
 |---|---|
 | `block.setpoint_not_met` | 15 300 |
 | `rack.derate_active` | 22 917 |
 | `site.power_limited` | 715 |
+| `site.schedule_deviation` | 1 603 |
 
 Fiscal quarter-hours closed: 35 040 (gate: exactly 35 040), 92 on the 23-hour day and 100 on the 25-hour day (gates: 92 and 100).
 
 Reported SoC against the truth, over every rack: mean absolute error 0.253 points (gate: 0.05 to 2.00 points), largest 1.13 points (gate: 0.20 to 15.00 points); 104 891 corrections, 0.599 per rack and day.
+
+The quarter-hour report over the run: availability 56.77% to discharge and 65.70% to charge (gate: none, reported), mean absolute schedule deviation 7.67% of the rating, 3 338 closed periods over the 5 % frame.
 
 <!-- bess-bench:end m1-annual -->
 
@@ -1596,6 +1599,65 @@ Höchstspannungsnetz", May 2026, published on netztransparenz.de (the
 6 to 20 %/min band, the schedule-deviation frame, the data exchange
 that includes the state of charge and the redispatch potential).
 Numbers cited, nothing reproduced.
+
+## M4 (v0.9.0, unreleased): the quarter-hour report
+
+Phase 2 PR2 gives the plant the two figures the TSOs' operational
+requirements for batteries at the extra-high-voltage grid (May 2026,
+public on Netztransparenz) ask of it: how far its quarter-hour mean sat
+from its schedule, and what it had available
+(`crates/bess-core/src/kernel/kpi.rs`). The report closes on the fiscal
+meter's boundary, so the settlement period, the meter and the report
+agree on what a quarter-hour is.
+
+**The figures, sourced.** The document binds the quarter-hour mean of
+feed-in or withdrawal to the planning data submitted by the trading
+deadline within a frame the grid operator sets, with a systemic and a
+local component, and asks for the state of charge and the full
+technical redispatch potential in the data exchange. The plant
+publishes per closed period the scheduled mean (the site target as the
+controller pursued it, integrated; a written limit is part of the
+schedule, not a deviation from it), the metered mean (the fiscal
+meter's period), their difference in kilowatts and as a share of the
+rating, the tracking error's root mean square, the availability (the
+power the plant could deliver over its rating, time-averaged, each
+direction) and the redispatch potential as the energy the racks hold
+above the window's floor and below its ceiling. The frame is the
+operator's; **5 % of the rating is a labeled estimate** behind
+`site.schedule_deviation`.
+
+**What the clean year says.** The bench sums the report over the
+35,040 closed periods and the generated block below carries the four
+figures: availability 56.8 % to discharge and 65.7 % to charge, a mean
+absolute deviation of 7.7 % of the rating, and 3,338 periods (9.5 %)
+over the 5 % frame. The availabilities are the blocks' capability over
+the rating, time-averaged: a two-hour plant on a three-charge,
+two-discharge plan spends most of its hours at an edge of its SoC
+window, where the BMS taper and the current-bounded limits at the
+racks' voltage pull the capability well under the rating, and the
+converters' permitted power rarely binds. The deviation is the plan's
+own shape: every hourly step of the plan is a ten-minute ramp inside
+one quarter-hour, and the hours the plant runs empty or full miss their
+schedule outright (the M2 finding about the unordered plan, which phase
+4's planner addresses). Reported, not gated: no public figure says what
+a fleet's schedule deviation is, and a plan that puts a ramp in one
+period of every hour is measured here, not excused.
+
+**Known gaps.**
+
+- **The frame** is a labeled estimate; the document leaves it to the
+  connection agreement, with a systemic and a local component the
+  emulator does not split.
+- **The schedule is the EMS target**, not a submitted series: a plant
+  whose schedule was fixed at the trading deadline and whose controller
+  then deviated would show that as deviation; here the controller's
+  target is the schedule.
+- **Availability counts the blocks' capability**, bounded by the
+  ratings as M3 decided; the overload budget is not availability.
+
+**Sources:** the German TSOs, "Betriebliche Anforderungen an
+Batteriespeichersysteme mit Anschluss am Höchstspannungsnetz", May 2026
+(netztransparenz.de). Numbers cited, nothing reproduced.
 
 ## Planned gates (from ROADMAP.md)
 

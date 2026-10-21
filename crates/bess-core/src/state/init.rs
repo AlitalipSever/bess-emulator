@@ -7,7 +7,7 @@ use super::{
 };
 use crate::alarms::EventLog;
 use crate::config::PlantConfig;
-use crate::kernel::{BreakerSequence, ExternalLimit, Weather};
+use crate::kernel::{BreakerSequence, ExternalLimit, KpiMeter, Weather};
 use crate::rng::Rng;
 
 /// Salt that separates the commissioning-spread stream from the main one.
@@ -119,6 +119,7 @@ impl SiteState {
             energy: EnergyAccounting::default(),
             blocks,
             alarm_bits: 0,
+            kpi: KpiMeter::default(),
             event_log: EventLog::default(),
             pending_events: Vec::new(),
         }

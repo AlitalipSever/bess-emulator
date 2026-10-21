@@ -155,6 +155,7 @@ fn evaluate_site(state: &SiteState, cfg: &PlantConfig, th: &BlockSiteThresholds)
     next = with_bit(next, s::TRANSFORMER_OVER_TEMPERATURE, hot);
     next = with_bit(next, s::LFSM_ACTIVE, state.ems.lfsm_cut_w != 0.0);
     next = with_bit(next, s::EXTERNAL_LIMITATION, state.ems.limit_binding);
+    next = with_bit(next, s::SCHEDULE_DEVIATION, state.kpi.over_frame);
     next
 }
 
