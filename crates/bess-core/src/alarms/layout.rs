@@ -103,6 +103,10 @@ pub mod site {
     /// more than the frame. Mirrors `KpiMeter::over_frame` (M4 phase 2
     /// PR2).
     pub const SCHEDULE_DEVIATION: u8 = 6;
+    /// The FCR reservoir is in the alert state: the frequency has sat
+    /// away from nominal long enough that the working range may be left
+    /// (M4 phase 3). Mirrors `Reservoir::alert`.
+    pub const FCR_ALERT_STATE: u8 = 7;
     /// Protection has tripped the site. Latched: raised by
     /// `Simulation::trip_protection`, cleared by a site reset, which also
     /// closes the breaker and starts the staggered return.
@@ -126,6 +130,7 @@ pub mod site {
         (LFSM_ACTIVE, "lfsm_active"),
         (EXTERNAL_LIMITATION, "external_limitation"),
         (SCHEDULE_DEVIATION, "schedule_deviation"),
+        (FCR_ALERT_STATE, "fcr_alert_state"),
         (PROTECTION_TRIP, "protection_trip"),
         (TRANSFORMER_TRIP, "transformer_trip"),
         (GRID_FREQUENCY_TRIP, "grid_frequency_trip"),
@@ -170,6 +175,6 @@ mod tests {
             name(AlarmNode::Site, site::POWER_LIMITED).as_deref(),
             Some("site.power_limited")
         );
-        assert_eq!(name(AlarmNode::Site, 7), None);
+        assert_eq!(name(AlarmNode::Site, 12), None);
     }
 }

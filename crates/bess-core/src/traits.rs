@@ -5,7 +5,7 @@
 //! belong to; the kernel only orchestrates the causal chain between layers.
 
 use crate::config::RackConfig;
-use crate::kernel::Weather;
+use crate::kernel::{Awards, Weather};
 use crate::state::{AuxPower, ContainerState, PcsState, RackState, SiteState, SubstationState};
 
 /// Result of stepping one rack for one tick.
@@ -181,6 +181,13 @@ pub trait PcsModel: Send + Sync {
 pub trait EmsStrategy: Send + Sync {
     /// Site active-power target at this instant, W (positive = discharge).
     fn site_target_w(&self, unix_time_s: i64, state: &SiteState) -> f64;
+
+    /// The balancing products the plant holds at this instant (M4 phase
+    /// 3): the awarded power per product and the capacity price it is
+    /// paid. A strategy that sells nothing holds nothing.
+    fn awards_at(&self, _unix_time_s: i64, _state: &SiteState) -> Awards {
+        Awards::NONE
+    }
 }
 
 /// What the site is asking its auxiliary systems to supply this tick.

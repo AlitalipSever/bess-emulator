@@ -1,7 +1,7 @@
 # M4: EMS and market signals
 
 Status: designed 2026-10-21 after M3 shipped as v0.8.0; phase 1 landed
-the same day (PRs #48 and #49), phase 2 after it (PRs #50 and #51). ROADMAP.md defines the goal and the calibration gate; this folder
+the same day (PRs #48 and #49), phase 2 after it (PRs #50 and #51), phase 3 PR1 after that (PR #52). ROADMAP.md defines the goal and the calibration gate; this folder
 fixes the architecture, the decisions and the work breakdown, one phase
 per subfolder, each phase's documents to be marked with what was actually
 built. Layout per [docs/design/README.md](../README.md).
@@ -195,6 +195,19 @@ Filled as PRs land.
   below its ceiling, every tick); `site.kpi.*` at inputs 63 to 71,
   `schedule_deviation` (site bit 6) past a 5 % frame (labeled). The
   annual record gains a `control` section. Checkpoint 18 widened.
+- **The plant holds balancing products** (phase 3 PR1). FCR (symmetric)
+  and aFRR positive and negative as awards per four-hour block, from the
+  EMS strategy (`DayAheadEms::with_awards`) or pinned by a scenario
+  (`site.market`, `award`); the FCR award arms the droop and the
+  reservoir rules of a limited energy store hold the SOGL working range
+  (15 minutes each way), the alert state and the German degrees of
+  freedom (dead-band recentering, 120 % over-fulfilment, a transaction on
+  the plan); the awards take headroom from the plan. Prices: the 2024
+  German tender results, fetched and compiled by the user
+  (`fetch-balancing.sh`, `xlsx-to-csv.py`, `compile-balancing`,
+  `--balancing`), the annual figures bundled and cited. Points
+  `site.market.*` at 72 to 79, `fcr_alert_state` (site bit 7), a
+  `market` taxonomy and the case `fcr-block`. Checkpoint 19.
 
 ## Open questions
 

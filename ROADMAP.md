@@ -17,7 +17,7 @@ scheduled. Architecture and rationale live in
 | M2.5 | SoC realism mini-iteration: OCV hysteresis, reported SoC, measurement imperfections | done (v0.7.0) |
 | M2.6 | Alarm view mini-iteration: alarms on screen, the scenario library in the browser | done (v0.6.0; library re-timed in v0.6.1) |
 | M3 | PCS + electrical | done (v0.8.0) |
-| M4 | EMS + market signals | designed 2026-10-21 ([docs/design/m4/](docs/design/m4/)), not started |
+| M4 | EMS + market signals | in progress ([docs/design/m4/](docs/design/m4/)): phases 1 and 2 landed, phase 3 under way |
 | M5 | Degradation | planned |
 | M6+ | Grid protocols (IEC 60870-5-104, 61850), OPC UA, cell granularity, native viewer | ideas, no promises |
 

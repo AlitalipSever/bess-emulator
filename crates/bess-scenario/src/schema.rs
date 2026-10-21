@@ -65,6 +65,12 @@ pub(crate) struct EventSpec {
     /// `limit`: seconds until the cap clears itself (ISO 8601 duration).
     #[serde(default)]
     pub revert: Option<String>,
+    /// `award`: the product, `fcr`, `afrr_pos` or `afrr_neg`.
+    #[serde(default)]
+    pub product: Option<String>,
+    /// `award`: the awarded power, MW.
+    #[serde(default)]
+    pub mw: Option<f64>,
     #[serde(default)]
     pub rate_per_min: Option<f64>,
     #[serde(default)]
@@ -88,6 +94,8 @@ pub enum Taxonomy {
     Maintenance,
     /// The grid's own events: frequency excursions (M4 phase 1).
     Grid,
+    /// The balancing markets: a product held and served (M4 phase 3).
+    Market,
 }
 
 impl Taxonomy {
@@ -100,6 +108,7 @@ impl Taxonomy {
             Self::Calendar => "calendar",
             Self::Maintenance => "maintenance",
             Self::Grid => "grid",
+            Self::Market => "market",
         }
     }
 }

@@ -49,6 +49,11 @@ input,67,1,u16,10,site.kpi.availability_charge_pct,%,slow,ro,exact,exact
 input,68,2,u32,1,site.kpi.tracking_rms_kw,kW,slow,ro,exact,exact
 input,70,1,u16,10,site.kpi.redispatch_up_mwh,MWh,slow,ro,exact,exact
 input,71,1,u16,10,site.kpi.redispatch_down_mwh,MWh,slow,ro,exact,exact
+input,72,2,u32,1,site.market.fcr_awarded_kw,kW,slow,ro,exact,exact
+input,74,2,u32,1,site.market.afrr_pos_awarded_kw,kW,slow,ro,exact,exact
+input,76,2,u32,1,site.market.afrr_neg_awarded_kw,kW,slow,ro,exact,exact
+input,78,1,u16,10,site.market.fcr_range_min_pct,%,slow,ro,exact,exact
+input,79,1,u16,10,site.market.fcr_range_max_pct,%,slow,ro,exact,exact
 input,1000,1,i16,1,block00.pcs.p_ac_kw,kW,fast,ro,scada_analog,0.5
 input,1001,1,i16,1,block00.pcs.p_dc_kw,kW,fast,ro,scada_analog,0.5
 input,1002,1,u16,1,block00.pcs.state,enum,fast,ro,exact,exact

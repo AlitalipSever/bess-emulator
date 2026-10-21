@@ -23,6 +23,8 @@ pub enum Target {
     Grid,
     /// The plant controller: an operator's order (M4 phase 2).
     Ems,
+    /// The balancing markets: an award pinned by hand (M4 phase 3).
+    Market,
     /// A block.
     Block {
         /// Block index.
@@ -98,6 +100,9 @@ impl Target {
         if parts == ["site", "ems"] {
             return Ok(Self::Ems);
         }
+        if parts == ["site", "market"] {
+            return Ok(Self::Market);
+        }
         let block = match indexed(parts[0], "block") {
             Some(Ok(b)) if b < cfg.blocks => b,
             Some(Ok(_)) => {
@@ -171,9 +176,12 @@ impl Target {
                 container,
                 rack,
             }),
-            Self::Pcs { .. } | Self::Hvac { .. } | Self::Substation | Self::Grid | Self::Ems => {
-                None
-            }
+            Self::Pcs { .. }
+            | Self::Hvac { .. }
+            | Self::Substation
+            | Self::Grid
+            | Self::Ems
+            | Self::Market => None,
         }
     }
 
@@ -191,6 +199,7 @@ impl Target {
             | FaultAction::EarthingSwitch { .. } => Self::Substation,
             FaultAction::GridFrequencyOffset { .. } => Self::Grid,
             FaultAction::ExternalLimit { .. } | FaultAction::ExternalLimitClear => Self::Ems,
+            FaultAction::Award { .. } | FaultAction::AwardsClear => Self::Market,
             FaultAction::BlockMaintenanceEnter { block }
             | FaultAction::BlockMaintenanceExit { block }
             | FaultAction::AlarmReset(ResetScope::Block(block)) => Self::Block { block },
@@ -231,6 +240,7 @@ impl fmt::Display for Target {
             Self::Substation => f.write_str("site.substation"),
             Self::Grid => f.write_str("site.grid"),
             Self::Ems => f.write_str("site.ems"),
+            Self::Market => f.write_str("site.market"),
             Self::Block { block } => write!(f, "block[{block}]"),
             Self::Pcs { block } => write!(f, "block[{block}].pcs"),
             Self::Hvac { block, container } => {
@@ -250,6 +260,7 @@ fn kind_name(target: Target) -> &'static str {
         Target::Substation => "substation",
         Target::Grid => "grid",
         Target::Ems => "ems",
+        Target::Market => "market",
         Target::Site => "site",
         Target::Block { .. } => "block",
         Target::Pcs { .. } => "pcs",

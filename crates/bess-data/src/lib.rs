@@ -26,10 +26,12 @@
 
 use std::sync::OnceLock;
 
+pub mod balancing;
 pub mod calendar;
 pub mod frequency;
 pub mod prices;
 
+pub use balancing::BalancingYear;
 pub use frequency::FrequencyYear;
 pub use prices::{dayahead_de_lu_2024, PriceYear, DAYAHEAD_DE_LU_2024_FNV1A};
 

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::alarms::{AlarmNode, ResetError, ResetScope};
 use crate::state::BlockMode;
 
-use super::{CommandError, Event, Simulation};
+use super::{Awards, CommandError, Event, Product, Simulation};
 
 /// Seconds in a day, for the self-discharge rate's unit.
 const DAY_S: f64 = 86_400.0;
@@ -117,6 +117,17 @@ pub enum FaultAction {
     },
     /// The order lifted.
     ExternalLimitClear,
+    /// A balancing award pinned by hand (M4 phase 3): the plant holds
+    /// `kw` of `product` from the next tick until the awards are cleared,
+    /// the EMS strategy's awards set aside meanwhile.
+    Award {
+        /// The product.
+        product: Product,
+        /// Awarded power, kW.
+        kw: u32,
+    },
+    /// The pinned awards cleared; the strategy's are back.
+    AwardsClear,
 }
 
 impl FaultAction {
@@ -144,6 +155,8 @@ impl FaultAction {
             Self::GridFrequencyOffset { .. } => "frequency_offset",
             Self::ExternalLimit { .. } => "limit",
             Self::ExternalLimitClear => "limit_clear",
+            Self::Award { .. } => "award",
+            Self::AwardsClear => "award_clear",
         }
     }
 }
@@ -243,6 +256,22 @@ impl Simulation {
                 before != self.state.ems.external_limit
             }
             FaultAction::ExternalLimitClear => self.clear_external_limit(),
+            FaultAction::Award { product, kw } => {
+                let mut awards = if self.state.ems.awards_pinned {
+                    self.state.ems.awards
+                } else {
+                    Awards::NONE
+                };
+                let before = awards;
+                awards.set_power_w(product, f64::from(kw) * 1000.0);
+                self.pin_awards(awards);
+                before != awards
+            }
+            FaultAction::AwardsClear => {
+                let was = self.state.ems.awards_pinned;
+                self.unpin_awards();
+                was
+            }
             FaultAction::AlarmReset(scope) => {
                 // What a reset still finds present re-raises on the next
                 // tick, which the log shows; the list itself is the HMI's.

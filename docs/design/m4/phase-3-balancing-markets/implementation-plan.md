@@ -12,6 +12,12 @@ Three PRs, each landing green.
 Accept: the working range holds and the alert state releases it; the
 shape test still passes with the manager active.
 
+*As built (PR #52):* as the design's as-built notes say. The
+`fcr-block` case runs 20 MW on an idle summer night (taxonomy `market`,
+new); the plant tests are in `bess-models/tests/balancing.rs`. The
+annual record is unchanged: it is made with the plant that sells
+nothing until phase 4's planner decides.
+
 ## PR2: aFRR service and the request
 
 - `Inputs::afrr_request_pu`, `SyntheticAfrr`, `fetch-afrr.sh`,

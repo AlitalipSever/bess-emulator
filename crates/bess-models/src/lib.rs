@@ -12,6 +12,7 @@ pub mod cell;
 pub mod ems;
 pub mod grid;
 pub mod grid_signal;
+pub mod market;
 pub mod math;
 pub mod pcs;
 pub mod thermal;
@@ -30,7 +31,8 @@ pub use weather::{
 };
 // Re-exported because `HistoricalWeather::hour_at` returns them: a caller
 // should not have to depend on `bess-data` to name what this crate hands it.
-pub use bess_data::{FrequencyYear, HourSample, PrecipForm, PriceYear, WeatherYear};
+pub use bess_data::{BalancingYear, FrequencyYear, HourSample, PrecipForm, PriceYear, WeatherYear};
+pub use market::{replay_balancing, replayed_balancing, AwardPlan};
 
 use std::sync::OnceLock;
 

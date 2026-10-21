@@ -121,7 +121,9 @@ fn fault_block(action: &FaultAction) -> Option<usize> {
         | FaultAction::EarthingSwitch { .. }
         | FaultAction::GridFrequencyOffset { .. }
         | FaultAction::ExternalLimit { .. }
-        | FaultAction::ExternalLimitClear => None,
+        | FaultAction::ExternalLimitClear
+        | FaultAction::Award { .. }
+        | FaultAction::AwardsClear => None,
     }
 }
 

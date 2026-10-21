@@ -7,7 +7,7 @@ use super::{
 };
 use crate::alarms::EventLog;
 use crate::config::PlantConfig;
-use crate::kernel::{BreakerSequence, ExternalLimit, KpiMeter, Weather};
+use crate::kernel::{Awards, BreakerSequence, ExternalLimit, KpiMeter, Reservoir, Weather};
 use crate::rng::Rng;
 
 /// Salt that separates the commissioning-spread stream from the main one.
@@ -113,6 +113,9 @@ impl SiteState {
                 reactive_q_var: 0.0,
                 external_limit: ExternalLimit::none(),
                 limit_binding: false,
+                awards: Awards::NONE,
+                awards_pinned: false,
+                reservoir: Reservoir::default(),
             },
             substation: substation_at_rest(cfg, ambient_c, start_unix_s),
             aux: AuxPower::default(),

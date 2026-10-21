@@ -66,6 +66,23 @@ fn main() -> ExitCode {
         }
     }
 
+    if let Some(path) = &args.balancing {
+        match bess_models::BalancingYear::load(path) {
+            Ok(year) => {
+                let hash = year.hash();
+                if bess_models::replay_balancing(year).is_none() {
+                    error!("a balancing year is already attached");
+                    return ExitCode::FAILURE;
+                }
+                info!(path = %path.display(), hash = format!("{hash:#018x}"), "balancing year attached");
+            }
+            Err(err) => {
+                error!("{err}");
+                return ExitCode::FAILURE;
+            }
+        }
+    }
+
     // The file is read and checked before anything binds a socket, so a
     // refused scenario is a process that never started.
     let (params, resolved) = match prepare(&args) {
