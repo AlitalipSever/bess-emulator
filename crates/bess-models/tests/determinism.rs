@@ -29,6 +29,8 @@ const TICKS: u64 = 4 * 3600;
 /// corrections are events, so the log's count and digest move with them.
 /// The physics did not: the decoupling proof in `reported_soc.rs` holds
 /// the truth trajectory to phase 1's value with the new fields cut out.
+/// Regenerated once more when the hysteresis step went rational (the
+/// exp cut drifted across platforms): 0xe46c_f1ee_8656_cf35 to this.
 /// Earlier values: 0x95c3_aa5c_e7bb_3679 (M2.5 phase 1, a physics and a
 /// schema change at once: every rack gained the OCV hysteresis state and
 /// the cell model moves it, so voltages, currents and the night charge's
@@ -51,7 +53,7 @@ const TICKS: u64 = 4 * 3600;
 /// two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC),
 /// 0x1446_6f26_c751_bc02 (M1 PR5, the auxiliary inventory),
 /// 0xcd26_9803_d062_e1ad (M2 phase 1 PR2, cell spread and balancing).
-const GOLDEN_DIGEST: u64 = 0xe46c_f1ee_8656_cf35;
+const GOLDEN_DIGEST: u64 = 0xa57c_9428_cb1e_3071;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();

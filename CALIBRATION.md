@@ -80,7 +80,7 @@ Energy at the point of interconnection over the run:
 
 | Quantity | Value |
 |---|---|
-| Imported | 66 778.0 MWh |
+| Imported | 66 777.9 MWh |
 | Exported | 55 396.9 MWh |
 | Round-trip efficiency | 0.8296 |
 | Round-trip efficiency, house load removed from import | 0.8543 |
@@ -120,19 +120,19 @@ Temperatures and HVAC over the run:
 | Container air, coldest to warmest | 10.0 to 29.0 C |
 | Cells, coldest to warmest | 8.7 to 39.0 C |
 | Duty, one unit / both units / heating | 16.38% / 1.02% / 0.24% |
-| Cooling starts per container | 4 765.3 |
+| Cooling starts per container | 4 765.5 |
 
-Alarms raised over the run: 0 trips (gate: none), 38 867 warnings.
+Alarms raised over the run: 0 trips (gate: none), 38 862 warnings.
 
 | Alarm | Raised |
 |---|---|
 | `block.setpoint_not_met` | 15 300 |
-| `rack.derate_active` | 22 802 |
+| `rack.derate_active` | 22 797 |
 | `site.power_limited` | 765 |
 
 Fiscal quarter-hours closed: 35 040 (gate: exactly 35 040), 92 on the 23-hour day and 100 on the 25-hour day (gates: 92 and 100).
 
-Reported SoC against the truth, over every rack: mean absolute error 0.253 points (gate: 5.00% to 200.00%), largest 1.13 points (gate: 20.00% to 1500.00%); 104 944 corrections, 0.599 per rack and day.
+Reported SoC against the truth, over every rack: mean absolute error 0.253 points (gate: 0.05 to 2.00 points), largest 1.13 points (gate: 0.20 to 15.00 points); 104 941 corrections, 0.599 per rack and day.
 
 <!-- bess-bench:end m1-annual -->
 
@@ -804,7 +804,7 @@ reproduced.
 | Record | Round trip at the POI | Import | Export | Equivalent full cycles | What moved it |
 |---|---|---|---|---|---|
 | v0.6.1 | 0.8366 | 66,484.8 MWh | 55,622.2 MWh | 277.2 | the M2 plant |
-| after phase 1 | 0.8296 | 66,778.0 MWh | 55,396.9 MWh | 276.1 | OCV hysteresis: 389.1 MWh more heat in the battery row (4,562.7 to 4,951.8), 129.8 MWh more HVAC to remove it, warmest cell 38.1 to 39.0 C |
+| after phase 1 | 0.8296 | 66,777.9 MWh | 55,396.9 MWh | 276.1 | OCV hysteresis: 389.1 MWh more heat in the battery row (4,562.7 to 4,951.8), 129.8 MWh more HVAC to remove it, warmest cell 38.1 to 39.0 C |
 
 ## M2.5 (v0.7.0): the reported SoC
 
@@ -840,7 +840,7 @@ has to sit between 0.05 and 2 points, the worst rack's error between 0.2
 and 15 points. The ceiling is the field range ACCURE reports across more
 than a hundred operating sites (errors up to ±15 points, with outliers
 beyond); the floor says the estimator is not an oracle in disguise.
-Measured: mean 0.253 points, worst 1.13 points, 104,944 corrections
+Measured: mean 0.253 points, worst 1.13 points, 104,941 corrections
 (0.599 per rack and day). The energy figures did not move by a digit:
 the generated block's round trip, import and export are phase 1's.
 
@@ -984,7 +984,7 @@ nothing reproduced.
 
 The record was regenerated for the version bump, as every release
 regenerates it, and the figures are phase 1's: round trip 0.8296, import
-66,778.0 MWh, export 55,396.9 MWh, 276.1 equivalent full cycles. Of the
+66,777.9 MWh, export 55,396.9 MWh, 276.1 equivalent full cycles. Of the
 three phases only the first touched the physics; the estimator (phase 2)
 is held to leave the truth untouched, byte for byte, and the instruments
 (phase 3) live in the shell, which the bench never reads. The fifteen

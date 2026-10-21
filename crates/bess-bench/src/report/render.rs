@@ -235,12 +235,17 @@ fn write_estimator(out: &mut String, kpis: &Kpis) {
          {:.3} points (gate: {}), largest {:.2} points (gate: {}); {} \
          corrections, {:.3} per rack and day.\n\n",
         e.mean_abs_error_pct,
-        band_text(bands::ESTIMATOR_MEAN_ABS_ERROR_PCT),
+        points_band_text(bands::ESTIMATOR_MEAN_ABS_ERROR_PCT),
         e.max_abs_error_pct,
-        band_text(bands::ESTIMATOR_MAX_ABS_ERROR_PCT),
+        points_band_text(bands::ESTIMATOR_MAX_ABS_ERROR_PCT),
         thousands_int(e.corrections),
         e.corrections_per_rack_day
     );
+}
+
+/// A band already in percentage points, printed as points, not as a share.
+fn points_band_text(band: Band) -> String {
+    format!("{:.2} to {:.2} points", band.lo, band.hi)
 }
 
 /// A count with thousands separated.
