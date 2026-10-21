@@ -119,6 +119,15 @@ pub struct PcsState {
     /// Seconds spent in the current startup state (`is_starting`); zero
     /// elsewhere. State, so a resume continues a precharge where it was.
     pub state_elapsed_s: f64,
+    /// The setpoint after the ramp limit, W: where the follower is headed
+    /// this tick (M3 phase 2 PR2). Zero while the converter is not
+    /// following.
+    pub setpoint_ramped_w: f64,
+    /// The setpoint the converter is actually pursuing, W: the ramped
+    /// target after the first-order lag. What `dc_request_w` converts and
+    /// what the setpoint-miss alarm reads, so a legitimate ramp is not a
+    /// miss. Published as `blockNN.pcs.setpoint_followed_kw`.
+    pub setpoint_followed_w: f64,
 }
 
 /// One battery container.

@@ -1,11 +1,11 @@
 # The site's protection trips during the evening discharge: the HV
-# breaker opens, the point of interconnection reads zero, the house load
-# moves to the station-service meter. The site reset ten minutes later
-# closes the breaker and starts the staggered return, block k released
-# k x 30 s later; each released converter walks precharge, contactor
-# close and synchronization (16 s) before it runs, so the available power
-# climbs back over ten minutes and the partial-availability bit stays up
-# until the last block has synchronized.
+# breaker opens and the POI reads zero, the house load moving to the
+# station-service meter. The reset ten minutes later closes the breaker
+# and starts the staggered return, block k released k x 30 s later; each
+# converter walks precharge, contactor close and synchronization (16 s),
+# then ramps to its share at 10 % of its rating per minute, so the
+# delivered power climbs back as a sum of ramps, and the partial-
+# availability bit stays up until the last block has synchronized.
 schema: 1
 name: protection-trip-staggered-return
 taxonomy: bos

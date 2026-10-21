@@ -190,6 +190,11 @@ fn a_converting_block_stops_paying_the_standby_tare() {
     assert!(idle_wh > 0.0, "an idle hour of converters cost nothing");
 
     sim.set_external_setpoint_w(Some(-50.0e6));
+    // The converters leave standby within the ramp's first ticks; the
+    // tare they paid until then is theirs. From here on it has to stand.
+    run(&mut sim, 60);
+    let running_wh = sim.state().energy.aux_items.pcs_standby_wh;
+    assert!(running_wh >= idle_wh);
     run(&mut sim, 60);
 
     let state = sim.state();
@@ -206,7 +211,7 @@ fn a_converting_block_stops_paying_the_standby_tare() {
         state.aux.pcs_standby_w
     );
     assert!(
-        (state.energy.aux_items.pcs_standby_wh - idle_wh).abs() < 1.0e-9,
+        (state.energy.aux_items.pcs_standby_wh - running_wh).abs() < 1.0e-9,
         "the tare kept accumulating while the converters were running"
     );
 }

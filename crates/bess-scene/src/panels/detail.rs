@@ -140,6 +140,9 @@ pub fn selection_detail(
                 ui.label("AC setpoint");
                 ui.label(mw(b.pcs.p_ac_setpoint_w));
                 ui.end_row();
+                ui.label("Followed");
+                ui.label(mw(b.pcs.setpoint_followed_w));
+                ui.end_row();
                 ui.label("AC power");
                 ui.colored_label(power_color(b.pcs.p_ac_w), mw(b.pcs.p_ac_w));
                 ui.end_row();

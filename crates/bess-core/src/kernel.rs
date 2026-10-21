@@ -19,6 +19,7 @@ mod commands;
 mod event;
 mod fault;
 mod restart;
+mod setpoint;
 mod startup;
 
 use block::{step_block, Scratch, TickContext};
@@ -27,6 +28,7 @@ pub use event::Event;
 pub use fault::{FaultAction, FaultError};
 use restart::dispatchable;
 pub use restart::ReturnPolicy;
+pub use setpoint::SetpointDynamics;
 pub use startup::StartupSequence;
 
 /// The weather one tick applies.
@@ -61,6 +63,7 @@ pub struct Simulation {
     thresholds: BlockSiteThresholds,
     return_policy: ReturnPolicy,
     startup: StartupSequence,
+    dynamics: SetpointDynamics,
     scratch: Scratch,
 }
 
@@ -83,6 +86,7 @@ impl Simulation {
             thresholds: BlockSiteThresholds::default(),
             return_policy: ReturnPolicy::default(),
             startup: StartupSequence::default(),
+            dynamics: SetpointDynamics::default(),
             scratch: Scratch {
                 rack_limits: vec![PowerLimits::default(); racks_per_block],
                 bms_heat: vec![0.0; racks_per_block],
@@ -120,6 +124,12 @@ impl Simulation {
         }
     }
 
+    /// Replace how the converters follow their setpoints. For research
+    /// runs and the switch-off proof; the plant ships with the default.
+    pub fn set_setpoint_dynamics(&mut self, dynamics: SetpointDynamics) {
+        self.dynamics = dynamics;
+    }
+
     /// Chemical energy currently stored across all racks, Wh.
     pub fn stored_energy_wh(&self) -> f64 {
         self.state
@@ -140,6 +150,24 @@ impl Simulation {
         }
     }
 
+    /// The site target this tick, clamped to the site rating: the external
+    /// setpoint or the plan's, and nothing while the breaker is open.
+    fn site_target_w(&self, connected: bool) -> f64 {
+        let raw_target = if connected {
+            match self.state.ems.mode {
+                EmsMode::External => self.state.ems.external_setpoint_w,
+                EmsMode::FollowPlan => self
+                    .models
+                    .ems
+                    .site_target_w(self.state.unix_time_s(), &self.state),
+            }
+        } else {
+            0.0
+        };
+        let rated = self.cfg.grid.site_rated_w;
+        raw_target.clamp(-rated, rated)
+    }
+
     /// Advance the plant by one tick. Returns the events emitted.
     pub fn step(&mut self, inputs: &Inputs) -> &[Event] {
         let dt_s = TICK_SECONDS as f64;
@@ -153,19 +181,7 @@ impl Simulation {
 
         // 1. EMS: site active-power target.
         let connected = self.state.substation.hv_breaker == BreakerState::Closed;
-        let raw_target = if connected {
-            match self.state.ems.mode {
-                EmsMode::External => self.state.ems.external_setpoint_w,
-                EmsMode::FollowPlan => self
-                    .models
-                    .ems
-                    .site_target_w(self.state.unix_time_s(), &self.state),
-            }
-        } else {
-            0.0
-        };
-        let rated = self.cfg.grid.site_rated_w;
-        let target_w = raw_target.clamp(-rated, rated);
+        let target_w = self.site_target_w(connected);
         self.state.ems.site_setpoint_w = target_w;
 
         // 2. Allocate the target evenly over the dispatchable blocks: in
@@ -194,6 +210,7 @@ impl Simulation {
             models: &self.models,
             cfg: &self.cfg,
             thresholds: &self.thresholds,
+            dynamics: &self.dynamics,
             share_w,
             weather: inputs.weather,
             dt_s,

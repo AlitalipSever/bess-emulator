@@ -23,8 +23,13 @@ toward the first option.
   synchronization from a utility-scale converter manual where one is
   public; the power gradient from VDE-AR-N 4110 (10 % of agreed power
   per minute, public) as the ramp's default; the dead time from the M0 tick (1 s) plus one controller cycle, an estimate. Each labeled.
-  *As built:* 10 s, 1 s, 5 s, labeled estimates (CALIBRATION.md); the
-  gradient and the dead time are PR2's.
+  *As built:* 10 s, 1 s, 5 s, labeled estimates (CALIBRATION.md). PR2:
+  the gradient is 10 % of the converter's rating per minute (VDE-AR-N
+  4110, public); the dead time is the kernel's own tick, a setpoint
+  written between ticks acting on the next one and the filter starting
+  from what the previous tick left, so no delay line is kept; the lag is
+  a first-order 0.5 s, a labeled estimate, stepped by implicit Euler so
+  the kernel stays rational.
 - **D3, the return sequencer hands over to the machine.** M2's
   `blocks_released` count still spaces the blocks; a released block
   now enters `Precharge` rather than `Run`, so the site's return takes
@@ -38,7 +43,8 @@ toward the first option.
   contactors (`Off`) and a block handed back starts its sequence.
 - **D4, checkpoint bump.** State, elapsed time, the setpoint filter's
   two values (ramped target, lagged output) per block. *As built:*
-  format 12 with `state_elapsed_s`; the filter's values arrive with PR2.
+  format 12 with `state_elapsed_s`; format 13 (PR2) adds
+  `setpoint_ramped_w` and `setpoint_followed_w`.
 - **D5, events for every transition,** as today, with the new states;
   the viewer's journal row prints them, and the MQTT `pcs/state` topic
   carries the new numbering.
@@ -47,7 +53,13 @@ toward the first option.
 
 `blockNN.pcs.state` reinterpreted (breaking, map 0.5.0). Additions:
 `blockNN.pcs.setpoint_followed_kw` (the filtered target the converter is
-actually pursuing) at 2000 + 10b + 5.
+actually pursuing) at 2000 + 10b + 5. *As built:* there, exact (a
+controller value), folded into 0.5.0 since it is unreleased. The
+setpoint-miss bit reads the followed target; the site's power-limited
+bit discounts what connected converters are still ramping toward, so a
+plant arriving at the grid code's gradient is not limited and a plant
+that cannot arrive still is (a staggered return reads limited as
+before).
 
 ## Checkpoint impact
 
@@ -60,7 +72,10 @@ One format bump (D4).
   sum of the published durations, to the tick.
 - **Property: setpoint following.** A step is followed without
   overshoot and settles within the published time; the ramp never
-  exceeds the gradient.
+  exceeds the gradient. *As built:* `kernel/setpoint.rs` unit tests and
+  `bess-models/tests/setpoint_following.rs` (a site step over the
+  control surface reached inside the ramp with no block or site alarm, the
+  switch-off, a checkpoint mid-ramp).
 - **Integration: the trip and return** library case regenerated and its
   header updated with the new timing.
 - **Switch-off proof** and golden regeneration, called out.

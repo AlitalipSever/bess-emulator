@@ -214,7 +214,8 @@ fn maintenance_takes_a_block_out_and_keeps_it_cool() {
 fn a_tripped_pcs_leaves_the_rest_delivering() {
     const BLK: usize = 5;
     let mut sim = plant(50.0e6, |_| {});
-    run(&mut sim, 30);
+    // Through the ramp to the setpoint, half the site's rating.
+    run(&mut sim, 660);
     let avail_before = sim.state().ems.available_discharge_w;
 
     assert_eq!(sim.trip_pcs(BLK), Ok(true));
@@ -237,10 +238,19 @@ fn a_tripped_pcs_leaves_the_rest_delivering() {
     ));
     let lost_w = avail_before - st.ems.available_discharge_w;
     assert!((lost_w - 5.0e6).abs() < 0.1e6, "lost {lost_w} W");
+    // The trip tick loses the tripped block's share; the others take it
+    // up at the gradient, so the site is back at its setpoint half a
+    // minute later.
     let delivered_w: f64 = st.blocks.iter().map(|blk| blk.pcs.p_ac_w).sum();
     assert!(
+        (delivered_w - 47.5e6).abs() < 0.5e6,
+        "delivered {delivered_w} W on the trip tick"
+    );
+    run(&mut sim, 30);
+    let delivered_w: f64 = sim.state().blocks.iter().map(|blk| blk.pcs.p_ac_w).sum();
+    assert!(
         (delivered_w - 50.0e6).abs() < 0.5e6,
-        "delivered {delivered_w} W"
+        "delivered {delivered_w} W after the others ramped"
     );
 
     sim.reset_alarms(ResetScope::Block(BLK))
