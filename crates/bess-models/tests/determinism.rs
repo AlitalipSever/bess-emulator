@@ -57,7 +57,9 @@ const TICKS: u64 = 4 * 3600;
 /// corrections are events, so the log's count and digest move with them.
 /// The physics did not: the decoupling proof in `reported_soc.rs` holds
 /// the truth trajectory to phase 1's value with the new fields cut out.
-/// Earlier values: 0x2dc6_1238_f107_e3ae (M4 phase 1 PR2, before phase 2
+/// Earlier values: 0xe70d_52fc_5ad0_8f93 (M4 phase 2 PR1, before PR2 added
+/// the quarter-hour report's accumulators to the tree),
+/// 0x2dc6_1238_f107_e3ae (M4 phase 1 PR2, before phase 2
 /// PR1 added the external limit and the operator's reactive settings to
 /// the tree, at rest here), 0x2006_7e9a_3e7a_0417 (M4 phase 1 PR1, before PR2 added
 /// each converter's reactive power, the controller's mode and target and
@@ -88,7 +90,7 @@ const TICKS: u64 = 4 * 3600;
 /// two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC),
 /// 0x1446_6f26_c751_bc02 (M1 PR5, the auxiliary inventory),
 /// 0xcd26_9803_d062_e1ad (M2 phase 1 PR2, cell spread and balancing).
-const GOLDEN_DIGEST: u64 = 0xe70d_52fc_5ad0_8f93;
+const GOLDEN_DIGEST: u64 = 0xefe9_68cf_1f43_0433;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();

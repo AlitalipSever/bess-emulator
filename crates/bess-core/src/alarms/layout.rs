@@ -99,6 +99,10 @@ pub mod site {
     /// An external power limit (curtailment, redispatch) is binding the
     /// site target. Mirrors `EmsState::limit_binding` (M4 phase 2 PR1).
     pub const EXTERNAL_LIMITATION: u8 = 5;
+    /// The last closed quarter-hour's mean deviated from its schedule by
+    /// more than the frame. Mirrors `KpiMeter::over_frame` (M4 phase 2
+    /// PR2).
+    pub const SCHEDULE_DEVIATION: u8 = 6;
     /// Protection has tripped the site. Latched: raised by
     /// `Simulation::trip_protection`, cleared by a site reset, which also
     /// closes the breaker and starts the staggered return.
@@ -121,6 +125,7 @@ pub mod site {
         (TRANSFORMER_OVER_TEMPERATURE, "transformer_over_temperature"),
         (LFSM_ACTIVE, "lfsm_active"),
         (EXTERNAL_LIMITATION, "external_limitation"),
+        (SCHEDULE_DEVIATION, "schedule_deviation"),
         (PROTECTION_TRIP, "protection_trip"),
         (TRANSFORMER_TRIP, "transformer_trip"),
         (GRID_FREQUENCY_TRIP, "grid_frequency_trip"),

@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::alarms::EventLog;
-use crate::kernel::{BreakerSequence, Event, ExternalLimit, Weather};
+use crate::kernel::{BreakerSequence, Event, ExternalLimit, KpiMeter, Weather};
 use crate::rng::Rng;
 
 mod energy;
@@ -49,6 +49,10 @@ pub struct SiteState {
     /// Site alarm word, laid out in `alarms::layout::site`. Kept in a u32
     /// like the rack word; the documented layout is the low 16 bits.
     pub alarm_bits: u32,
+    /// The quarter-hour tracking and availability report (M4 phase 2
+    /// PR2): the open period's accumulators and the last closed one's
+    /// figures.
+    pub kpi: KpiMeter,
     /// Count and digest of every event handed out since tick 0.
     pub event_log: EventLog,
     /// Events that happened between ticks (an operator reset) and go out

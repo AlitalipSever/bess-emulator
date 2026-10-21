@@ -21,6 +21,7 @@ mod commands;
 mod event;
 mod fault;
 mod gridcode;
+mod kpi;
 mod limit;
 mod reactive;
 mod restart;
@@ -33,6 +34,7 @@ pub use commands::CommandError;
 pub use event::Event;
 pub use fault::{FaultAction, FaultError};
 pub use gridcode::{FcrDroop, GridCode, GridCodeState};
+pub use kpi::{KpiMeter, KpiTick};
 pub use limit::{ControlCommand, ExternalLimit};
 pub use reactive::ReactiveControl;
 use restart::dispatchable;
@@ -327,6 +329,38 @@ impl Simulation {
         aux
     }
 
+    /// Step 5b of the tick: the quarter-hour report (M4 phase 2 PR2),
+    /// booked on the same boundary as the fiscal meter. The redispatch
+    /// potential is what the racks hold above the window's floor and
+    /// below its ceiling.
+    fn observe_kpis(&mut self, poi_w: f64, dt_s: f64, tick_end_s: i64) {
+        let rack_wh = self.cfg.rack.nominal_energy_wh();
+        let (floor, ceiling) = (self.cfg.rack.soc_min, self.cfg.rack.soc_max);
+        let (mut above_wh, mut below_wh) = (0.0, 0.0);
+        for rack in self.state.racks() {
+            if rack.in_service {
+                above_wh += (rack.soc - floor).max(0.0) * rack_wh;
+                below_wh += (ceiling - rack.soc).max(0.0) * rack_wh;
+            }
+        }
+        let ems = &self.state.ems;
+        let tick = KpiTick {
+            scheduled_w: ems.site_setpoint_w,
+            metered_w: poi_w,
+            available_discharge_w: ems.available_discharge_w,
+            available_charge_w: ems.available_charge_w,
+            energy_above_floor_wh: above_wh,
+            energy_below_ceiling_wh: below_wh,
+        };
+        self.state.kpi.observe(
+            tick,
+            self.cfg.grid.site_rated_w,
+            self.thresholds.schedule_frame,
+            dt_s,
+            tick_end_s,
+        );
+    }
+
     /// Advance the plant by one tick. Returns the events emitted.
     pub fn step(&mut self, inputs: &Inputs) -> &[Event] {
         let dt_s = TICK_SECONDS as f64;
@@ -441,6 +475,7 @@ impl Simulation {
             .observe(poi_w, dt_s, tick_end_s);
         self.state.energy.transformer_loss_wh += self.state.substation.transformer_loss_w * wh;
         self.state.energy.aux_wh += self.state.substation.aux_power_w * wh;
+        self.observe_kpis(poi_w, dt_s, tick_end_s);
 
         // The waterfall identity, checked by every debug run rather than by
         // one test file: what the substation metered as house load equals

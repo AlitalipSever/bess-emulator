@@ -53,13 +53,23 @@ Each decision is proposed here and confirmed or revised in its PR.
   the available power). A `schedule_deviation` site bit (6, warning)
   raises when the last period's deviation exceeds a configured frame
   (default 5 % of rated, labeled; the document leaves the frame to the
-  operator).
+  operator). *As built (PR2):* `KpiMeter` in `kernel/kpi.rs` on
+  `SiteState::kpi`, booked every tick and closed on the fiscal meter's
+  boundary; the scheduled mean is the site target after the external
+  limit, so a written limit is schedule, not deviation; the redispatch
+  potential is the racks' energy above the window's floor and below its
+  ceiling; the frame is `BlockSiteThresholds::schedule_frame` (0.05).
+  Points 63 to 71 (the deviation in kW and %, the two availabilities,
+  the tracking RMS, the two potentials); site bit 6.
 - **D5, checkpoint bump.** Format 18: the limit and its timer, the
   KPI accumulators and the last closed period. *As built (PR1):* format
   18 with `EmsState::external_limit`, `limit_binding` and the three
   reactive settings; PR2 adds the KPIs to the same format.
 - **D6, points.** Holding registers 3 to 9 as named in D1 and D2; site
-  inputs 62 to 69 for the KPIs; the two site bits.
+  inputs 62 to 69 for the KPIs; the two site bits. *As built:* holding
+  registers 3 to 11 (the reactive setpoint is a pair and the direction
+  of cos φ its own word), site inputs 63 to 71 (62 is the FCR output's
+  second word), bits 5 and 6.
 
 ## Signal map impact
 
@@ -83,6 +93,9 @@ One format bump (D5).
   `bess-models/tests/external_control.rs`.
 - **Unit: the KPIs** on a hand-built quarter-hour: scheduled mean,
   metered mean, deviation, availability with one block in maintenance.
+  *As built (PR2):* `kpi.rs`'s unit tests on a hand-built period (the
+  means, the frame verdict, a ramp's RMS) and
+  `the_quarter_hour_report_follows_the_fiscal_meter` in the plant.
 - **Integration:** a new library case `curtailment-order` (a 60 % limit
   written at 18:10 for 40 min during the evening discharge; the flag,
   the ramp down at 10 %/min, the revert, the ramp back); the

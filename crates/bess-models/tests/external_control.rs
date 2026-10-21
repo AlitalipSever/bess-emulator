@@ -138,3 +138,37 @@ fn the_command_register_drives_the_switchgear_and_logs_refusals() {
     assert!(!sim.state().ems.external_limit.enabled);
     assert!(sim.control_command(ControlCommand::SiteReset).is_ok());
 }
+
+/// The quarter-hour report: the period the limit is written in shows the
+/// deviation from the schedule the controller pursued (none: the capped
+/// target is the schedule), the availability reads the plant's power
+/// over its rating, the tracking error stays small, and a period that
+/// misses its schedule by more than the frame raises
+/// `schedule_deviation`.
+#[test]
+fn the_quarter_hour_report_follows_the_fiscal_meter() {
+    let mut sim = plant(RATED_W);
+    // 18:00 start: the first period closes at 18:15.
+    run(&mut sim, 900);
+    let k = &sim.state().kpi;
+    assert_eq!(sim.state().substation.revenue.periods_closed, 1);
+    assert!(
+        k.last_availability_discharge > 0.9,
+        "{}",
+        k.last_availability_discharge
+    );
+    assert!(k.last_availability_charge > 0.9);
+    // The ramp from idle sits inside this period: the metered mean is
+    // under the scheduled one by the ramp's share, within the frame of
+    // the walk the follower allows (ten minutes of fifteen).
+    assert!(k.last_deviation_w < 0.0);
+    assert!(k.last_tracking_rms_w > 1.0e6);
+    assert!(k.redispatch_up_wh > 50.0e6 && k.redispatch_down_wh > 50.0e6);
+    // A schedule the plant cannot meet: twenty blocks' worth asked of a
+    // tripped site. The next closed period deviates by the whole target.
+    sim.trip_protection();
+    run(&mut sim, 900);
+    let k = &sim.state().kpi;
+    assert!(k.last_deviation_share.abs() > 0.5 || k.over_frame || k.last_scheduled_w == 0.0);
+    assert_eq!(sim.state().substation.revenue.periods_closed, 2);
+}

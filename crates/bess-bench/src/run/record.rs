@@ -179,4 +179,21 @@ pub struct Kpis {
     pub periods: crate::periods::PeriodKpis,
     /// How wrong the BMS estimators were, and how often they said so.
     pub estimator: crate::estimator::EstimatorKpis,
+    /// How well the plant tracked its schedule and how available it was
+    /// (M4 phase 2 PR2).
+    pub control: ControlKpis,
+}
+
+/// The quarter-hour report summed over the run (M4 phase 2 PR2).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct ControlKpis {
+    /// Mean availability to discharge over the closed periods, 0 to 1.
+    pub availability_discharge: f64,
+    /// Mean availability to charge over the closed periods, 0 to 1.
+    pub availability_charge: f64,
+    /// Mean absolute schedule deviation over the closed periods, as a
+    /// share of the rating.
+    pub mean_abs_deviation_share: f64,
+    /// Closed periods whose deviation exceeded the frame.
+    pub periods_over_frame: u64,
 }

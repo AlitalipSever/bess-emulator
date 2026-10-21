@@ -42,6 +42,13 @@ input,58,1,u16,100,site.mv_bus.voltage_kv,kV,fast,ro,scada_analog,0.5
 input,59,1,u16,1000,site.poi.power_factor,ratio,fast,ro,exact,exact
 input,60,1,u16,1,site.grid_code.state,enum,fast,ro,exact,exact
 input,61,2,i32,1,site.fcr.output_kw,kW,fast,ro,exact,exact
+input,63,2,i32,1,site.kpi.schedule_deviation_kw,kW,slow,ro,exact,exact
+input,65,1,i16,10,site.kpi.schedule_deviation_pct,%,slow,ro,exact,exact
+input,66,1,u16,10,site.kpi.availability_discharge_pct,%,slow,ro,exact,exact
+input,67,1,u16,10,site.kpi.availability_charge_pct,%,slow,ro,exact,exact
+input,68,2,u32,1,site.kpi.tracking_rms_kw,kW,slow,ro,exact,exact
+input,70,1,u16,10,site.kpi.redispatch_up_mwh,MWh,slow,ro,exact,exact
+input,71,1,u16,10,site.kpi.redispatch_down_mwh,MWh,slow,ro,exact,exact
 input,1000,1,i16,1,block00.pcs.p_ac_kw,kW,fast,ro,scada_analog,0.5
 input,1001,1,i16,1,block00.pcs.p_dc_kw,kW,fast,ro,scada_analog,0.5
 input,1002,1,u16,1,block00.pcs.state,enum,fast,ro,exact,exact
