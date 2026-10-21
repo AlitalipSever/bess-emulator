@@ -1,7 +1,7 @@
 {
   "scenario": "substation-earthing-work",
   "content_hash": "0x5e53e9b520f87106",
-  "engine_version": "0.8.0",
+  "engine_version": "0.9.0",
   "seed": 11,
   "start_unix_s": 1773108000,
   "ticks": 10800,

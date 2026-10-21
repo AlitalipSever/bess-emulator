@@ -1,11 +1,12 @@
 {
   "run": {
     "site_id": "GW-01",
-    "engine_version": "0.8.0",
+    "engine_version": "0.9.0",
     "seed": 7,
     "start_unix_s": 1767225600,
     "days": 365,
-    "ticks": 31536000
+    "ticks": 31536000,
+    "market": false
   },
   "months": [
     {

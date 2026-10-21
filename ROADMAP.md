@@ -17,7 +17,7 @@ scheduled. Architecture and rationale live in
 | M2.5 | SoC realism mini-iteration: OCV hysteresis, reported SoC, measurement imperfections | done (v0.7.0) |
 | M2.6 | Alarm view mini-iteration: alarms on screen, the scenario library in the browser | done (v0.6.0; library re-timed in v0.6.1) |
 | M3 | PCS + electrical | done (v0.8.0) |
-| M4 | EMS + market signals | in progress ([docs/design/m4/](docs/design/m4/)): phases 1 and 2 landed, phase 3 under way |
+| M4 | EMS + market signals | done (v0.9.0) |
 | M5 | Degradation | planned |
 | M6+ | Grid protocols (IEC 60870-5-104, 61850), OPC UA, cell granularity, native viewer | ideas, no promises |
 
@@ -348,10 +348,25 @@ Scope:
 database curves; the M1 round-trip efficiency gate still holds with the new
 electrical losses in place.
 
-## M4: EMS + market signals
+## M4: EMS + market signals (done, v0.9.0)
+
+Shipped as v0.9.0 (2026-10-21); what was actually built, phase by phase,
+is in the design folder's as-built notes and its release-note inventory.
+The headline: the grid is an input with a shape and the plant answers it
+(LFSM, an FCR droop, reactive modes), a dispatch application has a
+twelve-register holding bank and the plant reports its tracking and
+availability per quarter-hour, the plant holds FCR and aFRR on the 2024
+prices and the fiscal meter books EUR, and a market participant's
+strategy earns 127.4 kEUR/MW over the replayed year, inside the band the
+public index gave. Map 0.6.0, additions only; checkpoint format 19.
 
 **Goal:** the plant behaves like a market participant, and external control
 becomes fully testable.
+
+Detailed design: [docs/design/m4/](docs/design/m4/), one folder per phase
+(grid code at the POI, external control and reporting, balancing
+markets, the market EMS and the v0.9.0 release), designed 2026-10-21
+after M3 shipped.
 
 Scope:
 

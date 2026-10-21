@@ -1,7 +1,7 @@
 {
   "scenario": "pcs-overload-budget",
   "content_hash": "0xdb69ee1c20dfa6e0",
-  "engine_version": "0.8.0",
+  "engine_version": "0.9.0",
   "seed": 7,
   "start_unix_s": 1784052000,
   "ticks": 7200,

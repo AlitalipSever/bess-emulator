@@ -64,7 +64,7 @@ ran rather than re-derived afterwards from a summary.
 
 <!-- bess-bench:begin m1-annual -->
 
-Measured by `bess-bench` on kernel 0.8.0: GW-01 on the internal dispatch
+Measured by `bess-bench` on kernel 0.9.0: GW-01 on the internal dispatch
 plan, seed 7, 365 simulated days (31 536 000 ticks) of the replayed weather
 year. Regenerate with `cargo run --release -p bess-bench -- --write`; CI
 fails if this block is stale.
@@ -1379,7 +1379,7 @@ temperatures are new readings beside unchanged losses. The seventeen
 library records moved in their version string and nothing else at the
 bump. The 0.8323 sits inside the M1 field band, 0.3 points over v0.7.0.
 
-## M4 (v0.9.0, unreleased): the grid's frequency and the plant's response
+## M4 (v0.9.0): the grid's frequency and the plant's response
 
 Phase 1 PR1 gives the frequency at the POI a shape and the plant an
 answer to it: a synthetic series with the Continental European
@@ -1478,7 +1478,7 @@ different series, and the digests say so.
 ISE API documentation (the replay source's resolution and terms).
 Numbers cited, nothing reproduced.
 
-## M4 (v0.9.0, unreleased): reactive power
+## M4 (v0.9.0): reactive power
 
 Phase 1 PR2 gives the plant its reactive power: a mode the operator
 chooses (`ReactiveMode`: fixed cos φ, fixed Q, Q(U)), a settled site
@@ -1539,7 +1539,7 @@ the converters' vars, the mode and the power factor are in the tree.
 range, the three modes, reactive power at zero active power); the Sungrow
 SG2500U datasheet (apparent rating). Numbers cited, nothing reproduced.
 
-## M4 (v0.9.0, unreleased): external control, obeyed and flagged
+## M4 (v0.9.0): external control, obeyed and flagged
 
 Phase 2 PR1 gives a dispatch application the registers it writes and
 the plant the discipline to obey them: an external active-power limit
@@ -1602,7 +1602,7 @@ Höchstspannungsnetz", May 2026, published on netztransparenz.de (the
 that includes the state of charge and the redispatch potential).
 Numbers cited, nothing reproduced.
 
-## M4 (v0.9.0, unreleased): the quarter-hour report
+## M4 (v0.9.0): the quarter-hour report
 
 Phase 2 PR2 gives the plant the two figures the TSOs' operational
 requirements for batteries at the extra-high-voltage grid (May 2026,
@@ -1661,7 +1661,7 @@ period of every hour is measured here, not excused.
 Batteriespeichersysteme mit Anschluss am Höchstspannungsnetz", May 2026
 (netztransparenz.de). Numbers cited, nothing reproduced.
 
-## M4 (v0.9.0, unreleased): the balancing products and their prices
+## M4 (v0.9.0): the balancing products and their prices
 
 Phase 3 PR1 gives the plant products to hold: FCR, served by the phase 1
 droop block at the awarded power under the reservoir rules of a limited
@@ -1755,7 +1755,7 @@ redistributed); Swissgrid, Anhang 01 Präqualifikationsbedingungen
 criterion, charge management); the German TSOs' 2026 operational
 requirements (the ~2 GW aFRR demand). Numbers cited, nothing reproduced.
 
-## M4 (v0.9.0, unreleased): the aFRR service
+## M4 (v0.9.0): the aFRR service
 
 Phase 3 PR2 serves the aFRR awards: the TSO's request arrives as an
 input, a fraction of the awarded power in its direction
@@ -1816,7 +1816,7 @@ implementation framework (the five-minute full activation time); the
 German TSOs' 2026 requirements (the demand). Numbers cited, nothing
 reproduced.
 
-## M4 (v0.9.0, unreleased): the revenue meter in EUR
+## M4 (v0.9.0): the revenue meter in EUR
 
 Phase 3 PR3 gives the fiscal meter money: four rows per settlement
 quarter-hour, booked tick by tick at the prices the EMS strategy names
@@ -1879,7 +1879,7 @@ regelleistung.net (the capacity and energy figures, cited); the German
 imbalance settlement's single price (public: the TSOs' reBAP
 methodology, named, not reproduced). Numbers cited, nothing reproduced.
 
-## M4 (v0.9.0, unreleased): the market participant's year
+## M4 (v0.9.0): the market participant's year
 
 Phase 4 PR1 gives the plant a strategy that decides
 (`crates/bess-models/src/ems/market.rs`, `MarketEms`): each local day,
@@ -1974,6 +1974,20 @@ on regelleistung-online.de, 2024-10-24, and energy-storage.news); the
 price figures of the phase's price section. Numbers cited, nothing
 reproduced.
 
+## M4 (v0.9.0): the annual record at release
+
+Both records were regenerated for the version bump, as every release
+regenerates them. The clean year (the day-ahead plant, the M1 gate's
+plant) is unchanged by M4 in energy: round trip 0.8323, import 66,655.7
+MWh, export 55,478.3 MWh, 276.5 equivalent full cycles, the v0.8.0
+figures; M4 added readings beside them (the frequency, the vars, the
+report, the EUR rows: 5,129 kEUR day-ahead, −1,037 kEUR imbalance at
+the stand-in price, 40.9 kEUR/MW). The market year
+(`calibration/m4-market.json`, the market participant) cycles 305.9
+equivalent full cycles at a round trip of 0.8779 and earns 127.4
+kEUR/MW, inside the M4 band. The twenty-one library records moved in
+their version string and nothing else at the bump.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);
@@ -1986,9 +2000,9 @@ reproduced.
   gradient, the converter's knee and overload, the switchgear and the
   transformer, each with its sources and its labeled estimates.
 - **M4:** simulated annual revenue inside public German fleet index bands
-  (the band written before the number in the market participant's
-  section above; the seven M4 sections carry the sources and the labeled
-  estimates of the frequency, the grid code, reactive power, the
-  control surface, the quarter-hour report, the products, the aFRR
-  service and the EUR meter).
+  (done, above: 127.4 kEUR/MW inside 97.5 to 195 at v0.9.0, the band
+  written before the number; the eight M4 sections carry the sources and
+  the labeled estimates of the frequency, the grid code, reactive power,
+  the control surface, the quarter-hour report, the products, the aFRR
+  service, the EUR meter and the market participant's year).
 - **M5:** capacity fade inside published LFP field bands.
