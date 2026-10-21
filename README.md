@@ -139,7 +139,7 @@ const status = JSON.parse(handle.scenario_status()); // GET /api/v1/scenario's s
 
 ## Status
 
-Pre-alpha, and measured rather than described. Six milestones have shipped:
+Pre-alpha, and measured rather than described. Seven milestones have shipped:
 M0, the walking skeleton, as v0.1.0; the M0.5 mini-iteration, a partial-load
 conversion efficiency curve fitted to the CEC inverter database, as v0.2.0;
 M1, thermal and weather, as v0.3.0; the M1.5 view mini-iteration as
@@ -151,7 +151,13 @@ say); and the M2.5 SoC realism mini-iteration as v0.7.0, which took three
 kinds of truth off the published surfaces: a rested LFP rack now carries
 the hysteresis of where it has been, the published SoC is what the BMS
 estimates rather than what the kernel knows, and every published value
-passes through an instrument with an IEC class.
+passes through an instrument with an IEC class; and M3, PCS and
+electrical, as v0.8.0, which gave the electrical path its own physics
+and its own order of events: the converter converts on a surface at the
+racks' voltage, walks real startup states, follows a setpoint through a
+ramp, gets warm and spends an overload budget, and the substation has
+interlocked switchgear, a transformer with IEC 60076-7 temperatures and
+a tap changer.
 
 M2.6 added no physics. The viewer shows what is in alarm, by node and
 severity, and the journal of what raised and cleared, numbered as MQTT
@@ -200,9 +206,9 @@ replayed hour had them. The clock can jump to any day of the year, either
 restarting there or running the plant forward to it tick by tick.
 
 Still at its simplest useful depth: a 1-RC cell model (with the LFP
-OCV hysteresis that M2.5 added), constant transformer
-parameters, synthetic grid frequency, no degradation and no faults. Those are
-M2 through M5. The placeholder price curve is already gone on the way to M2:
+OCV hysteresis that M2.5 added), a transformer with two temperatures but
+unity power factor, synthetic grid frequency and voltage, no degradation.
+Those are M4 and M5. The placeholder price curve is already gone on the way to M2:
 the planner ranks the real 2024 German day-ahead prices (SMARD) one local
 day at a time, DST days included.
 

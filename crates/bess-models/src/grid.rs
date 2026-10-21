@@ -14,8 +14,9 @@ pub use thermal::{TapChanger, TransformerState, TransformerThermal};
 /// station-service feed that carries the house load while the breaker is
 /// open (M2). These are the SCADA meters; the fiscal quarter-hour meter
 /// beside them is kernel state (`RevenueMeter`), fed the same POI power
-/// after this step. Breaker interlocks, OLTC behavior and transformer
-/// thermals arrive in M3.
+/// after this step. M3 added the transformer's IEC 60076-7 temperatures
+/// and the tap changer here (`thermal.rs`); the breaker's interlocks and
+/// closing sequence live in the kernel (`kernel/switchgear.rs`).
 ///
 /// The station auxiliary load used to live here as a 150 kW constant. Since
 /// M1 it is an itemized inventory of its own (`aux.rs`); the substation

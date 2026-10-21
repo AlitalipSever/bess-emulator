@@ -16,7 +16,7 @@ scheduled. Architecture and rationale live in
 | M2 | BMS, alarms, scenario engine | done (v0.5.0) |
 | M2.5 | SoC realism mini-iteration: OCV hysteresis, reported SoC, measurement imperfections | done (v0.7.0) |
 | M2.6 | Alarm view mini-iteration: alarms on screen, the scenario library in the browser | done (v0.6.0; library re-timed in v0.6.1) |
-| M3 | PCS + electrical | planned |
+| M3 | PCS + electrical | done (v0.8.0) |
 | M4 | EMS + market signals | planned |
 | M5 | Degradation | planned |
 | M6+ | Grid protocols (IEC 60870-5-104, 61850), OPC UA, cell granularity, native viewer | ideas, no promises |
@@ -313,7 +313,14 @@ Scope, in two phases:
 library case played through the viewer's loop ends at the digest the
 headless run committed, and the kernel-side gates come back unmoved.
 
-## M3: PCS + electrical
+## M3: PCS + electrical (done, v0.8.0)
+
+Shipped as v0.8.0 (2026-10-21); what was actually built, phase by phase,
+is in the design folder's as-built notes and its release-note inventory.
+The headline is the one breaking change on the signal map (0.5.0,
+`blockNN.pcs.state` SunSpec-numbered) and the timing: a setpoint is a
+ten-minute ramp, a reset closes the breaker on the next tick, a returned
+block runs 16 s after its release.
 
 **Goal:** the electrical path stops being a constant and starts being a
 character in the causal chain.

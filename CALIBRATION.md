@@ -64,7 +64,7 @@ ran rather than re-derived afterwards from a summary.
 
 <!-- bess-bench:begin m1-annual -->
 
-Measured by `bess-bench` on kernel 0.7.0: GW-01 on the internal dispatch
+Measured by `bess-bench` on kernel 0.8.0: GW-01 on the internal dispatch
 plan, seed 7, 365 simulated days (31 536 000 ticks) of the replayed weather
 year. Regenerate with `cargo run --release -p bess-bench -- --write`; CI
 fails if this block is stale.
@@ -1360,14 +1360,30 @@ reproduced); IEEE Transformers Committee, "Comparison of Loading Guide
 Standards" (IEEE C57.91 against IEC 60076-7), public. Numbers cited,
 nothing reproduced.
 
+## M3 (v0.8.0): the annual record at release
+
+The record was regenerated for the version bump, as every release
+regenerates it, and the figures are phase 2's: round trip 0.8323, import
+66,655.7 MWh, export 55,478.3 MWh, 276.5 equivalent full cycles. Of the
+four phases two touched the year: the surface at the racks' voltage
+(0.8296 to 0.8302) and the setpoint follower (to 0.8323, every hourly
+step of the plan a ramp, partial load cheaper on every loss row); the
+converter's budget never spends and its node never nears the knee in a
+clean year, the switchgear never moves, and the transformer's
+temperatures are new readings beside unchanged losses. The seventeen
+library records moved in their version string and nothing else at the
+bump. The 0.8323 sits inside the M1 field band, 0.3 points over v0.7.0.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);
   realistic auxiliary share of throughput.
 - **M2:** failure type/frequency distribution follows the EPRI incident
   taxonomy.
-- **M3:** efficiency surfaces f(P, V_dc) match the Sandia/CEC database (phase
-  1 done above); the M1 RTE gate still holds; phases 2 to 4 per
-  docs/design/m3/.
+- **M3:** efficiency surfaces f(P, V_dc) match the Sandia/CEC database
+  (done, above); the M1 RTE gate still holds with every new loss in place
+  (0.8323 at v0.8.0); the four further sections above carry the
+  gradient, the converter's knee and overload, the switchgear and the
+  transformer, each with its sources and its labeled estimates.
 - **M4:** simulated annual revenue inside public German fleet index bands.
 - **M5:** capacity fade inside published LFP field bands.
