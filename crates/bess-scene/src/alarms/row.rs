@@ -16,6 +16,7 @@ pub fn kind(event: &Event) -> &'static str {
         Event::SocResnapped { .. } => "soc_resnap",
         Event::BreakerSequenceChanged { .. } => "breaker_sequence",
         Event::SwitchOperated { .. } => "switch",
+        Event::CommandRefused { .. } => "command_refused",
     }
 }
 
@@ -36,9 +37,9 @@ pub fn node_path(event: &Event) -> String {
             rack: *rack,
         }
         .path(),
-        Event::BreakerSequenceChanged { .. } | Event::SwitchOperated { .. } => {
-            AlarmNode::Site.path()
-        }
+        Event::BreakerSequenceChanged { .. }
+        | Event::SwitchOperated { .. }
+        | Event::CommandRefused { .. } => AlarmNode::Site.path(),
     }
 }
 
@@ -66,6 +67,7 @@ pub fn what(event: &Event) -> String {
             switch.name(),
             if *closed { "closed" } else { "opened" }
         ),
+        Event::CommandRefused { command } => format!("command {command} refused"),
     }
 }
 
@@ -79,7 +81,8 @@ pub fn severity(event: &Event) -> Option<Severity> {
         | Event::FaultApplied(_)
         | Event::SocResnapped { .. }
         | Event::BreakerSequenceChanged { .. }
-        | Event::SwitchOperated { .. } => None,
+        | Event::SwitchOperated { .. }
+        | Event::CommandRefused { .. } => None,
     }
 }
 
@@ -91,7 +94,9 @@ pub fn block(event: &Event) -> Option<usize> {
         }
         Event::PcsStateChanged { block, .. } | Event::SocResnapped { block, .. } => Some(*block),
         Event::FaultApplied(action) => fault_block(action),
-        Event::BreakerSequenceChanged { .. } | Event::SwitchOperated { .. } => None,
+        Event::BreakerSequenceChanged { .. }
+        | Event::SwitchOperated { .. }
+        | Event::CommandRefused { .. } => None,
     }
 }
 
@@ -114,7 +119,9 @@ fn fault_block(action: &FaultAction) -> Option<usize> {
         | FaultAction::HvBreakerClose
         | FaultAction::Disconnectors { .. }
         | FaultAction::EarthingSwitch { .. }
-        | FaultAction::GridFrequencyOffset { .. } => None,
+        | FaultAction::GridFrequencyOffset { .. }
+        | FaultAction::ExternalLimit { .. }
+        | FaultAction::ExternalLimitClear => None,
     }
 }
 

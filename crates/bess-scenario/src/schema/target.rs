@@ -21,6 +21,8 @@ pub enum Target {
     Substation,
     /// The grid the site is connected to: a frequency event (M4 phase 1).
     Grid,
+    /// The plant controller: an operator's order (M4 phase 2).
+    Ems,
     /// A block.
     Block {
         /// Block index.
@@ -92,6 +94,9 @@ impl Target {
         }
         if parts == ["site", "grid"] {
             return Ok(Self::Grid);
+        }
+        if parts == ["site", "ems"] {
+            return Ok(Self::Ems);
         }
         let block = match indexed(parts[0], "block") {
             Some(Ok(b)) if b < cfg.blocks => b,
@@ -166,7 +171,9 @@ impl Target {
                 container,
                 rack,
             }),
-            Self::Pcs { .. } | Self::Hvac { .. } | Self::Substation | Self::Grid => None,
+            Self::Pcs { .. } | Self::Hvac { .. } | Self::Substation | Self::Grid | Self::Ems => {
+                None
+            }
         }
     }
 
@@ -183,6 +190,7 @@ impl Target {
             | FaultAction::Disconnectors { .. }
             | FaultAction::EarthingSwitch { .. } => Self::Substation,
             FaultAction::GridFrequencyOffset { .. } => Self::Grid,
+            FaultAction::ExternalLimit { .. } | FaultAction::ExternalLimitClear => Self::Ems,
             FaultAction::BlockMaintenanceEnter { block }
             | FaultAction::BlockMaintenanceExit { block }
             | FaultAction::AlarmReset(ResetScope::Block(block)) => Self::Block { block },
@@ -222,6 +230,7 @@ impl fmt::Display for Target {
             Self::Site => f.write_str("site"),
             Self::Substation => f.write_str("site.substation"),
             Self::Grid => f.write_str("site.grid"),
+            Self::Ems => f.write_str("site.ems"),
             Self::Block { block } => write!(f, "block[{block}]"),
             Self::Pcs { block } => write!(f, "block[{block}].pcs"),
             Self::Hvac { block, container } => {
@@ -240,6 +249,7 @@ fn kind_name(target: Target) -> &'static str {
     match target {
         Target::Substation => "substation",
         Target::Grid => "grid",
+        Target::Ems => "ems",
         Target::Site => "site",
         Target::Block { .. } => "block",
         Target::Pcs { .. } => "pcs",

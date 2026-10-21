@@ -12,6 +12,10 @@ Two PRs, each landing green.
 Accept: every holding register exercised over TCP in one test; the
 curtailment case's record shows the flag and the two ramps.
 
+*As built (PR #50):* as the design's as-built notes say. The scenario
+parser's physical table grew past clippy's line bound and its two
+parameterized kinds moved into helpers.
+
 ## PR2: the quarter-hour KPIs
 
 - `kernel/kpi.rs`, the eight points, the `schedule_deviation` bit, the

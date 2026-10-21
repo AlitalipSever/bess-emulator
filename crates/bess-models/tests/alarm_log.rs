@@ -58,7 +58,8 @@ fn apply(words: &mut HashMap<AlarmNode, u32>, events: &[Event]) {
             | Event::FaultApplied(_)
             | Event::SocResnapped { .. }
             | Event::BreakerSequenceChanged { .. }
-            | Event::SwitchOperated { .. } => {}
+            | Event::SwitchOperated { .. }
+            | Event::CommandRefused { .. } => {}
         }
     }
 }

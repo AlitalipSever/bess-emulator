@@ -57,6 +57,7 @@ a case is added or removed on the wrong side.
 | `unit-error-audit-trap` | controls | 4 h | the site's quantities a thousand times too large; pegged Modbus registers |
 | `alarm-chatter-storm` | controls | 2 h | a block's alarm words flap twenty times a minute; the kernel raised nothing |
 | `clock-drift-and-nan` | controls | 8 h | MQTT timestamps run ahead and step back; two minutes of `NaN` payloads |
+| `curtailment-order` | controls | 1 h | a grid operator caps the plant at 60 % for forty minutes in the evening discharge: the walk down at 10 %/min, `external_limitation` raised and `power_limited` not, the revert and the walk back |
 | `rack-self-discharge-drift` | cell | 6 days | one leaking cell widens a rack's spread to the imbalance warning on day 5 |
 | `dst-spring-forward` | calendar | 23 h | the short local day: 23 planned hours, 92 closed quarter-hours |
 | `dst-fall-back` | calendar | 25 h | the long local day: 25 planned hours, 100 closed quarter-hours, the 02:xx quarters twice |
@@ -65,8 +66,8 @@ a case is added or removed on the wrong side.
 | `substation-earthing-work` | maintenance | 3 h | the HV breaker opened by hand, the bus isolated and earthed for two hours of work, then the sequence back and the staggered return |
 | `frequency-event` | grid | 2 h | the grid dips 300 mHz and the plant raises four megawatts at once, rises 400 mHz and it cuts eight, falls to 47.4 Hz and the kernel trips the site; the reset and the return after |
 
-Eighteen cases: twelve failure cases (six `bos`, 50%; five `controls`,
-42%; one `cell`, 8%) and six that are calendar, maintenance or grid.
+Nineteen cases: thirteen failure cases (six `bos`, 46%; six `controls`,
+46%; one `cell`, 8%) and six that are calendar, maintenance or grid.
 
 ## Adding a case
 

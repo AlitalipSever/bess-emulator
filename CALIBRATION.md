@@ -1534,6 +1534,69 @@ the converters' vars, the mode and the power factor are in the tree.
 range, the three modes, reactive power at zero active power); the Sungrow
 SG2500U datasheet (apparent rating). Numbers cited, nothing reproduced.
 
+## M4 (v0.9.0, unreleased): external control, obeyed and flagged
+
+Phase 2 PR1 gives a dispatch application the registers it writes and
+the plant the discipline to obey them: an external active-power limit
+(`crates/bess-core/src/kernel/limit.rs`), the reactive settings and a
+command register on the holding bank (`map/control.rs`), the same
+commands over REST, and a flag that says when a shortfall is the
+order's.
+
+**The register shape, sourced.** The holding bank follows SunSpec's
+immediate controls (model 123, and the DER information model's 704)
+where the semantics match: a percent limit with an enable and a revert
+time (`WMaxLimPct`, `WMaxLimPct_Ena`, `WMaxLimPct_RvrtTms`), a reactive
+mode selector with its setpoints, a power factor. SunSpec's
+specifications are public; the names on this map are the map's own,
+with the SunSpec name in the CSV's description, and the addresses are
+the bank's next free words. Copying the shape costs nothing and saves an
+integrator a mapping.
+
+**The gradient, sourced.** The German TSOs' operational requirements for
+battery systems connected to the extra-high-voltage grid (May 2026,
+public on Netztransparenz) put power changes ordered by third parties
+(schedules, the operator's instructions) at 6 to 20 %/min of installed
+power. The M3 follower's 10 %/min sits inside that band, so a written
+limit is reached the way the TSOs ask without a second gradient: a 60 %
+cap on a plant at its rating is met four minutes after the write
+(`a_limit_binds_is_flagged_and_reverts`).
+
+**The flag.** `site.external_limitation` raises while the unlimited
+target exceeds the cap and clears when the cap lifts or the target
+falls under it; `power_limited` keeps its meaning (the plant could not
+deliver what it was asked) and stays clear under a binding order, so
+an operator can tell the two shortfalls apart. The curtailment case
+(`curtailment-order`) holds both.
+
+**Refusals on the log.** A command-register command the interlocks
+refuse leaves the plant unchanged and a `command_refused` event with the
+register value on the next tick, so a Modbus client that cannot read
+REST's error body still sees the refusal on the event counter
+(`the_command_register_drives_the_switchgear_and_logs_refusals`,
+`every_control_register_is_written_end_to_end` over TCP).
+
+**What it moved.** Nothing in energy; the annual record's figures are
+phase 4's (0.8323). Every library record moved: the limit and the
+reactive settings are in the tree. One new library case, `controls`.
+
+**Known gaps.**
+
+- **One gradient** for every change, as M3 noted; the band's 6 and 20
+  are not separately configurable yet.
+- **The command register carries eight verbs**; maintenance mode and
+  the HVAC failure stay REST-only until phase 2 PR2 decides.
+- **No schedule interface**: the limit caps the EMS target; a schedule
+  file (PROD/VERB series) is a later phase's.
+
+**Sources:** SunSpec Alliance, DER Information Model Specification and
+the model 123 definitions (public); the German TSOs, "Betriebliche
+Anforderungen an Batteriespeichersysteme mit Anschluss am
+Höchstspannungsnetz", May 2026, published on netztransparenz.de (the
+6 to 20 %/min band, the schedule-deviation frame, the data exchange
+that includes the state of charge and the redispatch potential).
+Numbers cited, nothing reproduced.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

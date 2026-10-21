@@ -59,6 +59,12 @@ pub(crate) struct EventSpec {
     /// `frequency_offset`: millihertz added to the driver's frequency.
     #[serde(default)]
     pub mhz: Option<i32>,
+    /// `limit`: the cap, percent of the site rating.
+    #[serde(default)]
+    pub pct: Option<f64>,
+    /// `limit`: seconds until the cap clears itself (ISO 8601 duration).
+    #[serde(default)]
+    pub revert: Option<String>,
     #[serde(default)]
     pub rate_per_min: Option<f64>,
     #[serde(default)]

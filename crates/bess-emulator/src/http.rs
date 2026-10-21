@@ -3,6 +3,7 @@
 //! summaries and events.
 
 mod alarms;
+mod control;
 mod metrics;
 mod scenario;
 
@@ -34,6 +35,9 @@ pub async fn serve(addr: SocketAddr, handle: SimHandle) {
         .route("/api/v1/setpoint", post(set_setpoint))
         .route("/api/v1/speed", post(set_speed))
         .route("/api/v1/alarms/reset", post(alarms::reset))
+        .route("/api/v1/limit", post(control::limit))
+        .route("/api/v1/reactive", post(control::reactive))
+        .route("/api/v1/substation/{switch}", post(control::switchgear))
         .route(
             "/api/v1/scenario",
             get(scenario::status).post(scenario::load),

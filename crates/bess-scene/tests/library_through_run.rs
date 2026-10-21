@@ -100,7 +100,7 @@ fn every_short_case_jumped_lands_on_its_record() {
         assert_on_record(case.name, &run, &journal);
         played += 1;
     }
-    assert_eq!(played, 16, "sixteen cases are two days or shorter");
+    assert_eq!(played, 17, "seventeen cases are two days or shorter");
 }
 
 /// Live ticks and jumps alternate, and the jumps target the event ticks

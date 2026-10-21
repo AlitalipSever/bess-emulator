@@ -48,7 +48,8 @@ fn edge(events: &[Event], node: AlarmNode, bit: u8, up: bool) -> bool {
         | Event::FaultApplied(_)
         | Event::SocResnapped { .. }
         | Event::BreakerSequenceChanged { .. }
-        | Event::SwitchOperated { .. } => false,
+        | Event::SwitchOperated { .. }
+        | Event::CommandRefused { .. } => false,
     })
 }
 

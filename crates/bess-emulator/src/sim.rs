@@ -8,7 +8,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bess_core::alarms::{AlarmNode, ResetError, ResetScope};
-use bess_core::kernel::Event;
+use bess_core::kernel::{CommandError, ControlCommand, Event};
+use bess_core::state::ReactiveMode;
 use bess_core::{PlantConfig, Simulation, SiteState};
 use bess_models::{gw01_models, gw01_weather, HistoricalWeather};
 use bess_scenario::{Resolved, RunParams};
@@ -43,6 +44,42 @@ pub enum Command {
     SetSetpointW(Option<f64>),
     /// Change the acceleration factor.
     SetSpeed(f64),
+    /// Write the external active-power limit (M4 phase 2): each field
+    /// `Some` is written, the others keep their value; a `None` limit
+    /// with `enable: Some(false)` clears it.
+    SetLimit {
+        /// Percent of the rating.
+        pct: Option<f64>,
+        /// In force or not.
+        enable: Option<bool>,
+        /// Seconds until it clears itself.
+        revert_s: Option<f64>,
+        /// Where the answer goes, when the asker wants one.
+        reply: Option<oneshot::Sender<Result<(), CommandError>>>,
+    },
+    /// Write the reactive settings (M4 phase 2): the mode and the values
+    /// the modes read, each `Some` written.
+    SetReactive {
+        /// 0 fixed cos φ, 1 fixed Q, 2 Q(U).
+        mode: Option<u16>,
+        /// Fixed reactive power, var, positive over-excited.
+        q_var: Option<f64>,
+        /// Displacement factor, 0 to 1.
+        cos_phi: Option<f64>,
+        /// Under-excited.
+        under_excited: Option<bool>,
+        /// Where the answer goes, when the asker wants one.
+        reply: Option<oneshot::Sender<Result<(), CommandError>>>,
+    },
+    /// A command-register command (M4 phase 2): the site reset, the
+    /// switchgear, clearing the limit. A refusal is answered and recorded
+    /// as an event.
+    Control {
+        /// The command.
+        command: ControlCommand,
+        /// Where the answer goes, when the asker wants one.
+        reply: Option<oneshot::Sender<Result<bool, CommandError>>>,
+    },
     /// Operator reset of the latched alarms in a scope, between two ticks.
     ResetAlarms {
         /// Which words the reset reaches.
@@ -239,6 +276,48 @@ impl Task {
                 self.speed = factor.clamp(1.0, MAX_SPEED);
                 info!(speed = self.speed, "speed changed");
             }
+            Command::SetLimit {
+                pct,
+                enable,
+                revert_s,
+                reply,
+            } => {
+                let result = self.apply_limit(pct, enable, revert_s);
+                info!(
+                    ?pct,
+                    ?enable,
+                    ?revert_s,
+                    refused = result.is_err(),
+                    "limit command"
+                );
+                if let Some(reply) = reply {
+                    let _ = reply.send(result);
+                }
+            }
+            Command::SetReactive {
+                mode,
+                q_var,
+                cos_phi,
+                under_excited,
+                reply,
+            } => {
+                let result = self.apply_reactive(mode, q_var, cos_phi, under_excited);
+                info!(?mode, refused = result.is_err(), "reactive command");
+                if let Some(reply) = reply {
+                    let _ = reply.send(result);
+                }
+            }
+            Command::Control { command, reply } => {
+                let result = self.sim.control_command(command);
+                info!(
+                    command = command.name(),
+                    refused = result.is_err(),
+                    "control command"
+                );
+                if let Some(reply) = reply {
+                    let _ = reply.send(result);
+                }
+            }
             Command::ResetAlarms { scope, reply } => {
                 let result = self.sim.reset_alarms(scope);
                 info!(?scope, refused = result.is_err(), "alarm reset command");
@@ -267,6 +346,65 @@ impl Task {
                 let _ = reply.send(status);
             }
         }
+    }
+
+    /// The limit registers (M4 phase 2): each `Some` written, the rest
+    /// kept; an enable of `false` clears the limit, a write of the
+    /// percent alone enables it.
+    fn apply_limit(
+        &mut self,
+        pct: Option<f64>,
+        enable: Option<bool>,
+        revert_s: Option<f64>,
+    ) -> Result<(), CommandError> {
+        let current = self.sim.state().ems.external_limit;
+        if enable.unwrap_or(current.enabled || pct.is_some()) {
+            self.sim.set_external_limit(
+                pct.unwrap_or(current.pct_of_rated),
+                revert_s.unwrap_or(current.revert_s),
+            )
+        } else {
+            self.sim.clear_external_limit();
+            Ok(())
+        }
+    }
+
+    /// The reactive registers (M4 phase 2): the settings a mode does not
+    /// read are kept for the bank to read back, so every write goes
+    /// through the kernel's mode setter once per setting.
+    fn apply_reactive(
+        &mut self,
+        mode: Option<u16>,
+        q_var: Option<f64>,
+        cos_phi: Option<f64>,
+        under_excited: Option<bool>,
+    ) -> Result<(), CommandError> {
+        let ems = &self.sim.state().ems;
+        let cos_phi = cos_phi.unwrap_or(ems.reactive_cos_phi);
+        let under_excited = under_excited.unwrap_or(ems.reactive_under_excited);
+        let var = q_var.unwrap_or(ems.reactive_q_var);
+        let code = mode.unwrap_or(ems.reactive_mode.code());
+        if !(0.0..=1.0).contains(&cos_phi) || !var.is_finite() {
+            return Err(CommandError::OutOfRange(
+                "cos phi 0 to 1, a finite setpoint",
+            ));
+        }
+        let mode = match code {
+            0 => ReactiveMode::FixedCosPhi {
+                cos_phi,
+                under_excited,
+            },
+            1 => ReactiveMode::FixedQ { var },
+            2 => ReactiveMode::QofU,
+            _ => return Err(CommandError::OutOfRange("reactive mode 0, 1 or 2")),
+        };
+        self.sim.set_reactive_mode(ReactiveMode::FixedCosPhi {
+            cos_phi,
+            under_excited,
+        });
+        self.sim.set_reactive_mode(ReactiveMode::FixedQ { var });
+        self.sim.set_reactive_mode(mode);
+        Ok(())
     }
 
     /// Fire what the scenario has due, step one tick, publish.

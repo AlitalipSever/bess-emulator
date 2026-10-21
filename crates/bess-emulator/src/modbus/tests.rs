@@ -14,7 +14,11 @@ use tokio_modbus::slave::Slave;
 
 use super::serve;
 use crate::fixtures::{self, HOT_BLOCK};
-use crate::map::{HOLDING_MODE_ADDR, HOLDING_SETPOINT_ADDR};
+use crate::map::{
+    HOLDING_COMMAND_ADDR, HOLDING_COS_PHI_ADDR, HOLDING_COS_PHI_UNDER_ADDR,
+    HOLDING_LIMIT_ENABLE_ADDR, HOLDING_LIMIT_PCT_ADDR, HOLDING_LIMIT_REVERT_ADDR,
+    HOLDING_MODE_ADDR, HOLDING_Q_MODE_ADDR, HOLDING_Q_SETPOINT_ADDR, HOLDING_SETPOINT_ADDR,
+};
 use crate::sim;
 
 /// The command line's defaults at full speed.
@@ -81,6 +85,91 @@ async fn modbus_read_write_closed_loop() {
     // Out-of-map access is rejected, not silently served.
     let err = ctx.read_input_registers(60_000, 2).await.unwrap();
     assert!(err.is_err());
+}
+
+async fn holding(ctx: &mut Context, addr: u16) -> u16 {
+    ctx.read_holding_registers(addr, 1).await.unwrap().unwrap()[0]
+}
+
+async fn write(ctx: &mut Context, addr: u16, word: u16) {
+    ctx.write_single_register(addr, word)
+        .await
+        .unwrap()
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+}
+
+/// Every holding register of the control surface (M4 phase 2) written
+/// over TCP and read back from the state it commands: the limit with its
+/// enable and revert time, the reactive mode with its setpoints, and the
+/// command register's switchgear and refusals on the event counter.
+#[tokio::test(flavor = "multi_thread")]
+async fn every_control_register_is_written_end_to_end() {
+    let addr: SocketAddr = "127.0.0.1:15505".parse().unwrap();
+    let (handle, _sim_task) = sim::spawn(test_params(), None, false);
+    tokio::spawn(serve(addr, handle.clone()));
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let mut ctx = tcp::connect_slave(addr, Slave(1)).await.unwrap();
+
+    // The limit: 60.0 % enabled with a long revert time (the plant runs
+    // at full speed here, thousands of ticks a second, so the timer is
+    // read as "still counting", not to the second).
+    write(&mut ctx, HOLDING_LIMIT_PCT_ADDR, 600).await;
+    write(&mut ctx, HOLDING_LIMIT_REVERT_ADDR, 60_000).await;
+    write(&mut ctx, HOLDING_LIMIT_ENABLE_ADDR, 1).await;
+    assert_eq!(holding(&mut ctx, HOLDING_LIMIT_PCT_ADDR).await, 600);
+    assert_eq!(holding(&mut ctx, HOLDING_LIMIT_ENABLE_ADDR).await, 1);
+    let revert = holding(&mut ctx, HOLDING_LIMIT_REVERT_ADDR).await;
+    assert!((40_000..=60_000).contains(&revert), "revert {revert}");
+    assert!(handle.snapshot.borrow().state.ems.external_limit.enabled);
+    assert!(ctx
+        .write_single_register(HOLDING_LIMIT_PCT_ADDR, 1001)
+        .await
+        .unwrap()
+        .is_err());
+
+    // The reactive settings: cos φ 0.950 under-excited, then fixed Q of
+    // 20 000 kvar, then Q(U).
+    write(&mut ctx, HOLDING_COS_PHI_ADDR, 950).await;
+    write(&mut ctx, HOLDING_COS_PHI_UNDER_ADDR, 1).await;
+    assert_eq!(holding(&mut ctx, HOLDING_COS_PHI_ADDR).await, 950);
+    assert_eq!(holding(&mut ctx, HOLDING_COS_PHI_UNDER_ADDR).await, 1);
+    let kvar: i32 = 20_000;
+    let words = [(kvar as u32 >> 16) as u16, (kvar as u32 & 0xFFFF) as u16];
+    ctx.write_multiple_registers(HOLDING_Q_SETPOINT_ADDR, &words)
+        .await
+        .unwrap()
+        .unwrap();
+    write(&mut ctx, HOLDING_Q_MODE_ADDR, 1).await;
+    let q = ctx
+        .read_holding_registers(HOLDING_Q_SETPOINT_ADDR, 2)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(((u32::from(q[0]) << 16) | u32::from(q[1])) as i32, kvar);
+    assert_eq!(holding(&mut ctx, HOLDING_Q_MODE_ADDR).await, 1);
+    write(&mut ctx, HOLDING_Q_MODE_ADDR, 2).await;
+    assert_eq!(holding(&mut ctx, HOLDING_Q_MODE_ADDR).await, 2);
+    assert!(ctx
+        .write_single_register(HOLDING_Q_MODE_ADDR, 3)
+        .await
+        .unwrap()
+        .is_err());
+
+    // The command register: a refused move counts on the event counter
+    // and the register reads zero; clearing the limit through it works.
+    let counter = read(&mut ctx, 43).await;
+    write(&mut ctx, HOLDING_COMMAND_ADDR, 7).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_ne!(read(&mut ctx, 43).await, counter, "the refusal was logged");
+    assert_eq!(holding(&mut ctx, HOLDING_COMMAND_ADDR).await, 0);
+    write(&mut ctx, HOLDING_COMMAND_ADDR, 8).await;
+    assert_eq!(holding(&mut ctx, HOLDING_LIMIT_ENABLE_ADDR).await, 0);
+    assert!(ctx
+        .write_single_register(HOLDING_COMMAND_ADDR, 9)
+        .await
+        .unwrap()
+        .is_err());
 }
 
 async fn read(ctx: &mut Context, addr: u16) -> u16 {

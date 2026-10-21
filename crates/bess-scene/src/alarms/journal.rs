@@ -65,7 +65,8 @@ impl Journal {
                 | Event::FaultApplied(_)
                 | Event::SocResnapped { .. }
                 | Event::BreakerSequenceChanged { .. }
-                | Event::SwitchOperated { .. } => {}
+                | Event::SwitchOperated { .. }
+                | Event::CommandRefused { .. } => {}
             }
             if self.entries.len() == CAPACITY {
                 self.entries.pop_front();
