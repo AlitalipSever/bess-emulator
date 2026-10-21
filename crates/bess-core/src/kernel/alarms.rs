@@ -13,7 +13,7 @@ use crate::alarms::{
 use crate::config::PlantConfig;
 use crate::state::{BlockMode, BlockState, BreakerState, PcsOpState, SiteState};
 
-use super::restart::dispatchable;
+use super::restart::{self, dispatchable};
 use super::setpoint::SetpointDynamics;
 use super::{Event, Simulation};
 
@@ -142,11 +142,44 @@ fn evaluate_site(state: &SiteState, cfg: &PlantConfig, th: &BlockSiteThresholds)
         .any(|(k, blk)| !dispatchable(blk, k, &state.ems, !breaker_open))
         || state.racks().any(|r| !r.in_service);
 
+    let hot = rising(
+        has_bit(word, s::TRANSFORMER_OVER_TEMPERATURE),
+        state.substation.hot_spot_c,
+        th.transformer_hot_spot_c,
+    );
+
     let mut next = word;
     next = with_bit(next, s::POWER_LIMITED, limited);
     next = with_bit(next, s::PARTIAL_AVAILABILITY, partial);
     next = with_bit(next, s::HV_BREAKER_OPEN, breaker_open);
+    next = with_bit(next, s::TRANSFORMER_OVER_TEMPERATURE, hot);
     next
+}
+
+/// Trip the site on `bit`: the latched raise, the breaker open, every PCS
+/// to `Fault`, the return started over. Shared by the operator's
+/// protection trip (between ticks, into the pending events) and the
+/// kernel's own transformer trip (inside the tick, into its events).
+pub(super) fn trip_site(state: &mut SiteState, bit: u8, events: &mut Vec<Event>) {
+    state.alarm_bits = with_bit(state.alarm_bits, bit, true);
+    events.push(Event::AlarmRaised {
+        node: AlarmNode::Site,
+        bit,
+        severity: Severity::of_bit(bit),
+    });
+    state.substation.hv_breaker = BreakerState::Open;
+    restart::start_over(&mut state.ems);
+    for (block, b) in state.blocks.iter_mut().enumerate() {
+        let from = b.pcs.op_state;
+        if from != PcsOpState::Fault {
+            b.pcs.op_state = PcsOpState::Fault;
+            events.push(Event::PcsStateChanged {
+                block,
+                from,
+                to: PcsOpState::Fault,
+            });
+        }
+    }
 }
 
 impl Simulation {
@@ -155,6 +188,14 @@ impl Simulation {
     /// it is handed out, so the counter a poller reads never runs ahead of
     /// what any surface could have seen.
     pub(super) fn close_tick_alarms(&mut self) {
+        // The transformer's own protection: a hot spot at the long-term
+        // emergency limit trips the site from inside the tick, so the
+        // breaker is open before this tick's site word is read.
+        if self.state.substation.hot_spot_c >= self.thresholds.transformer_trip_c
+            && !has_bit(self.state.alarm_bits, s::TRANSFORMER_TRIP)
+        {
+            trip_site(&mut self.state, s::TRANSFORMER_TRIP, &mut self.events);
+        }
         let word = evaluate_site(&self.state, &self.cfg, &self.thresholds);
         push_changes(
             &mut self.events,

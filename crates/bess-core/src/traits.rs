@@ -196,11 +196,23 @@ pub trait AuxiliaryModel: Send + Sync {
     fn step_site(&self, demand: AuxDemand) -> AuxPower;
 }
 
+/// What the grid and the sky hand the substation this tick.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GridConditions {
+    /// Grid frequency at the POI, Hz.
+    pub frequency_hz: f64,
+    /// Grid voltage at the POI, per unit of nominal.
+    pub voltage_pu: f64,
+    /// Ambient air at the transformer, °C.
+    pub ambient_c: f64,
+}
+
 /// Substation and grid coupling.
 pub trait GridInterface: Send + Sync {
     /// Propagate the total PCS AC power and the site auxiliary load through
-    /// the substation to the POI: transformer losses, POI measurements,
-    /// energy meters, and grid frequency pass-through. The auxiliary total
+    /// the substation to the POI: transformer losses and temperatures, the
+    /// tap changer and the MV bus, POI measurements, energy meters, and
+    /// grid frequency and voltage pass-through. The auxiliary total
     /// arrives itemized from the auxiliary model; the substation meters it
     /// rather than inventing it.
     fn step(
@@ -208,7 +220,7 @@ pub trait GridInterface: Send + Sync {
         substation: &mut SubstationState,
         p_ac_total_w: f64,
         aux_w: f64,
-        frequency_hz: f64,
+        grid: GridConditions,
         dt_s: f64,
     );
 }

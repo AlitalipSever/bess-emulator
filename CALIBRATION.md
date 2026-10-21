@@ -1286,6 +1286,80 @@ breakers (closing times, public summaries); IEC 62271-102,
 alternating-current disconnectors and earthing switches (the interlock
 requirements, public summaries). Numbers cited, nothing reproduced.
 
+## M3 (v0.8.0): the transformer's temperatures and the tap changer
+
+The main transformer has two temperatures and a tap. The temperatures
+are IEC 60076-7's: a top-oil rise over the ambient driven by the load
+factor through the oil exponent, and a hot-spot rise over the top oil as
+the difference of two first-order responses driven by the load factor
+through the winding exponent, in the standard's difference-equation form
+(`crates/bess-models/src/grid/thermal.rs`). The fractional powers come
+from a `pow` built of arithmetic and square roots
+(`crates/bess-models/src/math.rs`, held to `f64::powf` within parts in
+1e12), so the kernel keeps its byte-identity across platforms. The tap
+changer holds the MV bus at nominal against the grid's swing and the
+transformer's own drop.
+
+**Rated rises, sourced.** 60 K top-oil rise and 78 K hot-spot rise over
+the ambient at rated load are IEC 60076-2's temperature-rise limits for
+mineral-oil units, public and widely cited (the IEEE/IEC loading-guide
+comparison quotes the IEC column as 65 K average winding, 78 K hot
+spot, 98 °C absolute at the 20 °C life ambient). The gate
+`the_rated_rises_are_the_steady_state` holds the model to both after a
+day at rated load. **The constants, labeled.** The ONAF column of the
+standard's table of recommended thermal characteristics, as the open
+literature reproduces it: oil exponent 0.8, winding exponent 1.3, k11
+0.5, k21 2.0, k22 2.0, oil time constant 150 min, winding 7 min. The
+table is the standard's text, which is sold; the figures are stated
+here as reproduced, not as read from it, and the standard's worked
+example (Annex) is not reproduced for the same reason: that gate stays
+open. The loss ratio (6) is the M0 constants' (600 kW over 100 kW).
+
+**The limits, sourced.** 120 °C hot spot for normal cyclic loading and
+140 °C for long-term emergency loading, IEC 60076-7's limits for power
+transformers, public in every loading-guide summary; the warning raises
+at the first and clears 10 K under it, the kernel trips the site at the
+second (`transformer_trip`, latched, cleared by the site reset), and the
+IEEE/IEC comparison's note that operation above 140 °C may cause
+gassing is the reason the second is a trip and not a warning.
+
+**The tap changer, labeled.** ±8 steps of 1.25 % (17 positions, ±10 %),
+the common range of an HV/MV power transformer's on-load tap changer; a
+1.5 % dead band (a little over one step, so the regulator cannot hunt)
+and a 60 s delay. No datasheet pinned. The grid voltage it works against
+is a ±2 % daily triangle (highest at 04:00, lowest at 16:00), a synthetic
+input until M4 replays a measured series, and the transformer's
+resistive drop is 0.6 % at rating, the copper losses over the rating.
+
+**What it moved.** The energy did not: the transformer's losses are the
+M0 constants' still, so the annual record is phase 3's figure for
+figure. The temperatures and the bus are new readings: on the plan's
+summer days the hot spot swings by tens of kelvin between the night
+charge and the evening discharge and stays under 120 °C; on the
+hot-week case it peaks at 98.5 °C with the top oil at 76.6 °C, 21 K
+under the normal-cyclic limit, and the tap moves between -1 and +1
+holding the bus between 32.5 and 33.5 kV. `site.poi.voltage_kv` swings
+with the grid now instead of reading the nominal.
+
+**Known gaps.**
+
+- **The worked example** is not reproduced, above.
+- **The constants and the tap changer** are labeled, above.
+- **One hot spot.** No bottom oil, no per-winding gradients, no ageing
+  rate; the two temperatures are what the transformer's monitor
+  publishes.
+- **Unity power factor.** The MV bus sees the resistive drop only;
+  reactive power and the reactance's drop are M4's.
+
+**Sources:** IEC 60076-2, power transformers, temperature rise for
+liquid-immersed transformers (the rise limits, public summaries); IEC
+60076-7:2018, loading guide for mineral-oil-immersed power transformers
+(the model's structure and the temperature limits, public summaries;
+the recommended-characteristics table and the Annex example not
+reproduced); IEEE Transformers Committee, "Comparison of Loading Guide
+Standards" (IEEE C57.91 against IEC 60076-7), public. Numbers cited,
+nothing reproduced.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

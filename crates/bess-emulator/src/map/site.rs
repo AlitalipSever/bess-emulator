@@ -158,6 +158,49 @@ pub(super) fn points() -> Vec<Point> {
                 s.substation.earthing_switch == SwitchPosition::Closed
             ))
         ),
+        // The main transformer and the MV bus (M3 phase 4): two
+        // temperatures through thermometers, the tap position exact, the
+        // bus voltage through the substation's VT chain.
+        point!(
+            "site.transformer.top_oil_c",
+            "degC",
+            Medium,
+            I16,
+            10.0,
+            55,
+            Input,
+            |s: &SiteState| s.substation.top_oil_c
+        ),
+        point!(
+            "site.transformer.hot_spot_c",
+            "degC",
+            Medium,
+            I16,
+            10.0,
+            56,
+            Input,
+            |s: &SiteState| s.substation.hot_spot_c
+        ),
+        point!(
+            "site.transformer.tap_position",
+            "step",
+            Medium,
+            I16,
+            1.0,
+            57,
+            Input,
+            |s: &SiteState| f64::from(s.substation.tap_position)
+        ),
+        point!(
+            "site.mv_bus.voltage_kv",
+            "kV",
+            Fast,
+            U16,
+            100.0,
+            58,
+            Input,
+            |s: &SiteState| s.substation.mv_bus_voltage_kv
+        ),
         point!(
             "site.substation.hv_breaker_closed",
             "bool",

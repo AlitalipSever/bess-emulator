@@ -11,6 +11,7 @@ pub mod calendar;
 pub mod cell;
 pub mod ems;
 pub mod grid;
+pub mod math;
 pub mod pcs;
 pub mod thermal;
 pub mod weather;

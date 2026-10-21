@@ -24,6 +24,11 @@ const TICKS: u64 = 4 * 3600;
 /// If a deliberate model or state-schema change moves this value, update it
 /// from the number printed by the failing assertion. Any other change that
 /// moves it is a broken determinism contract. Last regenerated in M3
+/// phase 4 PR2, for schema and the substation's own physics: the grid
+/// voltage input swings, the POI voltage follows it, the MV bus and the
+/// tap position are state, and the transformer's two temperatures move
+/// with the night charge; the racks and converters did not move
+/// (0x1610_fdd6_d23a_caf1 before). Before that, M3
 /// phase 4 PR1, for schema alone: the substation carries its disconnector
 /// and earthing-switch positions and the breaker's closing sequence,
 /// none of which move in these four hours; 0xbcc3_d38e_983b_1b37 before.
@@ -74,7 +79,7 @@ const TICKS: u64 = 4 * 3600;
 /// two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC),
 /// 0x1446_6f26_c751_bc02 (M1 PR5, the auxiliary inventory),
 /// 0xcd26_9803_d062_e1ad (M2 phase 1 PR2, cell spread and balancing).
-const GOLDEN_DIGEST: u64 = 0x1610_fdd6_d23a_caf1;
+const GOLDEN_DIGEST: u64 = 0x6944_3f7f_0627_570e;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();

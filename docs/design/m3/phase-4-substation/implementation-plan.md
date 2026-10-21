@@ -28,6 +28,12 @@ Accept: the IEC worked example reproduced; the hot-week record shows
 the hot spot's daily swing; the MV bus voltage steps in the published
 step.
 
+*As built (PR #45):* as the design's as-built notes say. The worked
+example is not reproduced (the standard's text, not public); the rated
+rises are the gate. The hot-week case's header carries the hot spot's
+swing; no new case. The MV bus steps in 1.25 % and the tap follows the
+synthetic ±2 % daily swing of the grid voltage, a new kernel input.
+
 ## PR3: release v0.8.0
 
 - Version bump, records regenerated (version only), ROADMAP M3 done,
