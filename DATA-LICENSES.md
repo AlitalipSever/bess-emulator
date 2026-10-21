@@ -37,6 +37,25 @@ arriving with `bess-data`; each will be added to this
 table with its exact source and terms before the first commit that
 references it.
 
+### M4 sources, recorded ahead of landing
+
+Per the policy's first rule, the series M4 reaches for are listed here
+before any of them enters the tree, with the handling each one's terms
+allow. Read on 2026-10-21; the design is in `docs/design/m4/`.
+
+| Series | Source and terms | Handling |
+|---|---|---|
+| Grid frequency, 1 s, Continental Europe, from 2022-05 | Energy-Charts / Fraunhofer ISE, API `v2/frequency` (measured in Freiburg; three days per request). Terms on the site: free for non-commercial and journalistic use with attribution "Energy-Charts / Fraunhofer ISE". Not compatible with MIT OR Apache-2.0 redistribution | never bundled; `fetch-frequency.sh` and `compile-frequency` for the user, replayed by path; the bundled driver is a synthetic series calibrated to published statistics (Rydin Gorjão et al., Nature Communications 2020, CC BY 4.0) |
+| Grid frequency, 1 s, 2012 to 2022 | Netztransparenz "Sekündliche Frequenz" archive (the TSOs: content under copyright, reproduction with written consent only); the TransnetBW series republished on Zenodo (Kruse, Schäfer, Witthaut, record 5105820) by permission, not under an open licence | not bundled; cited as the statistics' provenance only |
+| FCR and aFRR tender results, 2024 (capacity settlement price per four-hour block; aFRR marginal energy price per quarter-hour) | regelleistung.net data centre, download API `apps/cpp-publisher/api/v1/download/tenders/resultsoverview` (daily files, no login). No licence statement found on the platform | not bundled; `fetch-balancing.sh` and `compile-balancing` for the user; annual figures per block and direction cited as numbers in CALIBRATION.md and code constants, the download named |
+| aFRR per-second request (SRL-Sollwert) and quarter-hourly activated energy | Netztransparenz, web API behind registration; terms as above | not bundled; `fetch-afrr.sh` for the user; the bundled request is synthetic, calibrated to the SMARD balancing volumes below |
+| Imbalance price (reBAP) and balancing volumes, DE-LU, quarter-hourly, 2024 | Bundesnetzagentur / SMARD, chart-data filters 4998 (price), 4996 and 4997 (volume + and −), CC BY 4.0, attribution "Bundesnetzagentur \| SMARD.de" | to be bundled in M4 phase 3 (`compile-rebap`, hash pinned), with a compilation record below it |
+
+SMARD withdrew its balancing-reserve series (primary, secondary and
+minute reserve prices and volumes) on 2025-05-22 (SMARD user manual,
+section 4.3), so the reserve prices cannot come from the CC BY source
+the day-ahead year came from.
+
 ### DWD Lindenberg 2024: compilation record
 
 Compiled 2026-08-19 from the DWD CDC hourly archives current on that date.
