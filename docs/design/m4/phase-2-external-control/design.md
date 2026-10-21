@@ -1,0 +1,70 @@
+# M4 phase 2: external control and reporting, design
+
+Each decision is proposed here and confirmed or revised in its PR.
+
+## Decisions
+
+- **D1, the holding bank follows SunSpec's immediate-controls shape**
+  (model 123 / DER model 704): a percent limit with an enable and a
+  revert time, a reactive setpoint with a mode selector, a power
+  factor. SunSpec is the one public register model every integrator has
+  met; copying its names where the semantics match (`WMaxLimPct`,
+  `OutPFSet`, `VArWMaxPct`) costs nothing and saves a mapping. The
+  addresses are ours (the bank's next free words), the names on the map
+  are ours (`control.p_limit_pct`, `control.p_limit_enable`,
+  `control.p_limit_revert_s`, `control.q_mode`, `control.q_setpoint_kvar`,
+  `control.cos_phi_x1000`, `control.command`), with the SunSpec name in
+  the CSV's description column.
+- **D2, a command register for the one-shot commands.** `control.command`
+  (write-only in effect, reads zero): 1 site reset, 2 breaker open, 3
+  breaker close, 4 disconnectors open, 5 close, 6 earthing open, 7 close,
+  8 clear limit. A refused command leaves the plant unchanged and raises
+  the next event-counter value with a `command_refused` event naming
+  the interlock, so a Modbus client that cannot see REST's error body
+  still sees the refusal.
+- **D3, the gradient is the follower's.** The TSOs' May 2026 operational
+  requirements for EHV-connected batteries put third-party power
+  changes at 6 to 20 %/min of installed power; the M3 follower's 10 %/min
+  sits inside. No second gradient: the plant has one way of moving.
+- **D4, the KPIs are the TSOs' two figures.** The same document binds
+  the quarter-hour mean of feed-in or withdrawal to the schedule
+  within a frame the operator sets, and asks for the state of charge
+  and the full technical redispatch potential in the data exchange.
+  The plant publishes the quarter-hour deviation (`site.kpi.schedule_
+  deviation_kw`, signed, and `_pct`), the availability
+  (`site.kpi.availability_pct`, discharge and charge), the tracking RMS
+  (`site.kpi.tracking_rms_kw`), the period count, and the redispatch
+  potential as the energy the plant could still move in each direction
+  (`site.kpi.redispatch_up_mwh`, `_down_mwh`, from the SoC window and
+  the available power). A `schedule_deviation` site bit (6, warning)
+  raises when the last period's deviation exceeds a configured frame
+  (default 5 % of rated, labeled; the document leaves the frame to the
+  operator).
+- **D5, checkpoint bump.** Format 18: the limit and its timer, the
+  KPI accumulators and the last closed period.
+- **D6, points.** Holding registers 3 to 9 as named in D1 and D2; site
+  inputs 62 to 69 for the KPIs; the two site bits.
+
+## Signal map impact
+
+Seven holding registers, eight site inputs, two site bits, one event
+kind (`command_refused`). Map 0.6.0.
+
+## Checkpoint impact
+
+One format bump (D5).
+
+## Test plan
+
+- **Unit: the limit** binds both directions, reverts on its timer,
+  raises and clears the flag, and composes with the LFSM cut (the lower
+  of the two wins).
+- **Integration: Modbus end to end** (the closed-loop test extended):
+  every holding register written over TCP, read back, and the plant's
+  state checked; a refused command's event on the stream.
+- **Unit: the KPIs** on a hand-built quarter-hour: scheduled mean,
+  metered mean, deviation, availability with one block in maintenance.
+- **Integration:** a new library case `curtailment-order` (a 60 % limit
+  written at 18:10 for 40 min during the evening discharge; the flag,
+  the ramp down at 10 %/min, the revert, the ramp back); the
+  `schedule_deviation` bit on the staggered-return case.
