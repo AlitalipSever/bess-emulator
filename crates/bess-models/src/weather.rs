@@ -14,7 +14,7 @@ use std::f64::consts::{PI, TAU};
 use std::fmt;
 
 use bess_core::kernel::{Inputs, Weather};
-use bess_data::{FrequencyYear, HourSample, WeatherYear};
+use bess_data::{AfrrRequestYear, FrequencyYear, HourSample, WeatherYear};
 
 use crate::calendar::{reference_position_h, reference_second};
 // Re-exported where it always lived, so callers do not notice the move.
@@ -22,7 +22,9 @@ pub use crate::calendar::month_day_from_unix_days;
 
 // The grid drivers moved to `grid_signal` in M4 phase 1; re-exported
 // where they always lived.
-pub use crate::grid_signal::{synthetic_grid_frequency_hz, synthetic_grid_voltage_pu};
+pub use crate::grid_signal::{
+    synthetic_afrr_request_pu, synthetic_grid_frequency_hz, synthetic_grid_voltage_pu,
+};
 
 /// Synthetic diurnal weather and grid-frequency driver.
 ///
@@ -66,6 +68,7 @@ impl SyntheticWeather {
             },
             grid_frequency_hz: synthetic_grid_frequency_hz(unix_time_s),
             grid_voltage_pu: synthetic_grid_voltage_pu(unix_time_s),
+            afrr_request_pu: synthetic_afrr_request_pu(unix_time_s),
         }
     }
 }
@@ -100,6 +103,9 @@ pub struct HistoricalWeather {
     /// A measured frequency year to replay (M4 phase 1), or the
     /// synthetic series when none is attached.
     frequency: Option<&'static FrequencyYear>,
+    /// A replayed aFRR request year (M4 phase 3), or the synthetic
+    /// request when none is attached.
+    afrr: Option<&'static AfrrRequestYear>,
 }
 
 impl fmt::Debug for HistoricalWeather {
@@ -109,6 +115,7 @@ impl fmt::Debug for HistoricalWeather {
             .field("year", &self.year.year())
             .field("station_id", &self.year.station_id())
             .field("frequency", &self.frequency.map(FrequencyYear::hash))
+            .field("afrr", &self.afrr.map(AfrrRequestYear::hash))
             .finish()
     }
 }
@@ -124,7 +131,22 @@ impl HistoricalWeather {
         Self {
             year,
             frequency: None,
+            afrr: None,
         }
+    }
+
+    /// The same driver replaying a compiled aFRR request year.
+    #[must_use]
+    pub fn with_afrr(self, afrr: &'static AfrrRequestYear) -> Self {
+        Self {
+            afrr: Some(afrr),
+            ..self
+        }
+    }
+
+    /// The aFRR request year being replayed, if one is attached.
+    pub fn afrr(&self) -> Option<&'static AfrrRequestYear> {
+        self.afrr
     }
 
     /// The same driver replaying a measured frequency year instead of the
@@ -161,6 +183,10 @@ impl HistoricalWeather {
                 None => synthetic_grid_frequency_hz(unix_time_s),
             },
             grid_voltage_pu: synthetic_grid_voltage_pu(unix_time_s),
+            afrr_request_pu: match self.afrr {
+                Some(year) => year.request_pu_at(reference_second(unix_time_s, year.year())),
+                None => synthetic_afrr_request_pu(unix_time_s),
+            },
         }
     }
 

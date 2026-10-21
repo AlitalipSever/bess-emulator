@@ -37,7 +37,7 @@ pub use fault::{FaultAction, FaultError};
 pub use gridcode::{FcrDroop, GridCode, GridCodeState};
 pub use kpi::{KpiMeter, KpiTick};
 pub use limit::{ControlCommand, ExternalLimit};
-pub use market::{Awards, Product, Reservoir, ReservoirRules};
+pub use market::{AfrrRules, Awards, Product, Reservoir, ReservoirRules};
 pub use reactive::ReactiveControl;
 use restart::dispatchable;
 pub use restart::ReturnPolicy;
@@ -69,6 +69,10 @@ pub struct Inputs {
     /// Grid voltage at the POI, per unit of nominal (M3 phase 4; synthetic
     /// until M4 replays a series).
     pub grid_voltage_pu: f64,
+    /// The TSO's aFRR request, −1 to 1 of the awarded power: positive to
+    /// deliver, negative to absorb (M4 phase 3 PR2). Synthetic or
+    /// replayed by the driver; nothing without an award.
+    pub afrr_request_pu: f64,
 }
 
 /// A running simulation: configuration, model bundle, and the state tree.
@@ -86,6 +90,7 @@ pub struct Simulation {
     droop: FcrDroop,
     reactive: ReactiveControl,
     reservoir: ReservoirRules,
+    afrr: AfrrRules,
     scratch: Scratch,
 }
 
@@ -114,6 +119,7 @@ impl Simulation {
             droop: FcrDroop::default(),
             reactive: ReactiveControl::default(),
             reservoir: ReservoirRules::default(),
+            afrr: AfrrRules::default(),
             scratch: Scratch {
                 rack_limits: vec![PowerLimits::default(); racks_per_block],
                 bms_heat: vec![0.0; racks_per_block],
@@ -226,6 +232,54 @@ impl Simulation {
         let capped = target_w.clamp(-(rated - down).max(0.0), (rated - up).max(0.0));
         // The reservoir's scheduled transaction rides on the plan.
         (capped + self.state.ems.reservoir.transaction_w).clamp(-rated, rated)
+    }
+
+    /// Steps 1b to 1d of the tick: the frequency the plant sees, and
+    /// everything the converters follow without the ramp, W: the
+    /// grid-code response at that frequency, the FCR reservoir's charge
+    /// management, and the aFRR service.
+    fn fast_terms(&mut self, inputs: &Inputs, connected: bool, dt_s: f64) -> (f64, f64) {
+        let (frequency_hz, grid_w) = self.grid_response(inputs, connected, dt_s);
+        let fast_w = grid_w
+            + self.manage_reservoir(frequency_hz, dt_s)
+            + self.serve_afrr(inputs.afrr_request_pu, connected, dt_s);
+        (frequency_hz, fast_w)
+    }
+
+    /// Step 1d of the tick: the aFRR service (M4 phase 3 PR2). The TSO's
+    /// request, a fraction of the award in its direction, is followed at
+    /// the prequalification's gradient as a fast term, and the activated
+    /// energy is metered by direction. A disconnected site serves nothing.
+    fn serve_afrr(&mut self, request_pu: f64, connected: bool, dt_s: f64) -> f64 {
+        let ems = &mut self.state.ems;
+        ems.afrr_request_pu = request_pu.clamp(-1.0, 1.0);
+        let target_w = if !connected {
+            0.0
+        } else if request_pu >= 0.0 {
+            request_pu.min(1.0) * ems.awards.afrr_pos_w
+        } else {
+            request_pu.max(-1.0) * ems.awards.afrr_neg_w
+        };
+        let award_w = ems.awards.afrr_pos_w.max(ems.awards.afrr_neg_w);
+        let step = self.afrr.gradient_pu_per_s * award_w * dt_s;
+        let y = ems.afrr_followed_w;
+        ems.afrr_followed_w = if award_w <= 0.0 {
+            0.0
+        } else {
+            target_w.clamp(y - step, y + step)
+        };
+        let wh = ems.afrr_followed_w * dt_s / 3600.0;
+        if wh >= 0.0 {
+            ems.afrr_energy_pos_wh += wh;
+        } else {
+            ems.afrr_energy_neg_wh -= wh;
+        }
+        ems.afrr_followed_w
+    }
+
+    /// Replace the aFRR service's rules (M4 phase 3). Research runs.
+    pub fn set_afrr_rules(&mut self, rules: AfrrRules) {
+        self.afrr = rules;
     }
 
     /// Step 1c of the tick: the reservoir's charge management for the
@@ -485,8 +539,7 @@ impl Simulation {
         let target_w = self.take_awards(target_w);
         let target_w = self.apply_external_limit(target_w, dt_s);
         self.state.ems.site_setpoint_w = target_w;
-        let (frequency_hz, fast_site_w) = self.grid_response(inputs, connected, dt_s);
-        let fast_site_w = fast_site_w + self.manage_reservoir(frequency_hz, dt_s);
+        let (frequency_hz, fast_site_w) = self.fast_terms(inputs, connected, dt_s);
 
         // 2. Allocate the target evenly over the dispatchable blocks: in
         //    service, not in fault, released by the return sequencer. The

@@ -54,6 +54,7 @@ pub const CASES: &[Case] = &[
     case!("substation-earthing-work"),
     case!("frequency-event"),
     case!("fcr-block"),
+    case!("afrr-activation-day"),
 ];
 
 /// Longest a headline may be, characters: a paragraph, not a page.

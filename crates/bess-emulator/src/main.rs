@@ -66,6 +66,23 @@ fn main() -> ExitCode {
         }
     }
 
+    if let Some(path) = &args.afrr {
+        match bess_models::AfrrRequestYear::load(path) {
+            Ok(year) => {
+                let hash = year.hash();
+                if bess_models::replay_afrr(year).is_none() {
+                    error!("an aFRR request year is already attached");
+                    return ExitCode::FAILURE;
+                }
+                info!(path = %path.display(), hash = format!("{hash:#018x}"), "aFRR request year attached");
+            }
+            Err(err) => {
+                error!("{err}");
+                return ExitCode::FAILURE;
+            }
+        }
+    }
+
     if let Some(path) = &args.balancing {
         match bess_models::BalancingYear::load(path) {
             Ok(year) => {

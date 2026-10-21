@@ -1,7 +1,7 @@
 # M4: EMS and market signals
 
 Status: designed 2026-10-21 after M3 shipped as v0.8.0; phase 1 landed
-the same day (PRs #48 and #49), phase 2 after it (PRs #50 and #51), phase 3 PR1 after that (PR #52). ROADMAP.md defines the goal and the calibration gate; this folder
+the same day (PRs #48 and #49), phase 2 after it (PRs #50 and #51), phase 3 PR1 and PR2 after that (PRs #52 and #53). ROADMAP.md defines the goal and the calibration gate; this folder
 fixes the architecture, the decisions and the work breakdown, one phase
 per subfolder, each phase's documents to be marked with what was actually
 built. Layout per [docs/design/README.md](../README.md).
@@ -208,6 +208,17 @@ Filled as PRs land.
   `--balancing`), the annual figures bundled and cited. Points
   `site.market.*` at 72 to 79, `fcr_alert_state` (site bit 7), a
   `market` taxonomy and the case `fcr-block`. Checkpoint 19.
+- **The aFRR awards are served** (phase 3 PR2). The TSO's request is a
+  kernel input (`Inputs::afrr_request_pu`, a fraction of the award in
+  its direction), synthetic by default (the frequency's minute average
+  plus a slow imbalance, labeled) or replayed from a file the user
+  compiled (`compile-afrr`, `--afrr`; the per-second setpoint is the
+  TSOs' copyright); the plant follows it at 0.5 % of the award a second
+  (full in 200 s, inside ENTSO-E's five minutes), clamped at the award,
+  and meters the energy each way. Points `site.market.afrr_request_pct`
+  (80), `afrr_activated_kw` (81), `afrr_energy_pos_kwh` (83),
+  `afrr_energy_neg_kwh` (85); the case `afrr-activation-day`. Checkpoint
+  19 widened.
 
 ## Open questions
 

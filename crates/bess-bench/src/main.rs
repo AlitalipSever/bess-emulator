@@ -74,6 +74,11 @@ struct Cli {
     #[arg(long, value_name = "PATH", conflicts_with_all = ["write", "check"])]
     balancing: Option<PathBuf>,
 
+    /// Replay a per-second aFRR request year (`compile-afrr` output) in
+    /// place of the synthetic request. A research run.
+    #[arg(long, value_name = "PATH", conflicts_with_all = ["write", "check"])]
+    afrr: Option<PathBuf>,
+
     /// Update the committed record and the generated block of CALIBRATION.md.
     #[arg(long)]
     write: bool,
@@ -125,31 +130,32 @@ impl Cli {
     }
 }
 
+/// The replayed years a research run attaches before anything builds a
+/// driver (M4): the aFRR request, the balancing results, the frequency.
+fn attach_replays(cli: &Cli) -> Result<(), String> {
+    if let Some(path) = &cli.afrr {
+        let year = bess_models::AfrrRequestYear::load(path)?;
+        println!("replaying aFRR request year {:#018x}", year.hash());
+        bess_models::replay_afrr(year).ok_or("an aFRR request year is already attached")?;
+    }
+    if let Some(path) = &cli.balancing {
+        let year = bess_models::BalancingYear::load(path)?;
+        println!("replaying balancing year {:#018x}", year.hash());
+        bess_models::replay_balancing(year).ok_or("a balancing year is already attached")?;
+    }
+    if let Some(path) = &cli.frequency {
+        let year = bess_models::FrequencyYear::load(path)?;
+        println!("replaying frequency year {:#018x}", year.hash());
+        bess_models::replay_frequency(year).map_err(|_| "a frequency year is already attached")?;
+    }
+    Ok(())
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
-    if let Some(path) = &cli.balancing {
-        match bess_models::BalancingYear::load(path) {
-            Ok(year) => {
-                println!("replaying balancing year {:#018x}", year.hash());
-                if bess_models::replay_balancing(year).is_none() {
-                    return fail("a balancing year is already attached");
-                }
-            }
-            Err(message) => return fail(&message),
-        }
-    }
-
-    if let Some(path) = &cli.frequency {
-        match bess_models::FrequencyYear::load(path) {
-            Ok(year) => {
-                println!("replaying frequency year {:#018x}", year.hash());
-                if bess_models::replay_frequency(year).is_err() {
-                    return fail("a frequency year is already attached");
-                }
-            }
-            Err(message) => return fail(&message),
-        }
+    if let Err(message) = attach_replays(&cli) {
+        return fail(&message);
     }
 
     if cli.check_docs {

@@ -92,6 +92,12 @@ pub struct Args {
     #[arg(long, value_name = "PATH")]
     pub balancing: Option<PathBuf>,
 
+    /// Replay a per-second aFRR request year compiled by `compile-afrr`
+    /// (M4 phase 3) in place of the synthetic request. The file is yours;
+    /// a headless record names its hash.
+    #[arg(long, value_name = "PATH")]
+    pub afrr: Option<PathBuf>,
+
     /// Write the Modbus/MQTT signal map as CSV to this path and exit.
     #[arg(long, value_name = "PATH")]
     pub dump_signal_map: Option<PathBuf>,

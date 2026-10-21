@@ -65,8 +65,19 @@ Each decision is proposed here and confirmed or revised in its PR.
   bundled. The synthetic request is value noise with a 15-minute hold
   structure, its sign and magnitude statistics fitted to the bundled
   SMARD balancing volumes (CC BY), and its share of the plant's award
-  labeled. The gradient is the prequalification's 0.5 %/s of rated
-  power at least, the full activation time ENTSO-E's 5 min.
+  labeled. The gradient is the prequalification's 0.5 %/s of rated power
+  at least, the full activation time ENTSO-E's 5 min. *As built (PR2):*
+  `Inputs::afrr_request_pu` from the drivers (`SyntheticAfrr`: the
+  frequency's one-minute average scaled to the full award at 100 mHz
+  plus ±40 % value noise on 15-minute knots, labeled; or
+  `AfrrRequestYear` the user compiled with `compile-afrr` from a
+  `timestamp;mw` CSV and a stated demand, `fetch-afrr.sh` describing the
+  registered download); `AfrrRules` (0.5 %/s of the award) and
+  `Simulation::serve_afrr` (the request in its award, ramped, metered
+  each way, through the fast term). The SMARD balancing volumes were
+  not used: the ids SMARD serves them under could not be identified
+  with confidence from public documentation, so the synthetic request
+  is calibrated to nothing but the frequency and labeled.
 - **D6, the revenue meter in EUR.** Four rows per quarter-hour (day-ahead
   energy value, imbalance settlement, capacity accrual, aFRR energy),
   running totals, published as `site.revenue.period_eur_x100` (signed
@@ -87,7 +98,9 @@ Each decision is proposed here and confirmed or revised in its PR.
   `afrr_pos_awarded_kw` (74), `afrr_neg_awarded_kw` (76), the reservoir's
   `fcr_range_min_pct` (78) and `fcr_range_max_pct` (79); `fcr_alert_state`
   is bit 7; `award` takes `product` and `mw`, `award_clear` nothing; the
-  request and the EUR points are PR2's and PR3's.
+  request and the EUR points are PR2's and PR3's. *As built (PR2):*
+  `site.market.afrr_request_pct` (80), `afrr_activated_kw` (81),
+  `afrr_energy_pos_kwh` (83), `afrr_energy_neg_kwh` (85).
 
 ## Signal map impact
 
@@ -103,7 +116,11 @@ One format bump (D7).
   state releases it and the plant delivers 15 minutes at full power from
   the range's edge.
 - **Gate: the aFRR ramp** reaches full activation within 5 min at no
-  less than 0.5 %/s on a step request.
+  less than 0.5 %/s on a step request. *As built (PR2):*
+  `the_afrr_request_is_followed_at_the_gradient_inside_the_award`
+  (full in 200 s at the gradient, clamped at the award, nothing in a
+  direction without an award, through a checkpoint); the synthetic
+  request's statistics in `grid_signal/afrr.rs`.
 - **Unit: the meter** books the four rows on a hand-built period; totals
   equal the sum.
 - **Integration:** new library cases `fcr-block` (a four-hour FCR block

@@ -351,3 +351,32 @@ fn the_fcr_block_delivers_and_rests_at_the_clear() {
     assert_eq!(st.ems.fcr_output_w, 0.0);
     assert_eq!(st.ems.reservoir.range_min, PlantConfig::gw01().rack.soc_min);
 }
+
+/// `afrr-activation-day`: both awards pinned at midnight, the request
+/// served in both directions with energy booked each way, the plan's
+/// charge held under the headroom, and the clear at 06:00 rests the
+/// service.
+#[test]
+fn the_afrr_day_serves_both_directions_and_rests_at_the_clear() {
+    let (sim, log) = played("afrr-activation-day");
+    assert_eq!(
+        log.iter()
+            .filter(|(tick, e)| *tick <= 1
+                && matches!(e, Event::FaultApplied(FaultAction::Award { .. })))
+            .count(),
+        2
+    );
+    let st = sim.state();
+    assert!(
+        st.ems.afrr_energy_pos_wh > 1.0e6,
+        "delivered {}",
+        st.ems.afrr_energy_pos_wh
+    );
+    assert!(
+        st.ems.afrr_energy_neg_wh > 1.0e6,
+        "absorbed {}",
+        st.ems.afrr_energy_neg_wh
+    );
+    assert!(!st.ems.awards_pinned);
+    assert_eq!(st.ems.afrr_followed_w, 0.0);
+}

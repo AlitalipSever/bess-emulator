@@ -14,8 +14,10 @@
 //! at construction), so the kernel's inputs are byte-identical across
 //! platforms.
 
+pub mod afrr;
 pub mod synthetic;
 
+pub use afrr::SyntheticAfrr;
 pub use synthetic::SyntheticFrequency;
 
 /// Grid frequency at a UTC timestamp, Hz, from the default synthetic
@@ -23,6 +25,12 @@ pub use synthetic::SyntheticFrequency;
 /// drivers; kept under its M0 name so callers do not notice the move.
 pub fn synthetic_grid_frequency_hz(unix_time_s: i64) -> f64 {
     SyntheticFrequency::ce_estimate().frequency_hz(unix_time_s)
+}
+
+/// The TSO's aFRR request at a UTC timestamp, −1 to 1, from the default
+/// synthetic driver ([`SyntheticAfrr::estimate`]).
+pub fn synthetic_afrr_request_pu(unix_time_s: i64) -> f64 {
+    SyntheticAfrr::estimate().request_pu(unix_time_s)
 }
 
 /// Grid voltage at a UTC timestamp, per unit: a +/- 2 % daily swing,

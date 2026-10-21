@@ -110,6 +110,25 @@ impl Awards {
     }
 }
 
+/// The rules of the aFRR service: how fast the plant follows the TSO's
+/// request.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AfrrRules {
+    /// The gradient the plant follows the request with, as a share of
+    /// the awarded power per second: the prequalification's minimum of
+    /// 0.5 %/s, which reaches full activation in 200 s, inside ENTSO-E's
+    /// five-minute full activation time.
+    pub gradient_pu_per_s: f64,
+}
+
+impl Default for AfrrRules {
+    fn default() -> Self {
+        Self {
+            gradient_pu_per_s: 0.005,
+        }
+    }
+}
+
 /// The rules of FCR from a limited energy reservoir.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReservoirRules {

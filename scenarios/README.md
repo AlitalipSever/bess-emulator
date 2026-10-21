@@ -65,11 +65,12 @@ a case is added or removed on the wrong side.
 | `rack-isolation-and-restore` | maintenance | 2 days | a rack isolated for a day of cycling and restored with the state of charge it was left with |
 | `substation-earthing-work` | maintenance | 3 h | the HV breaker opened by hand, the bus isolated and earthed for two hours of work, then the sequence back and the staggered return |
 | `fcr-block` | market | 4 h | a four-hour FCR block of 20 MW on an idle summer night: the droop answers the frequency within seconds, the working range is published, the dead-band recentering nudges the state of charge, the award clears at 04:00 |
+| `afrr-activation-day` | market | 6 h | 20 MW of positive and negative aFRR through a summer night: the request served at half a percent of the award a second, the energy metered each way, the plan's charge under the headroom, the clear at 06:00 |
 | `frequency-event` | grid | 2 h | the grid dips 300 mHz and the plant raises four megawatts at once, rises 400 mHz and it cuts eight, falls to 47.4 Hz and the kernel trips the site; the reset and the return after |
 
-Twenty cases: thirteen failure cases (six `bos`, 46%; six `controls`,
-46%; one `cell`, 8%) and seven that are calendar, maintenance, grid or
-market.
+Twenty-one cases: thirteen failure cases (six `bos`, 46%; six
+`controls`, 46%; one `cell`, 8%) and eight that are calendar,
+maintenance, grid or market.
 
 ## Adding a case
 
