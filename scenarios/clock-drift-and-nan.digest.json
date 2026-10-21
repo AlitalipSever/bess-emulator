@@ -1,7 +1,7 @@
 {
   "scenario": "clock-drift-and-nan",
   "content_hash": "0x50b4c17e5539a6a8",
-  "engine_version": "0.6.1",
+  "engine_version": "0.7.0",
   "seed": 7,
   "start_unix_s": 1784016000,
   "ticks": 28800,

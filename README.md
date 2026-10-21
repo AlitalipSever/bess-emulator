@@ -144,9 +144,14 @@ M0, the walking skeleton, as v0.1.0; the M0.5 mini-iteration, a partial-load
 conversion efficiency curve fitted to the CEC inverter database, as v0.2.0;
 M1, thermal and weather, as v0.3.0; the M1.5 view mini-iteration as
 v0.4.0, which put M1 on the screen; M2, BMS, alarms and the scenario
-engine, as v0.5.0; and the M2.6 view mini-iteration as v0.6.0, which put
-M2's alarms and its scenario library on the screen, in the browser too;
-v0.6.1 re-timed three library cases so they show what their headers say.
+engine, as v0.5.0; the M2.6 view mini-iteration as v0.6.0, which put
+M2's alarms and its scenario library on the screen, in the browser too
+(v0.6.1 re-timed three library cases so they show what their headers
+say); and the M2.5 SoC realism mini-iteration as v0.7.0, which took three
+kinds of truth off the published surfaces: a rested LFP rack now carries
+the hysteresis of where it has been, the published SoC is what the BMS
+estimates rather than what the kernel knows, and every published value
+passes through an instrument with an IEC class.
 
 M2.6 added no physics. The viewer shows what is in alarm, by node and
 severity, and the journal of what raised and cleared, numbered as MQTT

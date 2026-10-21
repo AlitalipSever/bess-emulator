@@ -256,7 +256,7 @@ so each such point states which container it speaks for:
   signature, removing a method or removing a field is major. The egui
   panels, their layout and the 3D scene are not a contract and change
   without notice; the module never hands plant data to the page.
-- **Checkpoint format:** a tagged, versioned envelope, format 8 since M2
+- **Checkpoint format:** a tagged, versioned envelope, format 10 since M2.5
   phase 4 (v0.4.0 wrote format 3). Loaders reject unknown versions
   loudly; a version bump is documented in release notes.
 - **Determinism:** within one release, (seed, config, input series) is

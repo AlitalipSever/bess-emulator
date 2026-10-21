@@ -14,7 +14,7 @@ scheduled. Architecture and rationale live in
 | M1 | Thermal + weather | done (v0.3.0) |
 | M1.5 | View mini-iteration: real solar position, weather-driven scenery, time controls | done (v0.4.0) |
 | M2 | BMS, alarms, scenario engine | done (v0.5.0) |
-| M2.5 | SoC realism mini-iteration: OCV hysteresis, reported SoC, measurement imperfections | planned |
+| M2.5 | SoC realism mini-iteration: OCV hysteresis, reported SoC, measurement imperfections | done (v0.7.0) |
 | M2.6 | Alarm view mini-iteration: alarms on screen, the scenario library in the browser | done (v0.6.0; library re-timed in v0.6.1) |
 | M3 | PCS + electrical | planned |
 | M4 | EMS + market signals | planned |
@@ -247,7 +247,13 @@ five-state PCS machine, the electrical depth behind both, stays in M3.
 EPRI failure incident taxonomy (controls and balance-of-system dominant, cells
 rare).
 
-## M2.5: SoC realism mini-iteration
+## M2.5: SoC realism mini-iteration (done, v0.7.0)
+
+Shipped as v0.7.0 (2026-10-21), after M2.6; what was actually built, phase
+by phase, is in the design folder's as-built notes and its release-note
+inventory. The headline is a meaning change on the signal map (0.4.0):
+the published SoC is the BMS's estimate now, and every published value
+passes through an instrument with a class.
 
 A mini-iteration in the M0.5/M1.5 pattern, decided 2026-09-26 while
 designing M2: the realism backlog's SoC chain earns its own iteration

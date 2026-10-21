@@ -64,7 +64,7 @@ ran rather than re-derived afterwards from a summary.
 
 <!-- bess-bench:begin m1-annual -->
 
-Measured by `bess-bench` on kernel 0.6.1: GW-01 on the internal dispatch
+Measured by `bess-bench` on kernel 0.7.0: GW-01 on the internal dispatch
 plan, seed 7, 365 simulated days (31 536 000 ticks) of the replayed weather
 year. Regenerate with `cargo run --release -p bess-bench -- --write`; CI
 fails if this block is stale.
@@ -979,6 +979,18 @@ class 0.5 ratio error ±0.5 % at 20 to 120 %, ±0.75 % at 5 %, ±1.5 % at
 retrieved 2026-10-21. IEC 60751, industrial platinum resistance
 thermometers, class B tolerance ±(0.30 + 0.005 |t|) K. Numbers cited,
 nothing reproduced.
+
+## M2.5 (v0.7.0): the annual record at release
+
+The record was regenerated for the version bump, as every release
+regenerates it, and the figures are phase 1's: round trip 0.8296, import
+66,777.9 MWh, export 55,396.9 MWh, 276.1 equivalent full cycles. Of the
+three phases only the first touched the physics; the estimator (phase 2)
+is held to leave the truth untouched, byte for byte, and the instruments
+(phase 3) live in the shell, which the bench never reads. The fifteen
+library records moved in their version string and nothing else at the
+bump. The 0.8296 sits inside the M1 field band, 0.7 points under v0.6.1,
+paid to the hysteresis gap.
 
 ## Planned gates (from ROADMAP.md)
 
