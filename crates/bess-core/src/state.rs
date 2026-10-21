@@ -204,6 +204,17 @@ pub struct EmsState {
     pub awards_pinned: bool,
     /// The FCR reservoir manager's state (M4 phase 3).
     pub reservoir: Reservoir,
+    /// The TSO's aFRR request as the plant last saw it, −1 to 1 of the
+    /// award (M4 phase 3 PR2). Published as `site.market.afrr_request_pct`.
+    pub afrr_request_pu: f64,
+    /// What the aFRR service is delivering this tick, W, positive to the
+    /// grid (M4 phase 3 PR2): the request in its award, followed at the
+    /// gradient.
+    pub afrr_followed_w: f64,
+    /// aFRR energy delivered since tick 0, Wh.
+    pub afrr_energy_pos_wh: f64,
+    /// aFRR energy absorbed since tick 0, Wh.
+    pub afrr_energy_neg_wh: f64,
 }
 
 impl EmsState {
@@ -232,6 +243,10 @@ impl EmsState {
             awards: Awards::NONE,
             awards_pinned: false,
             reservoir: Reservoir::default(),
+            afrr_request_pu: 0.0,
+            afrr_followed_w: 0.0,
+            afrr_energy_pos_wh: 0.0,
+            afrr_energy_neg_wh: 0.0,
         }
     }
 }

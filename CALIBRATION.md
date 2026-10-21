@@ -1753,6 +1753,67 @@ redistributed); Swissgrid, Anhang 01 Präqualifikationsbedingungen
 criterion, charge management); the German TSOs' 2026 operational
 requirements (the ~2 GW aFRR demand). Numbers cited, nothing reproduced.
 
+## M4 (v0.9.0, unreleased): the aFRR service
+
+Phase 3 PR2 serves the aFRR awards: the TSO's request arrives as an
+input, a fraction of the awarded power in its direction
+(`Inputs::afrr_request_pu`), the plant follows it at the
+prequalification's gradient through the fast term, and the activated
+energy is metered each way (`Simulation::serve_afrr`).
+
+**The gradient and the activation time, sourced.** The Swissgrid
+prequalification annex (public, Continental Europe) asks a secondary
+control unit for a power gradient of at least 0.5 % of its rated power
+per second (section 7.1) and to follow the controller's setpoint
+automatically and without delay; ENTSO-E's full activation time for
+aFRR is five minutes. The plant ramps at 0.5 % of the award per second,
+which reaches a full request in 200 s, inside the five minutes
+(`the_afrr_request_is_followed_at_the_gradient_inside_the_award`). A
+request beyond the award is clamped at it; a request in a direction the
+plant holds no award for is nothing.
+
+**The request, a shape and not a dataset.** The real signal is the
+control area's per-second aFRR setpoint, which Netztransparenz publishes
+under the TSOs' copyright behind a registered API, so nothing of it is
+bundled (DATA-LICENSES.md). `compile-afrr` turns a `timestamp;mw` series
+the user obtained into a replay artifact normalized by the demand the
+user states (about 2,000 MW in Germany, the figure the TSOs' 2026
+requirements name), `--afrr` replays it, and a headless record names its
+hash; a plant with an award of `P` then follows `request × P`, the
+**pro-rata share** of the control area's request, labeled: a real unit's
+share follows its position in the merit order. The bundled request is
+synthetic (`grid_signal/afrr.rs`): a fast part that follows the
+synthetic frequency's one-minute average the way the restoration
+controller's proportional term does (a 100 mHz low average asks for the
+full positive award) and a slow part of value noise on 15-minute knots
+for the control area's imbalance the frequency does not show, ±40 % of
+the award. **Labeled estimates**, all three figures; the synthetic
+request asks both directions for a fair share of a day and averages
+near zero (`the_request_is_bounded_and_balanced`).
+
+**What the plant earns from it is PR3's.** The energy is metered here
+(`site.market.afrr_energy_pos_kwh`, `_neg_kwh`); the price is the merit
+order's cheapest bid as the floor and its average as the ceiling, as the
+phase's price section says, and the EUR meter books it in PR3.
+
+**What it moved.** Nothing in energy: the annual record's plant sells
+nothing; every library record moved (the request and the service in
+the tree). One new library case, `afrr-activation-day`.
+
+**Known gaps.**
+
+- **The pro-rata share** and the synthetic request's three figures are
+  estimates, above.
+- **No activation price** in the public files; PR3's band is labeled.
+- **The request is not the plant's own ACE**: the emulator's grid is
+  stiff, and the plant's delivery does not move the request.
+
+**Sources:** Swissgrid, Anhang 01 Präqualifikationsbedingungen, section
+7 (the secondary control gradient and connection); ENTSO-E's aFRR
+implementation framework (the five-minute full activation time); the
+German TSOs' 2026 requirements (the demand). Numbers cited, nothing
+reproduced.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

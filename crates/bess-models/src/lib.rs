@@ -23,7 +23,7 @@ pub use bms::BasicBms;
 pub use cell::Ecm1Rc;
 pub use ems::DayAheadEms;
 pub use grid::SimpleGrid;
-pub use grid_signal::SyntheticFrequency;
+pub use grid_signal::{SyntheticAfrr, SyntheticFrequency};
 pub use pcs::{CurvePcs, FlatPcs, SurfacePcs};
 pub use thermal::LumpedThermal;
 pub use weather::{
@@ -31,7 +31,9 @@ pub use weather::{
 };
 // Re-exported because `HistoricalWeather::hour_at` returns them: a caller
 // should not have to depend on `bess-data` to name what this crate hands it.
-pub use bess_data::{BalancingYear, FrequencyYear, HourSample, PrecipForm, PriceYear, WeatherYear};
+pub use bess_data::{
+    AfrrRequestYear, BalancingYear, FrequencyYear, HourSample, PrecipForm, PriceYear, WeatherYear,
+};
 pub use market::{replay_balancing, replayed_balancing, AwardPlan};
 
 use std::sync::OnceLock;
@@ -57,6 +59,23 @@ pub fn replay_frequency(year: FrequencyYear) -> Result<&'static FrequencyYear, F
 /// The frequency year attached to this process, if any.
 pub fn replayed_frequency() -> Option<&'static FrequencyYear> {
     FREQUENCY.get()
+}
+
+/// The replayed aFRR request year this process uses, if one was attached
+/// (`--afrr`, M4 phase 3).
+static AFRR: OnceLock<AfrrRequestYear> = OnceLock::new();
+
+/// Attach a replayed aFRR request year for every driver this process
+/// builds from here on. Once per process: `None` when one is already
+/// attached.
+pub fn replay_afrr(year: AfrrRequestYear) -> Option<&'static AfrrRequestYear> {
+    AFRR.set(year).ok()?;
+    AFRR.get()
+}
+
+/// The aFRR request year attached to this process, if any.
+pub fn replayed_afrr() -> Option<&'static AfrrRequestYear> {
+    AFRR.get()
 }
 
 /// The default model bundle for the GW-01 reference site.
@@ -91,11 +110,14 @@ pub fn gw01_models(cfg: &PlantConfig) -> Models {
 /// (`replay_frequency`). Shells and calibration runs call this instead of
 /// building a driver themselves, so every surface replays the same year.
 pub fn gw01_weather() -> HistoricalWeather {
-    let weather = HistoricalWeather::lindenberg_2024();
-    match replayed_frequency() {
-        Some(year) => weather.with_frequency(year),
-        None => weather,
+    let mut weather = HistoricalWeather::lindenberg_2024();
+    if let Some(year) = replayed_frequency() {
+        weather = weather.with_frequency(year);
     }
+    if let Some(year) = replayed_afrr() {
+        weather = weather.with_afrr(year);
+    }
+    weather
 }
 
 /// The day-ahead price the GW-01 planner is acting on at a UTC timestamp,

@@ -122,6 +122,10 @@ mod tests {
             awards: crate::kernel::Awards::NONE,
             awards_pinned: false,
             reservoir: crate::kernel::Reservoir::default(),
+            afrr_request_pu: 0.0,
+            afrr_followed_w: 0.0,
+            afrr_energy_pos_wh: 0.0,
+            afrr_energy_neg_wh: 0.0,
         }
     }
 

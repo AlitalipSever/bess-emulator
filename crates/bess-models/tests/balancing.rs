@@ -190,3 +190,55 @@ fn a_reservoir_outside_the_range_books_a_transaction() {
     assert_eq!(sim.state().ems.awards, Awards::NONE);
     assert_eq!(sim.state().ems.reservoir.transaction_w, 0.0);
 }
+
+/// The aFRR service: a step request is followed at the gradient (half
+/// a percent of the award a second, full in 200 s), never beyond the
+/// award, in the award's own direction only; the energy is metered each
+/// way; a plant without an award serves nothing.
+#[test]
+fn the_afrr_request_is_followed_at_the_gradient_inside_the_award() {
+    let mut sim = plant_with(AwardPlan::NONE, JULY_MIDNIGHT_S + 3 * 3600);
+    sim.set_external_setpoint_w(Some(0.0));
+    let mut awards = Awards::NONE;
+    awards.set_power_w(Product::AfrrPos, 20.0e6);
+    sim.pin_awards(awards);
+    let weather = gw01_weather();
+    let step = |sim: &mut Simulation, request: f64| {
+        let inputs = Inputs {
+            grid_frequency_hz: 50.0,
+            afrr_request_pu: request,
+            ..weather.inputs_at(sim.unix_time_s())
+        };
+        sim.step(&inputs);
+    };
+    for _ in 0..30 {
+        step(&mut sim, 0.0);
+    }
+    let mut last = 0.0;
+    for tick in 1..=200 {
+        step(&mut sim, 1.0);
+        let w = sim.state().ems.afrr_followed_w;
+        assert!(w - last <= 0.005 * 20.0e6 + 1.0, "gradient at {tick}");
+        last = w;
+    }
+    assert!((last - 20.0e6).abs() < 1.0, "full in 200 s: {last}");
+    assert_eq!(sim.state().ems.afrr_request_pu, 1.0);
+    let delivered = sim.state().ems.afrr_energy_pos_wh;
+    assert!(delivered > 20.0e6 * 100.0 / 3600.0 * 0.9, "{delivered}");
+    // Over-requested: clamped at the award.
+    step(&mut sim, 3.0);
+    assert!((sim.state().ems.afrr_followed_w - 20.0e6).abs() < 1.0);
+    // A negative request with no negative award: nothing to absorb.
+    for _ in 0..300 {
+        step(&mut sim, -1.0);
+    }
+    assert_eq!(sim.state().ems.afrr_followed_w, 0.0);
+    assert_eq!(sim.state().ems.afrr_energy_neg_wh, 0.0);
+    let bytes = checkpoint::save(sim.state()).expect("save");
+    assert_eq!(checkpoint::load(&bytes).expect("load"), *sim.state());
+    sim.unpin_awards();
+    for _ in 0..3 {
+        step(&mut sim, 1.0);
+    }
+    assert_eq!(sim.state().ems.afrr_followed_w, 0.0);
+}

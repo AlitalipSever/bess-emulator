@@ -1,0 +1,28 @@
+# A night and a morning of aFRR on a summer day, 20 MW each way. At
+# midnight the plant holds positive and negative secondary reserve: the
+# TSO's request, a share of the award following the frequency's minute
+# average and the control area's slower imbalance, is served at the
+# prequalification's gradient, half a percent of the award a second, so
+# a full request is met in 200 s; the activated energy is metered each
+# way and the request itself is published. The plan's night charge runs
+# under 20 MW of headroom each side. Both awards clear at 06:00.
+schema: 1
+name: afrr-activation-day
+taxonomy: market
+seed: 7
+start: 2026-07-14T00:00:00Z
+length: PT6H10M
+events:
+  - at: PT0S
+    target: site.market
+    fault: award
+    product: afrr_pos
+    mw: 20
+  - at: PT1S
+    target: site.market
+    fault: award
+    product: afrr_neg
+    mw: 20
+  - at: PT6H
+    target: site.market
+    fault: award_clear

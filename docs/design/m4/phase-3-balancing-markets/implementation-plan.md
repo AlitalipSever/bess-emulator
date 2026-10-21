@@ -26,6 +26,11 @@ nothing until phase 4's planner decides.
 
 Accept: the ramp gate passes; activation never exceeds the award.
 
+*As built (PR #53):* as the design's as-built notes say. The case
+`afrr-activation-day` (taxonomy `market`) runs 20 MW each way through a
+summer night; its two awards are a second apart, since the engine
+refuses two events on one target at one offset.
+
 ## PR3: the revenue meter
 
 - reBAP and balancing volumes compiled and bundled (`compile-rebap`,

@@ -340,6 +340,48 @@ pub(super) fn points() -> Vec<Point> {
             Input,
             |s: &SiteState| s.ems.reservoir.range_max * 100.0
         ),
+        // The aFRR service (M4 phase 3 PR2): the request as the plant
+        // sees it, what it delivers, and the energy each way. Exact.
+        point!(
+            "site.market.afrr_request_pct",
+            "%",
+            Fast,
+            I16,
+            10.0,
+            80,
+            Input,
+            |s: &SiteState| s.ems.afrr_request_pu * 100.0
+        ),
+        point!(
+            "site.market.afrr_activated_kw",
+            "kW",
+            Fast,
+            I32,
+            1.0,
+            81,
+            Input,
+            |s: &SiteState| s.ems.afrr_followed_w / 1000.0
+        ),
+        point!(
+            "site.market.afrr_energy_pos_kwh",
+            "kWh",
+            Slow,
+            U32,
+            1.0,
+            83,
+            Input,
+            |s: &SiteState| s.ems.afrr_energy_pos_wh / 1000.0
+        ),
+        point!(
+            "site.market.afrr_energy_neg_kwh",
+            "kWh",
+            Slow,
+            U32,
+            1.0,
+            85,
+            Input,
+            |s: &SiteState| s.ems.afrr_energy_neg_wh / 1000.0
+        ),
         // The grid-code block (M4 phase 1): what it is doing, and what
         // the FCR droop delivers. Controller values, exact.
         point!(

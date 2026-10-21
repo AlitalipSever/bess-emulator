@@ -52,6 +52,10 @@ pub struct Record {
     /// annual figures.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub balancing: Option<String>,
+    /// FNV-1a 64 of the replayed aFRR request year's samples when one
+    /// was attached (`--afrr`); absent on the synthetic request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub afrr: Option<String>,
 }
 
 /// The kernel's event log at the end: how many, and the hash of all.
@@ -99,6 +103,7 @@ pub fn run(resolved: &Resolved) -> Result<Record, String> {
         revenue_periods_closed: state.substation.revenue.periods_closed,
         frequency: weather.frequency().map(|year| hex(year.hash())),
         balancing: bess_models::replayed_balancing().map(|year| hex(year.hash())),
+        afrr: weather.afrr().map(|year| hex(year.hash())),
     })
 }
 
