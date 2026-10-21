@@ -477,6 +477,46 @@ impl Simulation {
         aux
     }
 
+    /// Step 5c of the tick: the EUR rows (M4 phase 3 PR3) at the prices
+    /// the strategy names. The day-ahead value of the exchange, the
+    /// capacity the awards accrue (a block's price spread over its four
+    /// hours), the aFRR energy at its price, and on a quarter-hour the
+    /// imbalance settlement of the period's schedule deviation, which the
+    /// report just closed, at the imbalance price.
+    fn book_revenue(&mut self, poi_w: f64, open_h: f64, dt_s: f64, tick_end_s: i64) {
+        let prices = self
+            .models
+            .ems
+            .prices_at(self.state.unix_time_s(), &self.state);
+        let mwh = dt_s / 3600.0 / 1.0e6;
+        let ems = &self.state.ems;
+        let block_h = 4.0;
+        let per_mw_h = (ems.awards.fcr_w / 1.0e6) * ems.awards.fcr_price_eur_mw
+            + (ems.awards.afrr_pos_w / 1.0e6) * ems.awards.afrr_pos_price_eur_mw
+            + (ems.awards.afrr_neg_w / 1.0e6) * ems.awards.afrr_neg_price_eur_mw;
+        let afrr_price = if ems.afrr_followed_w >= 0.0 {
+            prices.afrr_pos_eur_mwh
+        } else {
+            prices.afrr_neg_eur_mwh
+        };
+        let tick = crate::state::EurTick {
+            day_ahead: poi_w * mwh * prices.day_ahead_eur_mwh,
+            capacity: per_mw_h / block_h * dt_s / 3600.0,
+            afrr_energy: ems.afrr_followed_w.abs() * mwh * afrr_price,
+        };
+        let imbalance_eur = if tick_end_s.rem_euclid(crate::state::RevenueMeter::PERIOD_S) == 0 {
+            let deviation_mwh =
+                (self.state.kpi.last_metered_w - self.state.kpi.last_scheduled_w) * open_h / 1.0e6;
+            deviation_mwh * prices.imbalance_eur_mwh
+        } else {
+            0.0
+        };
+        self.state
+            .substation
+            .revenue
+            .book(tick, imbalance_eur, tick_end_s);
+    }
+
     /// Step 5b of the tick: the quarter-hour report (M4 phase 2 PR2),
     /// booked on the same boundary as the fiscal meter. The redispatch
     /// potential is what the racks hold above the window's floor and
@@ -618,6 +658,7 @@ impl Simulation {
         // a trip without a special case.
         let tick_end_s = self.state.unix_time_s() + TICK_SECONDS as i64;
         let poi_w = self.state.substation.poi_active_power_w;
+        let open_h = self.state.substation.revenue.open_hours_at(tick_end_s);
         self.state
             .substation
             .revenue
@@ -625,6 +666,7 @@ impl Simulation {
         self.state.energy.transformer_loss_wh += self.state.substation.transformer_loss_w * wh;
         self.state.energy.aux_wh += self.state.substation.aux_power_w * wh;
         self.observe_kpis(poi_w, dt_s, tick_end_s);
+        self.book_revenue(poi_w, open_h, dt_s, tick_end_s);
 
         // The waterfall identity, checked by every debug run rather than by
         // one test file: what the substation metered as house load equals

@@ -42,6 +42,12 @@ Accept: the annual record publishes EUR for the first time, itemized;
 the figures are reproducible from the bundled fallback without any
 fetched file.
 
+*As built (PR #54):* as the design's as-built notes say, with the reBAP
+deferred (the id question, in DATA-LICENSES.md) and the imbalance at the
+day-ahead price, labeled. The annual record's plant sells nothing, so
+its EUR rows are the arbitrage's and the imbalance's; the gate is phase
+4's.
+
 ## Open questions
 
 - Whether a replayed aFRR series should drive the plant's share by the

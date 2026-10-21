@@ -9,7 +9,9 @@
 //! series lives (Prometheus counters, the bench). The price is not on the
 //! map: no public BESS register model carries a market price, and the
 //! price is the EMS's input, published as such on the shell's other
-//! surfaces.
+//! surfaces. Since M4 phase 3 the meter also books EUR: the last closed
+//! period's four rows and their total at inputs 87 to 96 (i32, cents),
+//! and the running total at 97 (i32, whole EUR).
 
 use bess_core::state::SiteState;
 
@@ -37,6 +39,66 @@ pub(super) fn points() -> Vec<Point> {
             48,
             Space::Input,
             |s: &SiteState| s.substation.revenue.last_export_wh / 1000.0
+        ),
+        point!(
+            "site.revenue.period_day_ahead_eur_x100",
+            "EUR",
+            Class::Slow,
+            Encoding::I32,
+            100.0,
+            87,
+            Space::Input,
+            |s: &SiteState| s.substation.revenue.last_eur.day_ahead
+        ),
+        point!(
+            "site.revenue.period_capacity_eur_x100",
+            "EUR",
+            Class::Slow,
+            Encoding::I32,
+            100.0,
+            89,
+            Space::Input,
+            |s: &SiteState| s.substation.revenue.last_eur.capacity
+        ),
+        point!(
+            "site.revenue.period_afrr_energy_eur_x100",
+            "EUR",
+            Class::Slow,
+            Encoding::I32,
+            100.0,
+            91,
+            Space::Input,
+            |s: &SiteState| s.substation.revenue.last_eur.afrr_energy
+        ),
+        point!(
+            "site.revenue.period_imbalance_eur_x100",
+            "EUR",
+            Class::Slow,
+            Encoding::I32,
+            100.0,
+            93,
+            Space::Input,
+            |s: &SiteState| s.substation.revenue.last_eur.imbalance
+        ),
+        point!(
+            "site.revenue.period_total_eur_x100",
+            "EUR",
+            Class::Slow,
+            Encoding::I32,
+            100.0,
+            95,
+            Space::Input,
+            |s: &SiteState| s.substation.revenue.last_eur.total()
+        ),
+        point!(
+            "site.revenue.total_eur",
+            "EUR",
+            Class::Slow,
+            Encoding::I32,
+            1.0,
+            97,
+            Space::Input,
+            |s: &SiteState| s.substation.revenue.total_eur.total()
         ),
         point!(
             "site.revenue.periods_closed",

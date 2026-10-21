@@ -37,8 +37,14 @@ Each decision is proposed here and confirmed or revised in its PR.
   filter 4998, DE-LU, quarter-hourly, 2024) is CC BY 4.0 like the
   day-ahead year, compiled by the same compiler family
   (`compile-rebap`), hash pinned, recorded in DATA-LICENSES.md. The
-  balancing volumes (4996, 4997) are compiled beside it and feed the
-  synthetic aFRR request's sign and magnitude statistics.
+  balancing volumes (4996, 4997) are compiled beside it and feed the synthetic aFRR
+  request's sign and magnitude statistics. *As built (PR3): revised.*
+  Nothing of SMARD's balancing series is bundled: the chart-data ids
+  could not be identified with confidence (the manual names the series,
+  not the ids; the price candidate never reads below zero; 4996 and
+  4997 are neighbouring zones' day-ahead prices). The imbalance row is
+  priced at the day-ahead price, labeled as a stand-in, and the
+  synthetic request is calibrated to the frequency alone (PR2).
 - **D4, FCR under the SOGL rules for limited energy reservoirs**, as the
   Swissgrid annex states them (public, Continental Europe): continuous
   activation in the normal state, at least 15 minutes of full activation
@@ -83,8 +89,15 @@ Each decision is proposed here and confirmed or revised in its PR.
   running totals, published as `site.revenue.period_eur_x100` (signed
   i32, cents) per row and in total, and as Prometheus counters; the
   bench's annual record gains a revenue table. The day-ahead value is
-  metered energy at the replayed hourly price: the plant is taken as a
-  price taker on its own schedule, no bid curve.
+  metered energy at the replayed hourly price: the plant is taken as a price taker on its own schedule, no bid curve.
+  *As built (PR3):* `EurRows` on `RevenueMeter` (open, last and total),
+  `RevenueMeter::book` after `observe` on the same tick, the imbalance
+  on the close from the quarter-hour report's deviation at the
+  strategy's imbalance price (`MarketPrices` from
+  `EmsStrategy::prices_at`: the day-ahead hour, the aFRR floor, the
+  day-ahead stand-in); points 87 to 97 in cents and whole EUR;
+  Prometheus counters per row; the bench's `revenue` section (kEUR per
+  row, the total and the total per MW).
 - **D7, checkpoint bump.** Format 19: awards, the droop's SoC manager,
   the aFRR request follower, the EUR accumulators. *As built (PR1):*
   format 19 with `EmsState::awards`, `awards_pinned` and `reservoir`;
@@ -121,8 +134,11 @@ One format bump (D7).
   (full in 200 s at the gradient, clamped at the award, nothing in a
   direction without an award, through a checkpoint); the synthetic
   request's statistics in `grid_signal/afrr.rs`.
-- **Unit: the meter** books the four rows on a hand-built period; totals
-  equal the sum.
+- **Unit: the meter** books the four rows on a hand-built period;
+  totals equal the sum. *As built (PR3):* `bess-models/tests/
+  revenue_eur.rs`: a day on the plan priced hour by hour, an hour of
+  awards accruing their prices and the delivered energy its floor,
+  through a checkpoint.
 - **Integration:** new library cases `fcr-block` (a four-hour FCR block
   on a synthetic frequency day; the droop's energy, the dead-band
   recentring) and `afrr-activation-day` (positive and negative awards, a

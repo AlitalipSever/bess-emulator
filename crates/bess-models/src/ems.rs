@@ -14,7 +14,7 @@ use std::fmt;
 
 use bess_core::kernel::Awards;
 use bess_core::state::SiteState;
-use bess_core::traits::EmsStrategy;
+use bess_core::traits::{EmsStrategy, MarketPrices};
 use bess_data::PriceYear;
 
 use crate::calendar::reference_hour;
@@ -96,6 +96,39 @@ impl EmsStrategy for DayAheadEms {
         // The four-hour blocks are local; a 25-hour day's last hour sits
         // in the last block.
         self.awards.awards(day, (hour / 4).min(5))
+    }
+
+    /// The day-ahead price of the hour; the aFRR energy at the merit
+    /// order's cheapest bid of the quarter-hour (the replayed year's, or
+    /// the annual figure), labeled as the floor of what an activated unit
+    /// is paid; the imbalance at the day-ahead price, a labeled stand-in
+    /// for the imbalance price (CALIBRATION.md).
+    fn prices_at(&self, unix_time_s: i64, _state: &SiteState) -> MarketPrices {
+        let idx = self
+            .prices
+            .index_at_utc_hour(reference_hour(unix_time_s, self.prices.year()));
+        let day_ahead = self.prices.price_eur_mwh(idx);
+        let (pos, neg) = match crate::market::replayed_balancing() {
+            Some(year) => {
+                let quarter = year.index_at_utc_quarter(
+                    crate::calendar::reference_second(unix_time_s, year.year()) as usize / 900,
+                );
+                (
+                    year.energy_eur_mwh(quarter, true).0,
+                    year.energy_eur_mwh(quarter, false).0,
+                )
+            }
+            None => (
+                crate::market::prices::AFRR_ENERGY_MIN_POS_EUR_MWH_2024,
+                crate::market::prices::AFRR_ENERGY_MIN_NEG_EUR_MWH_2024,
+            ),
+        };
+        MarketPrices {
+            day_ahead_eur_mwh: day_ahead,
+            afrr_pos_eur_mwh: pos,
+            afrr_neg_eur_mwh: neg,
+            imbalance_eur_mwh: day_ahead,
+        }
     }
 
     fn site_target_w(&self, unix_time_s: i64, _state: &SiteState) -> f64 {

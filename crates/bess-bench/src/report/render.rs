@@ -20,6 +20,7 @@ pub fn render(kpis: &Kpis) -> String {
     write_periods(&mut out, kpis);
     write_estimator(&mut out, kpis);
     write_control(&mut out, kpis);
+    write_revenue(&mut out, kpis);
     out.push_str(END);
     out
 }
@@ -255,6 +256,22 @@ fn write_control(out: &mut String, kpis: &Kpis) {
         percent(c.availability_charge),
         percent(c.mean_abs_deviation_share),
         thousands_int(c.periods_over_frame)
+    );
+}
+
+fn write_revenue(out: &mut String, kpis: &Kpis) {
+    let r = &kpis.revenue;
+    let _ = write!(
+        out,
+        "The EUR rows over the run (gate: the M4 band, phase 4): day-ahead \
+         {} kEUR, capacity {} kEUR, aFRR energy {} kEUR, imbalance {} kEUR; \
+         {} kEUR in all, {:.2} kEUR per MW of rating.\n\n",
+        thousands(r.day_ahead_keur),
+        thousands(r.capacity_keur),
+        thousands(r.afrr_energy_keur),
+        thousands(r.imbalance_keur),
+        thousands(r.total_keur),
+        r.total_keur_per_mw
     );
 }
 

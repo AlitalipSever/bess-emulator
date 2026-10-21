@@ -214,6 +214,14 @@ pub(crate) fn fixture() -> Kpis {
             mean_abs_deviation_share: 0.012,
             periods_over_frame: 300,
         },
+        revenue: crate::run::RevenueKpis {
+            day_ahead_keur: 1_200.0,
+            capacity_keur: 0.0,
+            afrr_energy_keur: 0.0,
+            imbalance_keur: -50.0,
+            total_keur: 1_150.0,
+            total_keur_per_mw: 11.5,
+        },
     }
 }
 
@@ -254,10 +262,10 @@ mod tests {
             }
         }
         // Every field of every section: 6 run, 9 energy, 8 loss, 6 thermal,
-        // 4 HVAC, 3 alarms, 3 periods, 4 estimator, 4 control. Pinned so a
-        // field added without a thought about whether it belongs in the
-        // published record fails here.
-        assert_eq!(checked, 47, "the record changed shape");
+        // 4 HVAC, 3 alarms, 3 periods, 4 estimator, 4 control, 6 revenue.
+        // Pinned so a field added without a thought about whether it
+        // belongs in the published record fails here.
+        assert_eq!(checked, 53, "the record changed shape");
     }
 
     /// Move a value far enough to be drift, without changing its JSON type:

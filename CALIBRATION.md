@@ -137,6 +137,8 @@ Reported SoC against the truth, over every rack: mean absolute error 0.253 point
 
 The quarter-hour report over the run: availability 56.77% to discharge and 65.70% to charge (gate: none, reported), mean absolute schedule deviation 7.67% of the rating, 3 338 closed periods over the 5 % frame.
 
+The EUR rows over the run (gate: the M4 band, phase 4): day-ahead 5 129.2 kEUR, capacity 0.0 kEUR, aFRR energy 0.0 kEUR, imbalance -1 036.6 kEUR; 4 092.6 kEUR in all, 40.93 kEUR per MW of rating.
+
 <!-- bess-bench:end m1-annual -->
 
 **Where the round-trip band comes from.** Its floor is the measured fleet:
@@ -1813,6 +1815,69 @@ the tree). One new library case, `afrr-activation-day`.
 implementation framework (the five-minute full activation time); the
 German TSOs' 2026 requirements (the demand). Numbers cited, nothing
 reproduced.
+
+## M4 (v0.9.0, unreleased): the revenue meter in EUR
+
+Phase 3 PR3 gives the fiscal meter money: four rows per settlement
+quarter-hour, booked tick by tick at the prices the EMS strategy names
+(`EmsStrategy::prices_at`, `RevenueMeter::book`), the first EUR figures
+the emulator publishes. The rows: the day-ahead value of the energy
+exchanged at the POI (export earns, import pays, at the hour's replayed
+price), the capacity payments the awards accrue (a block's price spread
+over its four hours), the aFRR energy delivered or absorbed at its
+price, and the imbalance settlement of the quarter-hour's schedule
+deviation, booked on the close at the imbalance price: a long period
+earns it, a short one pays it, the single-price rule German imbalance
+settlement applies.
+
+**The prices, sourced and labeled.** The day-ahead price is the
+replayed DE-LU 2024 hour (CC BY 4.0, bundled since M2). The capacity
+prices are the awards' (the phase's price section). The aFRR energy
+price is the merit order's cheapest bid of the quarter-hour, the
+replayed year's or the annual figure (102.49 EUR/MWh positive, 66.15
+negative), **labeled as the floor** of what an activated unit is paid;
+the activated price (PICASSO's cross-border marginal) is not in the
+public files, and the merit order's average sits far above the floor
+(see the price section). **The imbalance price is the day-ahead price of
+the hour, a labeled stand-in** for the imbalance price (reBAP): SMARD
+serves the reBAP under CC BY 4.0, but the chart-data id it sits under
+could not be identified with confidence from public documentation (the
+candidate series never reads below zero over 2024, which the reBAP
+does), and a figure attributed to the wrong series would be worse than a
+stand-in named as one. The row is therefore the deviation's energy at
+the day-ahead price, which is the right sign and the right order of
+magnitude and not the right number; DATA-LICENSES.md records the
+deferral.
+
+**What the clean year earns.** The annual record's plant sells nothing
+(`AwardPlan::NONE`), so its capacity and aFRR rows are zero and the
+generated block below carries the day-ahead value of its arbitrage over
+the year, 5,129 kEUR, and the imbalance row of its ramps and empties,
+−1,037 kEUR at the stand-in price: 4,093 kEUR in all, 40.9 kEUR per MW,
+reported and not gated. The M4 gate is the market participant's year,
+which phase 4's planner makes; the arbitrage-only figure already sits
+in the public index's range for trading alone (the ISEA figure, 145
+kEUR/MW over twelve months to October 2024, includes the intraday
+markets the emulator does not model and perfect foresight it only
+partly shares). `a_day_on_the_plan_books_its_exchange_at_the_hours_prices`
+holds a day's day-ahead row to the POI's energy priced hour by hour;
+`awards_accrue_their_capacity_prices_and_afrr_energy_its_floor` holds an
+hour of a 10 MW FCR and a 20 MW aFRR award to a quarter of the FCR block
+price and an hour of the aFRR hourly price per MW, and the delivered
+energy to the floor.
+
+**Known gaps.**
+
+- **The imbalance price** is the day-ahead stand-in, above.
+- **The aFRR energy price** is a floor, labeled.
+- **No intraday row**: the index the M4 gate reads includes intraday
+  trading the emulator does not model; the gate's band (phase 4) says
+  so.
+
+**Sources:** Bundesnetzagentur / SMARD (the day-ahead year, CC BY 4.0);
+regelleistung.net (the capacity and energy figures, cited); the German
+imbalance settlement's single price (public: the TSOs' reBAP
+methodology, named, not reproduced). Numbers cited, nothing reproduced.
 
 ## Planned gates (from ROADMAP.md)
 

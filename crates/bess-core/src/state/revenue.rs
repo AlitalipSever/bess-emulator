@@ -4,9 +4,11 @@
 //! settlement reads: running totals plus quarter-hour periods, the
 //! imbalance settlement period in Germany. It sees the same POI power as
 //! the SCADA meters, so the two agree to the last bit until M2.5 gives them
-//! different accuracy classes. Energy only: the price is known and the
-//! product is one multiplication away, but the emulator publishes no EUR
-//! until M4 sources the band.
+//! different accuracy classes. Since M4 phase 3 the meter also books EUR,
+//! four rows per period: the day-ahead value of the energy exchanged, the
+//! capacity payments the awards accrue, the aFRR energy delivered or
+//! absorbed at its price, and the imbalance settlement of the
+//! quarter-hour's schedule deviation, booked on the close.
 
 use serde::{Deserialize, Serialize};
 
@@ -31,6 +33,52 @@ pub struct RevenueMeter {
     pub last_import_wh: f64,
     /// Export of the most recently closed period, Wh.
     pub last_export_wh: f64,
+    /// The EUR rows of the open period (M4 phase 3 PR3).
+    pub open_eur: EurRows,
+    /// The EUR rows of the most recently closed period.
+    pub last_eur: EurRows,
+    /// The EUR rows summed since the run began.
+    pub total_eur: EurRows,
+}
+
+/// Revenue rows, EUR, positive to the plant.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
+pub struct EurRows {
+    /// Energy exchanged at the day-ahead price: export earns, import pays.
+    pub day_ahead: f64,
+    /// Capacity payments the awards accrue, per hour held.
+    pub capacity: f64,
+    /// aFRR energy delivered or absorbed at its price.
+    pub afrr_energy: f64,
+    /// The imbalance settlement of the schedule deviation, booked on the
+    /// period's close.
+    pub imbalance: f64,
+}
+
+impl EurRows {
+    /// The four rows together.
+    pub fn total(&self) -> f64 {
+        self.day_ahead + self.capacity + self.afrr_energy + self.imbalance
+    }
+
+    fn add(&mut self, other: &Self) {
+        self.day_ahead += other.day_ahead;
+        self.capacity += other.capacity;
+        self.afrr_energy += other.afrr_energy;
+        self.imbalance += other.imbalance;
+    }
+}
+
+/// What one tick books in EUR (M4 phase 3 PR3), before the period's
+/// imbalance.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct EurTick {
+    /// Day-ahead value of this tick's exchange, EUR.
+    pub day_ahead: f64,
+    /// Capacity accrued this tick, EUR.
+    pub capacity: f64,
+    /// aFRR energy value this tick, EUR.
+    pub afrr_energy: f64,
 }
 
 impl RevenueMeter {
@@ -68,6 +116,28 @@ impl RevenueMeter {
             self.period_export_wh = 0.0;
             self.periods_closed += 1;
             self.period_start_s = now_s;
+        }
+    }
+
+    /// Hours the open period has run up to the tick ending at `now_s`,
+    /// before `observe` closes it: what the imbalance settlement prices.
+    pub fn open_hours_at(&self, now_s: i64) -> f64 {
+        (now_s - self.period_start_s).max(0) as f64 / 3600.0
+    }
+
+    /// Book one tick's EUR rows (M4 phase 3 PR3), and on a quarter-hour
+    /// the period's imbalance settlement `imbalance_eur`, then close the
+    /// EUR rows with the energy. Called after `observe` on the same tick,
+    /// so a closed period's rows are the last ones.
+    pub fn book(&mut self, tick: EurTick, imbalance_eur: f64, now_s: i64) {
+        self.open_eur.day_ahead += tick.day_ahead;
+        self.open_eur.capacity += tick.capacity;
+        self.open_eur.afrr_energy += tick.afrr_energy;
+        if now_s.rem_euclid(Self::PERIOD_S) == 0 {
+            self.open_eur.imbalance = imbalance_eur;
+            self.total_eur.add(&self.open_eur);
+            self.last_eur = self.open_eur;
+            self.open_eur = EurRows::default();
         }
     }
 }

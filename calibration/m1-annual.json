@@ -68,5 +68,13 @@
     "availability_charge": 0.657,
     "mean_abs_deviation_share": 0.07673,
     "periods_over_frame": 3338
+  },
+  "revenue": {
+    "day_ahead_keur": 5129.2,
+    "capacity_keur": 0.0,
+    "afrr_energy_keur": 0.0,
+    "imbalance_keur": -1036.6,
+    "total_keur": 4092.6,
+    "total_keur_per_mw": 40.93
   }
 }
