@@ -1,7 +1,10 @@
 # M3: PCS and electrical
 
-Status: in progress. Designed 2026-10-21 after M2.5 shipped as v0.7.0;
-phase 1 PR1 and phase 2 PR1 the same day. ROADMAP.md defines the goal and the
+Status: done, released as v0.8.0 (2026-10-21; the tag and the npm publish
+are the maintainer's). Designed 2026-10-21 after M2.5 shipped as v0.7.0;
+all four phases landed the same day in a stacked chain (PRs #40 to #45)
+and the release PR. The release note is drafted in
+[release-notes.md](release-notes.md) from the inventory below. ROADMAP.md defines the goal and the
 calibration gate; this folder fixes the architecture, the decisions and
 the work breakdown, one phase per subfolder, each phase's documents to be
 marked with what was actually built. Layout per

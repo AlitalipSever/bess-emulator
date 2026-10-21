@@ -1,7 +1,7 @@
 {
   "scenario": "frozen-scada-day",
   "content_hash": "0x6cbf4716bd3bef5b",
-  "engine_version": "0.7.0",
+  "engine_version": "0.8.0",
   "seed": 7,
   "start_unix_s": 1775779200,
   "ticks": 86400,
