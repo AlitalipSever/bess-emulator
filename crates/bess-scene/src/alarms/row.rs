@@ -113,7 +113,8 @@ fn fault_block(action: &FaultAction) -> Option<usize> {
         | FaultAction::HvBreakerOpen
         | FaultAction::HvBreakerClose
         | FaultAction::Disconnectors { .. }
-        | FaultAction::EarthingSwitch { .. } => None,
+        | FaultAction::EarthingSwitch { .. }
+        | FaultAction::GridFrequencyOffset { .. } => None,
     }
 }
 

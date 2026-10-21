@@ -163,6 +163,7 @@ fn only_taken(spec: &EventSpec, fault: &'static str, takes: &[&str]) -> Result<(
         ("rate_pct_per_month", spec.rate_pct_per_month.is_some()),
         ("points", spec.points.is_some()),
         ("exponent", spec.exponent.is_some()),
+        ("mhz", spec.mhz.is_some()),
         ("rate_per_min", spec.rate_per_min.is_some()),
         ("drift_s_per_h", spec.drift_s_per_h.is_some()),
     ];

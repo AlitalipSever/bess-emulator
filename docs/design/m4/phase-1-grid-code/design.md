@@ -26,7 +26,14 @@ Each decision is proposed here and confirmed or revised in its PR.
   replayed run names the file's hash, so a replayed baseline is
   reproducible by whoever holds the same file. The alternative, a 2019
   year from the Zenodo set, was rejected on its terms and on the
-  mismatch with the 2024 weather and prices.
+  mismatch with the 2024 weather and prices. *As built (PR1):*
+  `SyntheticFrequency` in `bess-models/src/grid_signal/synthetic.rs`
+  (two octaves of value noise on 10 s and 120 s knots, the boundary
+  sawtooth with the schedule's sign, 20/30/10 mHz labeled);
+  `bess_data::FrequencyYear` with its codec, `compile-frequency` (60 s
+  fill bound) and `fetch-frequency.sh`; `replay_frequency` attaches a
+  year to the process once and `gw01_weather` carries it; the headless
+  record gains a `frequency` hash field when one is attached.
 - **D2, the LFSM characteristics are VDE-AR-N 4110's**, which names
   battery storage feeding at medium voltage as a generating unit: above
   50.2 Hz active power falls at 40 % of the instantaneous feed-in per
@@ -37,7 +44,11 @@ Each decision is proposed here and confirmed or revised in its PR.
   the over-frequency case only. The 110 kV rule (VDE-AR-N 4120) is not
   freely available; the 4110 figures are used and named as such, as M2
   did for the reconnection gradient. Disconnection at 51.5 and 47.5 Hz
-  is a kernel trip (reusing `trip_site`).
+  is a kernel trip (reusing `trip_site`). *As built (PR1):* `GridCode` in
+  `kernel/gridcode.rs`, the gradient referred to rated power in both
+  directions (labeled); the trip is `grid_frequency_trip` (site bit 10),
+  judged on the frequency the substation read, a scenario's offset
+  included, and cleared by the site reset.
 - **D3, the FCR droop block follows the SOGL activation rules** as the
   Swissgrid prequalification annex (public, 2021) states them for
   Continental Europe: activation begins within 2 s, at least 50 % of the
@@ -50,7 +61,11 @@ Each decision is proposed here and confirmed or revised in its PR.
   third-party setpoints, the droop is the plant's own control). The
   over-fulfilment degree of freedom (up to 120 %) and the dead band's
   use for charging are parameters the phase 3 SoC manager will drive;
-  phase 1 lands them at 100 % and "no use".
+  phase 1 lands them at 100 % and "no use". *As built (PR1):* `FcrDroop`
+  with `advance` on `EmsState` (`fcr_prequalified_w`, `fcr_output_w`);
+  armed by `Simulation::set_fcr_prequalified_w` until phase 3's
+  products; the fast term goes through `SetpointDynamics::follow` as a
+  fifth argument and rides in `PcsState::fast_term_w`.
 - **D4, reactive power on the converter's circle.** Each 5 MW converter
   is taken as 5 MVA (the SG2500U datasheet rates apparent power equal to
   active at unity, labeled), so Q at a given P is bounded by
@@ -67,7 +82,10 @@ Each decision is proposed here and confirmed or revised in its PR.
   the difference; the power factor is published.
 - **D5, checkpoint bump.** Format 17: `PcsState::q_var`,
   `EmsState::reactive_mode`, the droop block's output state and the Q(U)
-  filter state, `SubstationState::poi_power_factor`.
+  filter state, `SubstationState::poi_power_factor`. *As built (PR1):*
+  format 17 carries the droop's state, the LFSM cut, the fast term and
+  the substation's `frequency_offset_mhz`; PR2 adds the reactive fields
+  to the same format, since 17 is unreleased.
 - **D6, points and bits.** Per block `blockNN.pcs.q_kvar` (2000 + 10b +
   8, analog class 0.5); site `site.poi.power_factor` (59),
   `site.grid_code.state` (60: 0 normal, 1 lfsm_o, 2 lfsm_u, 3 fcr),
@@ -75,6 +93,12 @@ Each decision is proposed here and confirmed or revised in its PR.
   byte, raised while either characteristic cuts the target) and
   `grid_frequency_trip` (10, trip byte, latched). `site.poi.frequency_hz`
   and `site.poi.reactive_power_var` keep their addresses and gain life.
+  *As built (PR1):* `site.grid_code.state` (60) and `site.fcr.output_kw`
+  (61, i32, so it takes 61 and 62), both exact; bits 4 and 10 as planned;
+  `site.poi.frequency_hz` carries the new series. Map 0.6.0. The scenario
+  engine gained `site.grid` with `frequency_offset` (`mhz`, −3000 to
+  3000, 0 ends it) and a `grid` taxonomy for stories that are the grid's,
+  not the plant's.
 
 ## Signal map impact
 
@@ -104,4 +128,10 @@ One format bump (D5).
 - **Integration:** a new library case `frequency-event` (a synthetic
   −300 mHz dip for 60 s, the plant answers through the droop and LFSM-U,
   then returns); the annual record with the synthetic driver (the M1
-  gate still holds).
+  gate still holds). *As built (PR1):* `frequency-event` (taxonomy
+  `grid`): the dip answered through LFSM-U alone, since nothing arms the
+  droop before phase 3; a 400 mHz rise cut through LFSM-O; a fall to
+  47.4 Hz that trips the site, the reset and the return after. Its lesson
+  test is in `library_lessons.rs`; the plant tests in
+  `bess-models/tests/grid_code.rs`. The annual record's figures did not
+  move; every library record did (the frequency in the tree).

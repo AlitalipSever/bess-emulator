@@ -100,6 +100,12 @@ pub enum FaultAction {
         /// Closed (`true`) or open.
         closed: bool,
     },
+    /// A grid event: the frequency the plant sees is the driver's plus
+    /// this offset until the next such event (M4 phase 1). Zero ends it.
+    GridFrequencyOffset {
+        /// Millihertz added to the driver's frequency.
+        mhz: i32,
+    },
 }
 
 impl FaultAction {
@@ -124,6 +130,7 @@ impl FaultAction {
             Self::Disconnectors { closed: false } => "disconnectors_open",
             Self::EarthingSwitch { closed: true } => "earthing_close",
             Self::EarthingSwitch { closed: false } => "earthing_open",
+            Self::GridFrequencyOffset { .. } => "frequency_offset",
         }
     }
 }
@@ -212,6 +219,11 @@ impl Simulation {
             FaultAction::HvBreakerClose => self.close_hv_breaker()?,
             FaultAction::Disconnectors { closed } => self.set_disconnectors(closed)?,
             FaultAction::EarthingSwitch { closed } => self.set_earthing_switch(closed)?,
+            FaultAction::GridFrequencyOffset { mhz } => {
+                let changed = self.state.substation.frequency_offset_mhz != mhz;
+                self.set_grid_frequency_offset_mhz(mhz);
+                changed
+            }
             FaultAction::AlarmReset(scope) => {
                 // What a reset still finds present re-raises on the next
                 // tick, which the log shows; the list itself is the HMI's.

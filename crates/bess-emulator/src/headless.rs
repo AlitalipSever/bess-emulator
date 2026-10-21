@@ -41,6 +41,12 @@ pub struct Record {
     pub event_log: EventLog,
     /// Quarter-hours the fiscal meter closed.
     pub revenue_periods_closed: u32,
+    /// FNV-1a 64 of the replayed frequency year's samples when one was
+    /// attached (`--frequency`, M4 phase 1); absent on the synthetic
+    /// series. A record made with a file is reproducible by whoever holds
+    /// the same file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frequency: Option<String>,
 }
 
 /// The kernel's event log at the end: how many, and the hash of all.
@@ -86,6 +92,7 @@ pub fn run(resolved: &Resolved) -> Result<Record, String> {
             digest: hex(state.event_log.digest),
         },
         revenue_periods_closed: state.substation.revenue.periods_closed,
+        frequency: weather.frequency().map(|year| hex(year.hash())),
     })
 }
 

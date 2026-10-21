@@ -47,6 +47,25 @@ fn main() -> ExitCode {
         };
     }
 
+    // A replayed frequency year is attached to the process before any
+    // driver is built, so every surface and the headless run see it.
+    if let Some(path) = &args.frequency {
+        match bess_models::FrequencyYear::load(path) {
+            Ok(year) => {
+                let hash = year.hash();
+                if bess_models::replay_frequency(year).is_err() {
+                    error!("a frequency year is already attached");
+                    return ExitCode::FAILURE;
+                }
+                info!(path = %path.display(), hash = format!("{hash:#018x}"), "frequency year attached");
+            }
+            Err(err) => {
+                error!("{err}");
+                return ExitCode::FAILURE;
+            }
+        }
+    }
+
     // The file is read and checked before anything binds a socket, so a
     // refused scenario is a process that never started.
     let (params, resolved) = match prepare(&args) {

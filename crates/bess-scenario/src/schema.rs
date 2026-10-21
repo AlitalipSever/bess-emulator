@@ -56,6 +56,9 @@ pub(crate) struct EventSpec {
     pub points: Option<String>,
     #[serde(default)]
     pub exponent: Option<i32>,
+    /// `frequency_offset`: millihertz added to the driver's frequency.
+    #[serde(default)]
+    pub mhz: Option<i32>,
     #[serde(default)]
     pub rate_per_min: Option<f64>,
     #[serde(default)]
@@ -77,6 +80,8 @@ pub enum Taxonomy {
     Calendar,
     /// Planned outages.
     Maintenance,
+    /// The grid's own events: frequency excursions (M4 phase 1).
+    Grid,
 }
 
 impl Taxonomy {
@@ -88,6 +93,7 @@ impl Taxonomy {
             Self::Cell => "cell",
             Self::Calendar => "calendar",
             Self::Maintenance => "maintenance",
+            Self::Grid => "grid",
         }
     }
 }

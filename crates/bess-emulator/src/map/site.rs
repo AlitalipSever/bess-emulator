@@ -1,6 +1,7 @@
 //! The site's telemetry: grid connection, energy, weather, house load and
 //! the run's own bookkeeping, at input 0 onward.
 
+use bess_core::kernel::GridCodeState;
 use bess_core::state::{BreakerState, EmsMode, SiteState, SwitchPosition};
 
 use super::{point, Class, Encoding, Point, Space};
@@ -200,6 +201,28 @@ pub(super) fn points() -> Vec<Point> {
             58,
             Input,
             |s: &SiteState| s.substation.mv_bus_voltage_kv
+        ),
+        // The grid-code block (M4 phase 1): what it is doing, and what
+        // the FCR droop delivers. Controller values, exact.
+        point!(
+            "site.grid_code.state",
+            "enum",
+            Fast,
+            U16,
+            1.0,
+            60,
+            Input,
+            |s: &SiteState| f64::from(GridCodeState::of(&s.ems).code())
+        ),
+        point!(
+            "site.fcr.output_kw",
+            "kW",
+            Fast,
+            I32,
+            1.0,
+            61,
+            Input,
+            |s: &SiteState| s.ems.fcr_output_w / 1000.0
         ),
         point!(
             "site.substation.hv_breaker_closed",

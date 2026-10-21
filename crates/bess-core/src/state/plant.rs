@@ -144,6 +144,12 @@ pub struct PcsState {
     /// its thermal derating, plus the overload while the budget holds.
     /// What the follower, the capability and the request are clamped to.
     pub ac_limit_w: f64,
+    /// The fast term the plant's frequency response adds to the followed
+    /// target this tick, W (M4 phase 1): the block's share of the LFSM
+    /// cut and the FCR droop, which bypass the follower's ramp. Already
+    /// inside `setpoint_followed_w`; kept so the follower can take it
+    /// back out before it filters.
+    pub fast_term_w: f64,
 }
 
 /// One battery container.

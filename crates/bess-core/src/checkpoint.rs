@@ -18,6 +18,9 @@ use crate::state::SiteState;
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
 ///
+/// v17 (M4 phase 1): the plant controller's grid-code state (the FCR
+/// prequalified power and output, the LFSM cut), each converter's fast
+/// term, and the substation's scenario frequency offset.
 /// v12 (M3): the PCS state machine: five new operating states and the
 /// time spent in the current startup state, so a resume continues a
 /// precharge where it was. v11 (M3): each PCS carries the DC bus voltage
@@ -58,7 +61,7 @@ pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Pre-1.0 checkpoints are not migrated; an older file is rejected with its
 /// version named rather than half-restored, since a missing item would
 /// otherwise restore as a plant whose auxiliary meters silently read zero.
-pub const FORMAT_VERSION: u32 = 16;
+pub const FORMAT_VERSION: u32 = 17;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {

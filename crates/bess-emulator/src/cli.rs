@@ -78,6 +78,13 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     pub no_mqtt: bool,
 
+    /// Replay a measured grid-frequency year compiled by `compile-frequency`
+    /// from Energy-Charts responses (M4 phase 1) instead of the synthetic
+    /// series. The file is yours, under the source's terms; a headless
+    /// record names its hash.
+    #[arg(long, value_name = "PATH")]
+    pub frequency: Option<PathBuf>,
+
     /// Write the Modbus/MQTT signal map as CSV to this path and exit.
     #[arg(long, value_name = "PATH")]
     pub dump_signal_map: Option<PathBuf>,

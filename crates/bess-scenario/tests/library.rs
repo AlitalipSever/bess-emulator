@@ -99,7 +99,12 @@ fn the_failure_cases_follow_the_epri_shares() {
     }
     let outside = cases
         .iter()
-        .filter(|c| matches!(c.1, Taxonomy::Calendar | Taxonomy::Maintenance))
+        .filter(|c| {
+            matches!(
+                c.1,
+                Taxonomy::Calendar | Taxonomy::Maintenance | Taxonomy::Grid
+            )
+        })
         .count();
     assert!(
         outside >= 2,

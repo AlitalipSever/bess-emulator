@@ -16,8 +16,8 @@ Every case in this directory:
   by the lesson, not the file name;
 - **carries a `taxonomy` tag**: `bos`, `controls` or `cell` for a failure
   case, following the failed-element classes of EPRI's BESS Failure
-  Incident Database, or `calendar` or `maintenance` for a story that is
-  not a failure;
+  Incident Database, or `calendar`, `maintenance` or `grid` for a story
+  that is not a failure of the plant;
 - **states its `length`**, how long the story is, so a headless run knows
   when to stop, and its `seed` and `start`, so the run is the same one
   every time;
@@ -63,9 +63,10 @@ a case is added or removed on the wrong side.
 | `block-maintenance-window` | maintenance | 1 day | a block out for a working day, its standby tare gone, handed back at 16:00 |
 | `rack-isolation-and-restore` | maintenance | 2 days | a rack isolated for a day of cycling and restored with the state of charge it was left with |
 | `substation-earthing-work` | maintenance | 3 h | the HV breaker opened by hand, the bus isolated and earthed for two hours of work, then the sequence back and the staggered return |
+| `frequency-event` | grid | 2 h | the grid dips 300 mHz and the plant raises four megawatts at once, rises 400 mHz and it cuts eight, falls to 47.4 Hz and the kernel trips the site; the reset and the return after |
 
-Seventeen cases: twelve failure cases (six `bos`, 50%; five `controls`,
-42%; one `cell`, 8%) and five that are calendar or maintenance.
+Eighteen cases: twelve failure cases (six `bos`, 50%; five `controls`,
+42%; one `cell`, 8%) and six that are calendar, maintenance or grid.
 
 ## Adding a case
 

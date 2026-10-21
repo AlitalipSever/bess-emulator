@@ -1,7 +1,7 @@
 # M4: EMS and market signals
 
-Status: designed 2026-10-21 after M3 shipped as v0.8.0; no phase has
-landed. ROADMAP.md defines the goal and the calibration gate; this folder
+Status: designed 2026-10-21 after M3 shipped as v0.8.0; phase 1 PR1
+landed the same day (PR #48). ROADMAP.md defines the goal and the calibration gate; this folder
 fixes the architecture, the decisions and the work breakdown, one phase
 per subfolder, each phase's documents to be marked with what was actually
 built. Layout per [docs/design/README.md](../README.md).
@@ -141,6 +141,25 @@ from.
 ## Release-note inventory for v0.9.0
 
 Filled as PRs land.
+
+- **The grid has a shape** (phase 1 PR1). `site.poi.frequency_hz`
+  carries a synthetic Continental European series (20 mHz spread, the
+  hour-boundary pattern, labeled) instead of a 10 mHz sinusoid, or a
+  measured year replayed with `--frequency` from a file the user
+  compiles from Energy-Charts (`fetch-frequency.sh`, `compile-frequency`;
+  never bundled, the record names the file's hash).
+- **The plant answers the frequency** (phase 1 PR1). LFSM-O above 50.2 Hz
+  and LFSM-U below 49.8 Hz at 40 %/Hz of rated power, from the tick
+  after the excursion, through a fast term the setpoint follower does
+  not ramp; a trip outside 47.5 to 51.5 Hz (`grid_frequency_trip`, site
+  bit 10, latched); `lfsm_active` (site bit 4). An FCR droop block
+  (±10 mHz dead band, full at ±200 mHz, 30 s activation) that phase 3's
+  products will arm; `site.grid_code.state` (60) and `site.fcr.output_kw`
+  (61). Scenario files gain `site.grid` with `frequency_offset`; a new
+  `grid` taxonomy and case `frequency-event`. Map 0.6.0 (additions).
+- **Checkpoint format 17** (phase 1 PR1): `EmsState::fcr_prequalified_w`,
+  `fcr_output_w`, `lfsm_cut_w`; `PcsState::fast_term_w`;
+  `SubstationState::frequency_offset_mhz`.
 
 ## Open questions
 

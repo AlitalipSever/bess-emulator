@@ -59,6 +59,7 @@ impl SiteState {
                     overload_budget: 1.0,
                     overload_armed: true,
                     ac_limit_w: cfg.pcs_rated_w,
+                    fast_term_w: 0.0,
                 },
                 containers: (0..cfg.containers_per_block)
                     .map(|_| ContainerState {
@@ -101,6 +102,9 @@ impl SiteState {
                 available_charge_w: 0.0,
                 blocks_released: cfg.blocks,
                 next_release_s: 0.0,
+                fcr_prequalified_w: 0.0,
+                fcr_output_w: 0.0,
+                lfsm_cut_w: 0.0,
             },
             substation: SubstationState {
                 hv_breaker: BreakerState::Closed,
@@ -119,6 +123,7 @@ impl SiteState {
                 poi_reactive_power_var: 0.0,
                 poi_voltage_kv: cfg.grid.poi_nominal_kv,
                 frequency_hz: 50.0,
+                frequency_offset_mhz: 0,
                 transformer_loss_w: 0.0,
                 aux_power_w: 0.0,
                 import_wh: 0.0,

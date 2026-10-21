@@ -110,6 +110,7 @@ mod tests {
             overload_budget: 1.0,
             overload_armed: true,
             ac_limit_w: 2.5e6,
+            fast_term_w: 0.0,
         }
     }
 

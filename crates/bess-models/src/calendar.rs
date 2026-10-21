@@ -21,6 +21,14 @@ pub fn reference_position_h(unix_time_s: i64, year: u16) -> f64 {
     f64::from(day_of_year * 24) + second_of_day as f64 / 3600.0
 }
 
+/// The second of reference year `year` a timestamp maps onto, counted
+/// from 00:00 UTC on January 1st, computed without a float (M4: what a
+/// one-second replay indexes by).
+pub fn reference_second(unix_time_s: i64, year: u16) -> i64 {
+    let (day_of_year, second_of_day) = reference_day_and_second(unix_time_s, year);
+    i64::from(day_of_year) * 86_400 + second_of_day
+}
+
 /// The whole UTC hour of reference year `year` a timestamp falls in: the
 /// floor of [`reference_position_h`], computed without a float.
 pub fn reference_hour(unix_time_s: i64, year: u16) -> usize {

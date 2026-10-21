@@ -1,0 +1,14 @@
+{
+  "scenario": "frequency-event",
+  "content_hash": "0x4c025e9451b55e8f",
+  "engine_version": "0.8.0",
+  "seed": 7,
+  "start_unix_s": 1784055600,
+  "ticks": 7200,
+  "state_digest": "0x52468c845c102437",
+  "event_log": {
+    "count": 235,
+    "digest": "0xf233cdbc6e0df15d"
+  },
+  "revenue_periods_closed": 8
+}

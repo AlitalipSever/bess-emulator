@@ -109,6 +109,9 @@ mod tests {
             available_charge_w: 0.0,
             blocks_released: 0,
             next_release_s: 0.0,
+            fcr_prequalified_w: 0.0,
+            fcr_output_w: 0.0,
+            lfsm_cut_w: 0.0,
         }
     }
 

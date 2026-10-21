@@ -11,6 +11,7 @@ pub mod calendar;
 pub mod cell;
 pub mod ems;
 pub mod grid;
+pub mod grid_signal;
 pub mod math;
 pub mod pcs;
 pub mod thermal;
@@ -21,6 +22,7 @@ pub use bms::BasicBms;
 pub use cell::Ecm1Rc;
 pub use ems::DayAheadEms;
 pub use grid::SimpleGrid;
+pub use grid_signal::SyntheticFrequency;
 pub use pcs::{CurvePcs, FlatPcs, SurfacePcs};
 pub use thermal::LumpedThermal;
 pub use weather::{
@@ -28,10 +30,32 @@ pub use weather::{
 };
 // Re-exported because `HistoricalWeather::hour_at` returns them: a caller
 // should not have to depend on `bess-data` to name what this crate hands it.
-pub use bess_data::{HourSample, PrecipForm, PriceYear, WeatherYear};
+pub use bess_data::{FrequencyYear, HourSample, PrecipForm, PriceYear, WeatherYear};
+
+use std::sync::OnceLock;
 
 use bess_core::config::PlantConfig;
 use bess_core::traits::Models;
+
+/// The measured frequency year this process replays, if one was attached
+/// (M4 phase 1): one per process, like the bundled datasets are statics,
+/// so every surface and the bench replay the same file.
+static FREQUENCY: OnceLock<FrequencyYear> = OnceLock::new();
+
+/// Attach a measured frequency year for every driver this process builds
+/// from here on (`--frequency`). Once per process.
+///
+/// # Errors
+/// Returns the year back when one is already attached.
+pub fn replay_frequency(year: FrequencyYear) -> Result<&'static FrequencyYear, FrequencyYear> {
+    FREQUENCY.set(year)?;
+    Ok(FREQUENCY.get().expect("just set"))
+}
+
+/// The frequency year attached to this process, if any.
+pub fn replayed_frequency() -> Option<&'static FrequencyYear> {
+    FREQUENCY.get()
+}
 
 /// The default model bundle for the GW-01 reference site.
 ///
@@ -60,11 +84,16 @@ pub fn gw01_models(cfg: &PlantConfig) -> Models {
 ///
 /// From M1 on the site replays DWD observations from Lindenberg (Mark),
 /// 2024, which is what pins GW-01's nominal location to eastern Germany
-/// (see ARCHITECTURE.md). Grid frequency inside the driver stays synthetic
-/// until M4. Shells and calibration runs call this instead of building a
-/// driver themselves, so every surface replays the same year.
+/// (see ARCHITECTURE.md). Grid frequency is the synthetic Continental
+/// European series unless the process attached a measured year
+/// (`replay_frequency`). Shells and calibration runs call this instead of
+/// building a driver themselves, so every surface replays the same year.
 pub fn gw01_weather() -> HistoricalWeather {
-    HistoricalWeather::lindenberg_2024()
+    let weather = HistoricalWeather::lindenberg_2024();
+    match replayed_frequency() {
+        Some(year) => weather.with_frequency(year),
+        None => weather,
+    }
 }
 
 /// The day-ahead price the GW-01 planner is acting on at a UTC timestamp,

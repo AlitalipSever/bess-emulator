@@ -8,7 +8,7 @@
 mod support;
 
 use bess_core::alarms::layout::{block as b, rack as r, site as s};
-use bess_core::alarms::AlarmNode;
+use bess_core::alarms::{has_bit, AlarmNode};
 use bess_core::kernel::{BreakerSequence, Event, FaultAction, Switch};
 use bess_core::state::PcsOpState;
 use bess_core::{PlantConfig, Simulation};
@@ -237,6 +237,33 @@ fn the_earthing_work_runs_the_switchgear_in_order() {
         "the close lands on the command's tick"
     );
     let st = sim.state();
+    assert_eq!(st.ems.blocks_released, 20);
+    assert!(st.blocks.iter().all(|b| b.pcs.op_state.is_connected()));
+}
+
+/// `frequency-event`: the dip raises `lfsm_active` and four megawatts at
+/// once, the rise cuts eight, the excursion trips the site, and the reset
+/// after the recovery returns it through the staggered return.
+#[test]
+fn the_frequency_event_answers_the_grid_and_survives_the_excursion() {
+    let (sim, log) = played("frequency-event");
+    let site_bit = |bit: u8| move |node: AlarmNode, b: u8| node == AlarmNode::Site && b == bit;
+    let dip = raise_after(&log, 0, site_bit(s::LFSM_ACTIVE)).expect("lfsm on the dip");
+    assert!((600..=602).contains(&dip), "lfsm at {dip}");
+    let trip =
+        raise_after(&log, 2000, site_bit(s::GRID_FREQUENCY_TRIP)).expect("the excursion trips");
+    assert!((2700..=2702).contains(&trip), "trip at {trip}");
+    assert!(log.iter().any(|(tick, e)| *tick >= 3300
+        && matches!(
+            e,
+            Event::FaultApplied(FaultAction::AlarmReset(bess_core::alarms::ResetScope::Site))
+        )));
+    let st = sim.state();
+    assert!(!has_bit(st.alarm_bits, s::GRID_FREQUENCY_TRIP));
+    assert_eq!(
+        st.substation.hv_breaker,
+        bess_core::state::BreakerState::Closed
+    );
     assert_eq!(st.ems.blocks_released, 20);
     assert!(st.blocks.iter().all(|b| b.pcs.op_state.is_connected()));
 }

@@ -1,4 +1,4 @@
-# signal-map-version: 0.5.0
+# signal-map-version: 0.6.0
 space,address,words,encoding,scale,name,unit,class,access,instrument,accuracy_class
 input,0,2,i32,1,site.poi.active_power_w,W,fast,ro,scada_analog,0.5
 input,2,2,i32,1,site.poi.reactive_power_var,var,fast,ro,scada_analog,0.5
@@ -39,6 +39,8 @@ input,55,1,i16,10,site.transformer.top_oil_c,degC,medium,ro,thermometer,Pt100 B
 input,56,1,i16,10,site.transformer.hot_spot_c,degC,medium,ro,thermometer,Pt100 B
 input,57,1,i16,1,site.transformer.tap_position,step,medium,ro,exact,exact
 input,58,1,u16,100,site.mv_bus.voltage_kv,kV,fast,ro,scada_analog,0.5
+input,60,1,u16,1,site.grid_code.state,enum,fast,ro,exact,exact
+input,61,2,i32,1,site.fcr.output_kw,kW,fast,ro,exact,exact
 input,1000,1,i16,1,block00.pcs.p_ac_kw,kW,fast,ro,scada_analog,0.5
 input,1001,1,i16,1,block00.pcs.p_dc_kw,kW,fast,ro,scada_analog,0.5
 input,1002,1,u16,1,block00.pcs.state,enum,fast,ro,exact,exact

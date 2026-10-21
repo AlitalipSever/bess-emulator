@@ -153,6 +153,7 @@ fn evaluate_site(state: &SiteState, cfg: &PlantConfig, th: &BlockSiteThresholds)
     next = with_bit(next, s::PARTIAL_AVAILABILITY, partial);
     next = with_bit(next, s::HV_BREAKER_OPEN, breaker_open);
     next = with_bit(next, s::TRANSFORMER_OVER_TEMPERATURE, hot);
+    next = with_bit(next, s::LFSM_ACTIVE, state.ems.lfsm_cut_w != 0.0);
     next
 }
 
@@ -195,6 +196,18 @@ impl Simulation {
             && !has_bit(self.state.alarm_bits, s::TRANSFORMER_TRIP)
         {
             trip_site(&mut self.state, s::TRANSFORMER_TRIP, &mut self.events);
+        }
+        // The frequency protection: outside the connection band the plant
+        // disconnects (VDE-AR-N 4110's 51.5 and 47.5 Hz), from inside the
+        // tick like the transformer's trip. Judged on the frequency the
+        // substation read this tick, offset included.
+        if self.state.substation.hv_breaker == BreakerState::Closed
+            && self
+                .gridcode
+                .disconnects(self.state.substation.frequency_hz)
+            && !has_bit(self.state.alarm_bits, s::GRID_FREQUENCY_TRIP)
+        {
+            trip_site(&mut self.state, s::GRID_FREQUENCY_TRIP, &mut self.events);
         }
         let word = evaluate_site(&self.state, &self.cfg, &self.thresholds);
         push_changes(

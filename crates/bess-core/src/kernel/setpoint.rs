@@ -57,10 +57,23 @@ impl SetpointDynamics {
     /// when it is `following` (connected and in the dispatchable set),
     /// else rest it at zero. Leaves the followed target in
     /// `pcs.setpoint_followed_w`.
-    pub(super) fn follow(&self, pcs: &mut PcsState, following: bool, rated_w: f64, dt_s: f64) {
+    ///
+    /// `fast_w` is the block's share of the plant's frequency response
+    /// (M4 phase 1), added after the filter and clamped with it: the
+    /// filter's own state is the followed value less the fast term it
+    /// carried last tick, so the response neither ramps nor lags.
+    pub(super) fn follow(
+        &self,
+        pcs: &mut PcsState,
+        following: bool,
+        rated_w: f64,
+        dt_s: f64,
+        fast_w: f64,
+    ) {
         if !following {
             pcs.setpoint_ramped_w = 0.0;
             pcs.setpoint_followed_w = 0.0;
+            pcs.fast_term_w = 0.0;
             return;
         }
         // The gradient is a share of the rating; the clamp is what the
@@ -80,9 +93,11 @@ impl SetpointDynamics {
         }
         .clamp(-limit, limit);
         // Implicit Euler on y' = (x - y) / tau: y += (x - y) * dt / (tau + dt).
-        let y = pcs.setpoint_followed_w;
+        let y = pcs.setpoint_followed_w - pcs.fast_term_w;
         let k = dt_s / (self.lag_tau_s + dt_s);
-        pcs.setpoint_followed_w = (y + (pcs.setpoint_ramped_w - y) * k).clamp(-limit, limit);
+        let filtered = (y + (pcs.setpoint_ramped_w - y) * k).clamp(-limit, limit);
+        pcs.setpoint_followed_w = (filtered + fast_w).clamp(-limit, limit);
+        pcs.fast_term_w = pcs.setpoint_followed_w - filtered;
     }
 
     /// How far a connected block is still behind its (limit-clamped)
@@ -95,7 +110,7 @@ impl SetpointDynamics {
     pub(super) fn ramp_slack_w(pcs: &PcsState) -> f64 {
         let limit = pcs.ac_limit_w;
         let target = pcs.p_ac_setpoint_w.clamp(-limit, limit);
-        let behind = target - pcs.setpoint_followed_w;
+        let behind = target - (pcs.setpoint_followed_w - pcs.fast_term_w);
         if target >= 0.0 {
             behind.max(0.0)
         } else {
@@ -126,6 +141,7 @@ mod tests {
             overload_budget: 1.0,
             overload_armed: true,
             ac_limit_w: 2.5e6,
+            fast_term_w: 0.0,
         }
     }
 
@@ -140,7 +156,7 @@ mod tests {
         let mut last = 0.0;
         let mut settled_at = None;
         for tick in 1..=700u64 {
-            dynamics.follow(&mut p, true, RATED_W, 1.0);
+            dynamics.follow(&mut p, true, RATED_W, 1.0, 0.0);
             let y = p.setpoint_followed_w;
             assert!(y >= last - 1e-9, "not monotone at tick {tick}");
             assert!(
@@ -166,7 +182,7 @@ mod tests {
         let dynamics = SetpointDynamics::default();
         let mut p = pcs(-RATED_W);
         for _ in 0..300 {
-            dynamics.follow(&mut p, true, RATED_W, 1.0);
+            dynamics.follow(&mut p, true, RATED_W, 1.0, 0.0);
         }
         assert!(p.setpoint_followed_w < -0.49 * RATED_W);
         assert!(p.setpoint_followed_w > -0.51 * RATED_W);
@@ -183,9 +199,32 @@ mod tests {
     #[test]
     fn switched_off_the_follower_is_the_setpoint() {
         let mut p = pcs(0.7 * RATED_W);
-        SetpointDynamics::off().follow(&mut p, true, RATED_W, 1.0);
+        SetpointDynamics::off().follow(&mut p, true, RATED_W, 1.0, 0.0);
         assert_eq!(p.setpoint_followed_w, 0.7 * RATED_W);
         assert_eq!(p.setpoint_ramped_w, 0.7 * RATED_W);
+    }
+
+    /// The fast term rides on the filtered value without entering it: a
+    /// settled converter handed a fast term reads it at once, and reads
+    /// the filtered value again the tick it is withdrawn.
+    #[test]
+    fn the_fast_term_neither_ramps_nor_lags() {
+        let dynamics = SetpointDynamics::default();
+        let mut p = pcs(0.5 * RATED_W);
+        for _ in 0..400 {
+            dynamics.follow(&mut p, true, RATED_W, 1.0, 0.0);
+        }
+        let settled = p.setpoint_followed_w;
+        dynamics.follow(&mut p, true, RATED_W, 1.0, 0.2 * RATED_W);
+        assert!((p.setpoint_followed_w - settled - 0.2 * RATED_W).abs() < 1.0);
+        assert!((p.fast_term_w - 0.2 * RATED_W).abs() < 1.0);
+        assert_eq!(SetpointDynamics::ramp_slack_w(&p), 0.0);
+        dynamics.follow(&mut p, true, RATED_W, 1.0, 0.0);
+        assert!((p.setpoint_followed_w - settled).abs() < 1.0);
+        // Clamped with the filtered value: the rating holds.
+        dynamics.follow(&mut p, true, RATED_W, 1.0, RATED_W);
+        assert!((p.setpoint_followed_w - RATED_W).abs() < 1e-6);
+        assert!((p.fast_term_w - 0.5 * RATED_W).abs() < 1.0);
     }
 
     /// A converter that stops following rests at zero at once, and a
@@ -195,10 +234,10 @@ mod tests {
         let dynamics = SetpointDynamics::default();
         let mut p = pcs(10.0 * RATED_W);
         for _ in 0..1000 {
-            dynamics.follow(&mut p, true, RATED_W, 1.0);
+            dynamics.follow(&mut p, true, RATED_W, 1.0, 0.0);
         }
         assert!((p.setpoint_followed_w - RATED_W).abs() < 1.0);
-        dynamics.follow(&mut p, false, RATED_W, 1.0);
+        dynamics.follow(&mut p, false, RATED_W, 1.0, 0.0);
         assert_eq!(p.setpoint_followed_w, 0.0);
         assert_eq!(p.setpoint_ramped_w, 0.0);
     }

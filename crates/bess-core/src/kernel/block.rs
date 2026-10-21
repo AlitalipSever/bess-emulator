@@ -17,6 +17,9 @@ pub(super) struct TickContext<'a> {
     pub(super) thresholds: &'a BlockSiteThresholds,
     pub(super) dynamics: &'a SetpointDynamics,
     pub(super) share_w: f64,
+    /// Each dispatchable block's share of the plant's frequency response,
+    /// W (M4 phase 1): the fast term the follower does not ramp.
+    pub(super) fast_share_w: f64,
     pub(super) weather: Weather,
     pub(super) dt_s: f64,
 }
@@ -70,6 +73,7 @@ pub(super) fn step_block(
         thresholds,
         dynamics,
         share_w,
+        fast_share_w,
         weather,
         dt_s,
     } = *ctx;
@@ -110,7 +114,7 @@ pub(super) fn step_block(
     // through its dead time, ramp and lag, and converts what it has
     // reached.
     block.pcs.p_ac_setpoint_w = if in_set { share_w } else { 0.0 };
-    dynamics.follow(&mut block.pcs, in_set, cfg.pcs_rated_w, dt_s);
+    dynamics.follow(&mut block.pcs, in_set, cfg.pcs_rated_w, dt_s, fast_share_w);
     let dc_request_w = models.pcs.dc_request_w(&block.pcs, &block_limits);
 
     // Distribute the DC request evenly over in-service racks. A rack that

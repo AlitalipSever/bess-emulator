@@ -163,6 +163,7 @@ mod tests {
             poi_reactive_power_var: 0.0,
             poi_voltage_kv: 110.0,
             frequency_hz: 50.0,
+            frequency_offset_mhz: 0,
             transformer_loss_w: 0.0,
             aux_power_w: 0.0,
             import_wh: 0.0,
