@@ -2,9 +2,11 @@
 # discharge: its PCS goes to fault, the block drops out of the available
 # set, and the site falls one block short, since the other nineteen are
 # already at their rating; it raises its limit and its partial
-# availability. An operator reset of the block half an hour later brings
-# the converter back through standby, and the block, which kept its
-# charge while it was out, runs on after the others have emptied.
+# availability. An operator reset of the block half an hour later leaves
+# the converter off with its contactors open; cleared, it walks precharge,
+# contactor close and synchronization and runs 16 s after the reset, and
+# the block, which kept its charge while it was out, runs on after the
+# others have emptied.
 schema: 1
 name: pcs-trip-and-reset
 taxonomy: bos

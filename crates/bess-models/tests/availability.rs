@@ -2,6 +2,9 @@
 //! tripped. Each command changes one thing between ticks; the next tick's
 //! models and words say the rest.
 
+/// Ticks a cleared converter spends in its startup sequence.
+const STARTUP_TICKS: u64 = 16;
+
 use bess_core::alarms::layout::{block as b, rack as r, site as s};
 use bess_core::alarms::{AlarmNode, ResetScope};
 use bess_core::kernel::{CommandError, Event};
@@ -128,10 +131,11 @@ fn maintenance_takes_a_block_out_and_keeps_it_cool() {
         .expect("block exists");
     let events = step(&mut sim);
     let st = sim.state();
+    // Maintenance opens the contactors: Off, not an idle Standby.
     assert!(events.contains(&Event::PcsStateChanged {
         block: BLK,
         from: PcsOpState::Run,
-        to: PcsOpState::Standby,
+        to: PcsOpState::Off,
     }));
     assert!(edge(
         &events,
@@ -173,10 +177,11 @@ fn maintenance_takes_a_block_out_and_keeps_it_cool() {
     sim.set_block_mode(BLK, BlockMode::InService)
         .expect("block exists");
     let events = step(&mut sim);
+    // Handed back, the converter starts its sequence; it runs 16 s later.
     assert!(events.contains(&Event::PcsStateChanged {
         block: BLK,
-        from: PcsOpState::Standby,
-        to: PcsOpState::Run,
+        from: PcsOpState::Off,
+        to: PcsOpState::Precharge,
     }));
     assert!(edge(
         &events,
@@ -184,8 +189,15 @@ fn maintenance_takes_a_block_out_and_keeps_it_cool() {
         b::MAINTENANCE,
         false
     ));
+    // Partial availability clears when the converter is back in the
+    // connected set, at the end of its startup sequence.
+    let mut later = Vec::new();
+    for _ in 0..STARTUP_TICKS {
+        later.extend(step(&mut sim));
+    }
+    assert_eq!(sim.state().blocks[BLK].pcs.op_state, PcsOpState::Run);
     assert!(edge(
-        &events,
+        &later,
         AlarmNode::Site,
         s::PARTIAL_AVAILABILITY,
         false
@@ -240,8 +252,11 @@ fn a_tripped_pcs_leaves_the_rest_delivering() {
         b::PCS_FAULT,
         false
     ));
-    assert_eq!(sim.state().blocks[BLK].pcs.op_state, PcsOpState::Run);
+    // Out of fault into the startup sequence, running once it is through.
+    assert_eq!(sim.state().blocks[BLK].pcs.op_state, PcsOpState::Precharge);
     assert_eq!(sim.state().ems.blocks_released, 20);
+    run(&mut sim, STARTUP_TICKS);
+    assert_eq!(sim.state().blocks[BLK].pcs.op_state, PcsOpState::Run);
     assert_eq!(
         sim.trip_pcs(20),
         Err(CommandError::NoSuchNode(AlarmNode::Block { block: 20 }))

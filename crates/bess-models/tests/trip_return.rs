@@ -20,6 +20,9 @@ use bess_models::{gw01_models, gw01_weather};
 const JULY_AFTERNOON_S: i64 = 1_767_225_600 + 194 * 86_400 + 14 * 3600;
 const BLOCKS: usize = 20;
 const SPACING_TICKS: u64 = 30;
+/// Ticks from a block's release to its first running tick: the converter's
+/// startup sequence.
+const STARTUP_TICKS: u64 = 16;
 
 fn busy_plant() -> Simulation {
     let cfg = PlantConfig::gw01();
@@ -151,7 +154,9 @@ fn watch_return(sim: &mut Simulation, ticks: u64) -> Return {
         partial_cleared: None,
         climbs: 0,
     };
-    let mut last_poi = f64::NEG_INFINITY;
+    // The POI reads zero on the tick after the reset: the first block is
+    // still in its startup sequence, so the first climb is block 0's.
+    let mut last_poi = 0.0;
     for tick in 0..ticks {
         let events = step(sim);
         let st = sim.state();
@@ -200,12 +205,12 @@ fn a_site_reset_brings_the_blocks_back_one_at_a_time() {
     let seen = watch_return(&mut sim, BLOCKS as u64 * SPACING_TICKS + 60);
 
     let want: Vec<Option<u64>> = (0..BLOCKS as u64)
-        .map(|k| Some(k * SPACING_TICKS))
+        .map(|k| Some(k * SPACING_TICKS + STARTUP_TICKS))
         .collect();
     assert_eq!(
         seen.first_run.to_vec(),
         want,
-        "blocks did not return 30 s apart"
+        "blocks did not return 30 s apart, 16 s after their release"
     );
     assert_eq!(
         seen.climbs, BLOCKS,
@@ -221,15 +226,16 @@ fn a_site_reset_brings_the_blocks_back_one_at_a_time() {
         raised_at < SPACING_TICKS,
         "limited raised late, at {raised_at}"
     );
+    let last_back = 19 * SPACING_TICKS + STARTUP_TICKS;
     assert!(
-        (19 * SPACING_TICKS..19 * SPACING_TICKS + 30).contains(&cleared_at),
+        (last_back..last_back + 30).contains(&cleared_at),
         "limited cleared at {cleared_at}, not with the last block"
     );
     // Partly there for exactly as long as some block is still out: the
     // bit the trip raised clears with the last release, not with the reset.
     assert_eq!(
         seen.partial_cleared,
-        Some((BLOCKS as u64 - 1) * SPACING_TICKS),
+        Some((BLOCKS as u64 - 1) * SPACING_TICKS + STARTUP_TICKS),
         "partial availability did not clear with the last block"
     );
     let st = sim.state();

@@ -11,8 +11,19 @@ Two PRs, each landing green.
 - Tests: the graph, the startup clock, the regenerated trip case.
 
 Accept: `protection-trip-staggered-return` shows twenty blocks walking
-through four states each in the journal, and the site's return takes
-the spacing plus the startup time.
+through four states each in the journal, and the site's return takes the spacing plus the startup time.
+
+*As built (feature/m3-phase2-pr1, 2026-10-21):* `kernel/startup.rs`
+(`StartupSequence`, defaults 10/1/5 s), `PcsOpState` eight values with
+`sunspec_code`, `is_connected`, `is_starting`, `is_converting`;
+`PcsState::state_elapsed_s` (checkpoint 12); reset leaves `Off`,
+maintenance enters `Off`; the startup walk runs before the share is cut
+so a block that connects this tick takes its share this tick; map 0.5.0
+row extended (breaking). Tests: the sequence's graph and clock, every
+trip and maintenance test re-timed to release + 16 s, the library's two
+trip cases and their headers. Golden regenerated (schema), fifteen
+records regenerated (schema and the trip cases' timing); the annual
+record unmoved.
 
 ## PR2: setpoint dynamics
 
@@ -32,4 +43,4 @@ published dead time and ramp, visible on the stream, without raising
   one `Starting`); either both carry `Starting` on the wire with the
   finer state only on MQTT and REST, or GW-01 extends the enumeration
   in a documented private range. Leans the first: the wire follows the
-  standard, the richer surfaces say more.
+  standard, the richer surfaces say more. *Resolved in PR1:* the first.

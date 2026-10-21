@@ -53,9 +53,15 @@ impl Severity {
 }
 
 impl PcsOpState {
-    /// Published name: `standby`, `run` or `fault`.
+    /// Published name: `off`, `precharge`, `contactor_close`,
+    /// `synchronize`, `ramp`, `standby`, `run` or `fault`.
     pub fn name(self) -> &'static str {
         match self {
+            Self::Off => "off",
+            Self::Precharge => "precharge",
+            Self::ContactorClose => "contactor_close",
+            Self::Synchronize => "synchronize",
+            Self::Ramp => "ramp",
             Self::Standby => "standby",
             Self::Run => "run",
             Self::Fault => "fault",

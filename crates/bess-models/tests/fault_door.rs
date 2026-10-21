@@ -133,6 +133,9 @@ fn every_command_action_is_its_command_plus_a_mark() {
         || {
             let mut s = plant();
             s.set_block_mode(9, BlockMode::Maintenance).unwrap();
+            // Entering maintenance queues the converter's Off transition;
+            // one tick drains it so the exit starts from an empty queue.
+            step(&mut s);
             s
         },
         FaultAction::BlockMaintenanceExit { block: 9 },

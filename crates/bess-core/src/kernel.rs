@@ -19,6 +19,7 @@ mod commands;
 mod event;
 mod fault;
 mod restart;
+mod startup;
 
 use block::{step_block, Scratch, TickContext};
 pub use commands::CommandError;
@@ -26,6 +27,7 @@ pub use event::Event;
 pub use fault::{FaultAction, FaultError};
 use restart::dispatchable;
 pub use restart::ReturnPolicy;
+pub use startup::StartupSequence;
 
 /// The weather one tick applies.
 ///
@@ -58,6 +60,7 @@ pub struct Simulation {
     events: Vec<Event>,
     thresholds: BlockSiteThresholds,
     return_policy: ReturnPolicy,
+    startup: StartupSequence,
     scratch: Scratch,
 }
 
@@ -79,6 +82,7 @@ impl Simulation {
             events: Vec::with_capacity(16),
             thresholds: BlockSiteThresholds::default(),
             return_policy: ReturnPolicy::default(),
+            startup: StartupSequence::default(),
             scratch: Scratch {
                 rack_limits: vec![PowerLimits::default(); racks_per_block],
                 bms_heat: vec![0.0; racks_per_block],
@@ -124,6 +128,18 @@ impl Simulation {
             .sum()
     }
 
+    /// Walk every cleared converter one tick along its startup sequence
+    /// before the blocks are stepped: the clearance is the return's, the
+    /// walk is the converter's, and a block is dispatchable only once the
+    /// walk has reached a connected state.
+    fn start_converters(&mut self, connected: bool, dt_s: f64) {
+        for (block_idx, block) in self.state.blocks.iter_mut().enumerate() {
+            let cleared = restart::cleared(block, block_idx, &self.state.ems, connected);
+            self.startup
+                .advance(&mut block.pcs, block_idx, cleared, dt_s, &mut self.events);
+        }
+    }
+
     /// Advance the plant by one tick. Returns the events emitted.
     pub fn step(&mut self, inputs: &Inputs) -> &[Event] {
         let dt_s = TICK_SECONDS as f64;
@@ -164,6 +180,10 @@ impl Simulation {
                 dt_s,
             );
         }
+        // The converters' startup sequences walk before the share is cut,
+        // so a block that reaches a connected state this tick takes its
+        // share this tick.
+        self.start_converters(connected, dt_s);
         let share_w = restart::share_w(&self.state.blocks, &self.state.ems, connected, target_w);
 
         // 3. Per block: BMS limits -> PCS conversion -> racks -> thermal.

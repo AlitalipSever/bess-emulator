@@ -5,7 +5,7 @@
 //! quantity, so every aggregate here says which container or rack it speaks
 //! for, and the answer is always the one nearest a limit.
 
-use bess_core::state::{BlockMode, BlockState, HvacMode, PcsOpState, SiteState};
+use bess_core::state::{BlockMode, BlockState, HvacMode, SiteState};
 
 use super::{block_base, block_ext_base, block_prefix, point, Class, Encoding, Point, Space};
 
@@ -115,11 +115,9 @@ pub(super) fn points(b: usize) -> Vec<Point> {
             1.0,
             base + 2,
             Input,
-            move |s: &SiteState| match s.blocks[b].pcs.op_state {
-                PcsOpState::Standby => 0.0,
-                PcsOpState::Run => 1.0,
-                PcsOpState::Fault => 2.0,
-            }
+            // SunSpec operating-state numbering since map 0.5.0: 1 off,
+            // 3 starting, 4 running, 7 fault, 8 standby.
+            move |s: &SiteState| f64::from(s.blocks[b].pcs.op_state.sunspec_code())
         ),
         point!(
             format!("{prefix}.soc_pct"),

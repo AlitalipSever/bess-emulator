@@ -18,7 +18,10 @@ use crate::state::SiteState;
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
 ///
-/// v11 (M3): each PCS carries the DC bus voltage it converts at.
+/// v12 (M3): the PCS state machine: five new operating states and the
+/// time spent in the current startup state, so a resume continues a
+/// precharge where it was. v11 (M3): each PCS carries the DC bus voltage
+/// it converts at.
 /// v10 (M2.5): racks gained the BMS estimator: the reported SoC and the
 /// two parameters of the rack current sensor it counts with (offset and
 /// gain), so a resumed run keeps the error it had accumulated.
@@ -46,7 +49,7 @@ pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Pre-1.0 checkpoints are not migrated; an older file is rejected with its
 /// version named rather than half-restored, since a missing item would
 /// otherwise restore as a plant whose auxiliary meters silently read zero.
-pub const FORMAT_VERSION: u32 = 11;
+pub const FORMAT_VERSION: u32 = 12;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {

@@ -77,7 +77,7 @@ fn both_units_down_shows_the_causal_chain() {
 }
 
 /// The converter trips while it is running, and the reset brings it back
-/// to running, not to standby.
+/// to running through its startup sequence, not straight to standby.
 #[test]
 fn the_pcs_trips_mid_discharge_and_the_reset_returns_it_to_run() {
     let (sim, log) = played("pcs-trip-and-reset");
@@ -93,11 +93,15 @@ fn the_pcs_trips_mid_discharge_and_the_reset_returns_it_to_run() {
         })
         .collect();
     assert_eq!(
-        changes[..3],
+        changes[..7],
         [
             (PcsOpState::Run, PcsOpState::Fault),
-            (PcsOpState::Fault, PcsOpState::Standby),
-            (PcsOpState::Standby, PcsOpState::Run),
+            (PcsOpState::Fault, PcsOpState::Off),
+            (PcsOpState::Off, PcsOpState::Precharge),
+            (PcsOpState::Precharge, PcsOpState::ContactorClose),
+            (PcsOpState::ContactorClose, PcsOpState::Synchronize),
+            (PcsOpState::Synchronize, PcsOpState::Ramp),
+            (PcsOpState::Ramp, PcsOpState::Run),
         ]
     );
     let partial = raise_after(&log, 0, |n, bit| {

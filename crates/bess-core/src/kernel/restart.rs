@@ -6,7 +6,7 @@
 //! trait owns the start order of a site. Relay internals, precharge and
 //! synchronization stay out (M3); what is modeled is the observable order.
 
-use crate::state::{BlockMode, BlockState, EmsState, PcsOpState};
+use crate::state::{BlockMode, BlockState, EmsState};
 
 /// How the plant controller brings blocks back after a trip.
 #[derive(Debug, Clone, PartialEq)]
@@ -26,20 +26,24 @@ impl Default for ReturnPolicy {
     }
 }
 
+/// Whether block `index` is cleared to run: the site is connected, the
+/// block in service and already released. What the converter does with
+/// the clearance is the startup sequence's business (`startup.rs`).
+pub(super) fn cleared(block: &BlockState, index: usize, ems: &EmsState, connected: bool) -> bool {
+    connected && block.mode == BlockMode::InService && index < ems.blocks_released
+}
+
 /// Whether block `index` takes a share of the site target and counts
-/// towards availability: the site is connected, and the block is in
-/// service, not in fault, and already released. Allocation, availability
-/// and the site's partial-availability bit all ask this one question.
+/// towards availability: cleared, and its converter connected (through
+/// its startup sequence, not in fault). Allocation, availability and the
+/// site's partial-availability bit all ask this one question.
 pub(super) fn dispatchable(
     block: &BlockState,
     index: usize,
     ems: &EmsState,
     connected: bool,
 ) -> bool {
-    connected
-        && block.mode == BlockMode::InService
-        && block.pcs.op_state != PcsOpState::Fault
-        && index < ems.blocks_released
+    cleared(block, index, ems, connected) && block.pcs.op_state.is_connected()
 }
 
 /// Start the return over: no block released, the first one due on the

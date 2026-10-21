@@ -176,12 +176,16 @@ impl Simulation {
 
         for &bi in &blocks {
             let block = &mut self.state.blocks[bi];
+            // Out of fault with the contactors open: the converter comes
+            // back through its startup sequence once the controller
+            // clears it, not straight into the connected set.
             if block.pcs.op_state == PcsOpState::Fault {
-                block.pcs.op_state = PcsOpState::Standby;
+                block.pcs.op_state = PcsOpState::Off;
+                block.pcs.state_elapsed_s = 0.0;
                 events.push(Event::PcsStateChanged {
                     block: bi,
                     from: PcsOpState::Fault,
-                    to: PcsOpState::Standby,
+                    to: PcsOpState::Off,
                 });
             }
             let old = block.alarm_bits;
