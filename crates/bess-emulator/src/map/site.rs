@@ -62,7 +62,8 @@ pub(super) fn points() -> Vec<Point> {
             100.0,
             6,
             Input,
-            |s: &SiteState| s.average_soc() * 100.0
+            // What the BMSs report, not the kernel's truth (map 0.4.0).
+            |s: &SiteState| s.average_soc_reported() * 100.0
         ),
         point!("site.soh_pct", "%", Slow, U16, 100.0, 7, Input, |_| 100.0),
         point!(

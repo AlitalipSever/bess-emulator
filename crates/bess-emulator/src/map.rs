@@ -43,8 +43,11 @@ pub(crate) use encode::write_point;
 /// moved, nothing renamed. 0.3.0 is M2's, and the first major step: the rack
 /// alarm bits behind `blockNN.alarm_bits` gained a layout, which
 /// reinterprets a published point; the block and site alarm words, the event
-/// counter, the spread and the derate count are additions.
-pub const MAP_VERSION: &str = "0.3.0";
+/// counter, the spread and the derate count are additions. 0.4.0 is
+/// M2.5's, major again: `site.soc_pct` and `blockNN.soc_pct` keep their
+/// addresses and units and change meaning, from the kernel's true state of
+/// charge to what the BMSs report, which drifts and snaps. No address moved.
+pub const MAP_VERSION: &str = "0.4.0";
 
 /// Register space a point lives in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

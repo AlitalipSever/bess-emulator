@@ -1,8 +1,9 @@
 # M2.5 phase 2: reported SoC, design
 
 Each decision is proposed here and confirmed or revised in its PR.
-As built in PR1 (2026-10-21): D2, D3, D5 confirmed; D1 and D4 are PR2's
-and stand as proposed.
+As built in PR1 (2026-10-21): D2, D3, D5 confirmed. PR2 (same day): D1
+confirmed as proposed, replacement not a second point; D4 confirmed, no
+confidence signal.
 
 ## Decisions
 
@@ -13,7 +14,14 @@ and stand as proposed.
   hardens a pipeline against an estimate while the oracle sits one
   register over. Breaking meaning change, called out like M2's alarm
   bits; this is the iteration's headline break and the reason v0.6.0
-  exists.
+  exists. *As built in PR2:* `site.soc_pct`, `blockNN.soc_pct`, the MQTT
+  mirrors, the REST summary's `soc` and `bess_site_soc_ratio` all read
+  `average_soc_reported`; map 0.4.0 (the digest does not move for a
+  meaning change, the version line carries it alone); the viewer's site
+  bar and rack rows show the reported value too, since the viewer shows
+  what SCADA sees. The truth is on the research surfaces only: the
+  annual record's estimator section and the study series, which gained
+  site-mean and one-rack true/reported pairs.
 - **D2, drift parameters from sensor specifications, jump behavior
   from published observations.** The offset and gain error ranges come
   from public current-sensor accuracy specifications of the class used

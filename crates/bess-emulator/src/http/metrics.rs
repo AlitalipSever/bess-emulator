@@ -66,8 +66,8 @@ fn site_metrics(out: &mut String, s: &SiteState, speed: f64) {
         out,
         "bess_site_soc_ratio",
         "gauge",
-        "Mean state of charge over in-service racks.",
-        s.average_soc(),
+        "Mean state of charge over in-service racks, as their BMSs report it.",
+        s.average_soc_reported(),
     );
     metric(
         out,

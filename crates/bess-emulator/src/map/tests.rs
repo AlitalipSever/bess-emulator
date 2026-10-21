@@ -156,7 +156,10 @@ fn map_digest(points: &[Point]) -> u64 {
 /// `site.meter.station_service_kwh`, and in PR2 the three
 /// `site.revenue.*` points) fold into it rather than moving the version;
 /// the phase 2 digest was 0x1828_8f29_0804_2bf5, phase 3 PR1's
-/// 0x8b88_5b58_55d7_88b7.
+/// 0x8b88_5b58_55d7_88b7. Map 0.4.0 (M2.5) did not move it: a meaning
+/// change on two published points leaves names, addresses and encodings
+/// where they were, which is exactly the change this digest cannot see
+/// and the version line has to carry alone.
 const MAP_DIGEST: u64 = 0xf5b0_c5b7_b546_e059;
 
 /// A version number nobody is forced to move is decoration.

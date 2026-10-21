@@ -18,7 +18,7 @@ HOST, PORT = "127.0.0.1", 1502
 # Input registers (read-only), from the signal map.
 REG_POI_POWER = 0  # i32, W, positive = export
 REG_FREQUENCY = 5  # u16, Hz x1000
-REG_SITE_SOC = 6  # u16, % x100
+REG_SITE_SOC = 6  # u16, % x100; the BMS-reported estimate (map 0.4.0), not an oracle
 REG_SETPOINT = 18  # i32, W
 
 # Holding registers (control surface).

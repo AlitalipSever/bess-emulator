@@ -1,4 +1,4 @@
-# signal-map-version: 0.3.0
+# signal-map-version: 0.4.0
 space,address,words,encoding,scale,name,unit,class,access
 input,0,2,i32,1,site.poi.active_power_w,W,fast,ro
 input,2,2,i32,1,site.poi.reactive_power_var,var,fast,ro

@@ -33,6 +33,7 @@ pub fn hot_plant() -> Simulation {
             .flat_map(|blk| blk.containers.iter_mut().flat_map(|c| c.racks.iter_mut()))
         {
             rack.soc = 0.9;
+            rack.soc_reported = 0.9;
             rack.cell_temp_c = 30.0;
         }
         for hot in &mut state.blocks[HOT_BLOCK].containers {
