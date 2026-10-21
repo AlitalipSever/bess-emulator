@@ -31,7 +31,7 @@ fn test_params() -> RunParams {
 #[tokio::test(flavor = "multi_thread")]
 async fn modbus_read_write_closed_loop() {
     let addr: SocketAddr = "127.0.0.1:15502".parse().unwrap();
-    let (handle, _sim_task) = sim::spawn(test_params(), None);
+    let (handle, _sim_task) = sim::spawn(test_params(), None, false);
     tokio::spawn(serve(addr, handle));
     tokio::time::sleep(Duration::from_millis(300)).await;
 
@@ -187,7 +187,7 @@ events:
         ..test_params()
     };
     let resolved = load(STORY, &PlantConfig::gw01()).unwrap().resolve(params);
-    let (handle, _sim_task) = sim::spawn(params, Some(resolved));
+    let (handle, _sim_task) = sim::spawn(params, Some(resolved), false);
     tokio::spawn(serve(addr, handle.clone()));
     tokio::time::sleep(Duration::from_millis(300)).await;
 

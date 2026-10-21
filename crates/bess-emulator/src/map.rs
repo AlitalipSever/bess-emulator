@@ -220,7 +220,8 @@ pub fn build_points(cfg: &PlantConfig) -> Vec<Point> {
 fn input_bank(points: &[Point], state: &SiteState) -> Vec<u16> {
     let mut input = vec![0u16; INPUT_BANK_LEN];
     let mut holding = vec![0u16; HOLDING_BANK_LEN];
-    write_banks(points, state, &mut input, &mut holding);
+    let values: Vec<f64> = points.iter().map(|p| (p.extract)(state)).collect();
+    write_banks(points, &values, &mut input, &mut holding);
     input
 }
 

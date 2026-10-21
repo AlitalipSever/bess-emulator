@@ -11,8 +11,11 @@ use super::*;
 
 fn snapshot() -> Snapshot {
     let cfg = PlantConfig::gw01();
+    let state = SiteState::new(&cfg, 1, 0);
     Snapshot {
-        state: SiteState::new(&cfg, 1, 0),
+        measured: Vec::new(),
+        readings: crate::instruments::Readings::exact(&state),
+        state,
         input_regs: Vec::new(),
         holding_regs: Vec::new(),
         speed: 60.0,
@@ -79,6 +82,7 @@ fn the_summary_carries_block_mode_and_station_service() {
     let mut snap = snapshot();
     snap.state.blocks[4].mode = BlockMode::Maintenance;
     snap.state.substation.station_service_wh = 2_500.0;
+    snap.readings = crate::instruments::Readings::exact(&snap.state);
     let summary = summary_value(&snap);
     assert_eq!(summary["blocks"][4]["mode"], 1);
     assert_eq!(summary["blocks"][3]["mode"], 0);
@@ -95,6 +99,7 @@ fn the_summary_carries_the_revenue_period_and_the_price() {
     let mut snap = snapshot();
     snap.state.substation.revenue.last_export_wh = 25_000_000.0;
     snap.state.substation.revenue.periods_closed = 4;
+    snap.readings = crate::instruments::Readings::exact(&snap.state);
     let summary = summary_value(&snap);
     assert_eq!(summary["revenue_period_export_kwh"], 25_000.0);
     assert_eq!(summary["revenue_period_import_kwh"], 0.0);

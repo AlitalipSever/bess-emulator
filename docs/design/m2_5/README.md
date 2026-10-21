@@ -1,7 +1,7 @@
 # M2.5: SoC realism mini-iteration
 
 Status: in progress. Phase 1 landed 2026-10-21 (PR1); phase 2 PR1 and PR2
-the same day; phase 3 follows. Designed alongside M2, implemented after it. A
+the same day; phase 3 PR1 the same day; PR2 is the v0.7.0 release. Designed alongside M2, implemented after it. A
 mini-iteration in the M0.5/M1.5 tradition: three small phases, each
 deepening exactly one thing, so the iteration discipline holds where a
 combined M2 would have bent it (the hysteresis work touches the cell
@@ -92,6 +92,17 @@ Filled as PRs land.
   point as an oracle, for a round-trip figure or a schedule, now sees
   what a real gateway gives it; the truth is on the research surfaces
   only (the annual record and the study series).
+- **Every published value passes through an instrument** (phase 3 PR1).
+  Fifteen site points and five per block carry their meter's error,
+  always on: noise, a slow wander and a limit that grows at low load,
+  inside IEC classes 0.2S (revenue), 0.5S (house load), 0.5 (SCADA
+  analogs, PCS power) and Pt100 class B (temperatures). The signal map
+  CSV names the instrument and class per point in two new columns;
+  `exact` points (counters, states, the BMS's own estimates, frequency,
+  irradiance) are unchanged. Two readings of one quantity no longer
+  agree to the digit; a pipeline that reconciled them exactly will see
+  a bounded, wandering difference. `--exact-instruments` restores the
+  pre-phase bytes for research.
 - **Library records regenerated** (phase 1 PR1): all fifteen digests
   moved with the physics; `hvac-failure-both-units`,
   `hvac-failure-hot-week` and `rack-self-discharge-drift` changed their

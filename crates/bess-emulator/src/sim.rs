@@ -18,6 +18,7 @@ use tokio::task::JoinHandle;
 use tokio::time::Instant;
 use tracing::info;
 
+use crate::instruments::{Instruments, ReadingIndex, Readings};
 use crate::map::{self, Point};
 use crate::tap::Taps;
 use scenario::Active;
@@ -66,6 +67,13 @@ pub enum Command {
 pub struct Snapshot {
     /// Full state tree at this tick.
     pub state: SiteState,
+    /// Every point's published value, in map order, as its instrument read
+    /// it (`instruments`): what the banks and the topics carry before any
+    /// scenario data fault.
+    pub measured: Vec<f64>,
+    /// The handful of instrumented readings the REST summary and the
+    /// metrics name without going through the map.
+    pub readings: Readings,
     /// Input register bank.
     pub input_regs: Vec<u16>,
     /// Holding register bank.
@@ -119,24 +127,43 @@ pub struct SimHandle {
 /// Spawn the simulation task for the reference site: a fresh plant at
 /// `params`, carrying the scenario's identity and playing its schedule when
 /// the command line loaded one.
-pub fn spawn(params: RunParams, scenario: Option<Resolved>) -> (SimHandle, JoinHandle<()>) {
+pub fn spawn(
+    params: RunParams,
+    scenario: Option<Resolved>,
+    instrumented: bool,
+) -> (SimHandle, JoinHandle<()>) {
     let cfg = PlantConfig::gw01();
     let models = gw01_models(&cfg);
     let sim = match &scenario {
         Some(resolved) => resolved.simulation(cfg, models),
         None => Simulation::new(cfg, models, params.seed, params.start_unix_s),
     };
-    start(sim, params.speed, scenario)
+    start_with(sim, params.speed, scenario, instrumented)
 }
 
 /// Run an already built simulation as the task, under a scenario if one is
-/// given. Tests start from a prepared plant through it.
+/// given, with the instrument inventory on. Tests start from a prepared
+/// plant through it.
+#[cfg(test)]
 pub fn start(
     sim: Simulation,
     speed: f64,
     scenario: Option<Resolved>,
 ) -> (SimHandle, JoinHandle<()>) {
+    start_with(sim, speed, scenario, true)
+}
+
+/// `start`, choosing whether the surfaces publish instrumented readings or
+/// the kernel's exact values.
+pub fn start_with(
+    sim: Simulation,
+    speed: f64,
+    scenario: Option<Resolved>,
+    instrumented: bool,
+) -> (SimHandle, JoinHandle<()>) {
     let points = Arc::new(map::build_points(sim.config()));
+    let instruments = Instruments::new(&points, sim.config(), sim.state().meta.seed, instrumented);
+    let readings = ReadingIndex::new(&points);
     let (cmd_tx, mut cmd_rx) = mpsc::channel::<Command>(64);
     let (events_tx, _) = broadcast::channel(EVENT_BACKLOG);
     let story = scenario.map(|resolved| Active::new(Arc::new(resolved), Arc::clone(&points)));
@@ -147,6 +174,8 @@ pub fn start(
         story,
         points: Arc::clone(&points),
         events: events_tx.clone(),
+        instruments,
+        readings,
     };
     let (snap_tx, snap_rx) = watch::channel(task.snapshot());
 
@@ -192,6 +221,10 @@ struct Task {
     status: Option<Arc<Value>>,
     points: Arc<Vec<Point>>,
     events: broadcast::Sender<Arc<TickEvents>>,
+    /// The meters every published value passes through.
+    instruments: Instruments,
+    /// Where the summary's handful of readings sit in the map.
+    readings: ReadingIndex,
 }
 
 impl Task {
@@ -261,16 +294,23 @@ impl Task {
     }
 
     fn snapshot(&self) -> Arc<Snapshot> {
+        let state = self.sim.state();
+        // Every point read once, through its instrument: the one vector the
+        // banks, the topics and the summary all publish from.
+        let measured: Vec<f64> = self
+            .points
+            .iter()
+            .enumerate()
+            .map(|(i, p)| self.instruments.measure(i, state.tick, (p.extract)(state)))
+            .collect();
         let mut input_regs = vec![0u16; map::INPUT_BANK_LEN];
         let mut holding_regs = vec![0u16; map::HOLDING_BANK_LEN];
-        map::write_banks(
-            &self.points,
-            self.sim.state(),
-            &mut input_regs,
-            &mut holding_regs,
-        );
+        map::write_banks(&self.points, &measured, &mut input_regs, &mut holding_regs);
+        let readings = self.readings.read(&measured);
         Arc::new(Snapshot {
-            state: self.sim.state().clone(),
+            state: state.clone(),
+            measured,
+            readings,
             input_regs,
             holding_regs,
             speed: self.speed,

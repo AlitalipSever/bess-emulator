@@ -45,7 +45,8 @@ fn banks_reflect_state_values() {
     let state = SiteState::new(&cfg, 1, 0);
     let mut input = vec![0u16; INPUT_BANK_LEN];
     let mut holding = vec![0u16; HOLDING_BANK_LEN];
-    write_banks(&points, &state, &mut input, &mut holding);
+    let values: Vec<f64> = points.iter().map(|p| (p.extract)(&state)).collect();
+    write_banks(&points, &values, &mut input, &mut holding);
     // Frequency register: 50.0 Hz x1000.
     assert_eq!(input[5], 50_000);
     // POI voltage: 110 kV x100.

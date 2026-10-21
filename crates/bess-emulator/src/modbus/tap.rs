@@ -33,7 +33,7 @@ pub fn input_bank(points: &[Point], snap: &Snapshot, tick: u64) -> Vec<u16> {
         if point.space != Space::Input {
             continue;
         }
-        let truth = (point.extract)(&snap.state);
+        let truth = snap.measured[i];
         let value = snap.taps.value(Surface::Modbus, i, tick, truth);
         if value.to_bits() != truth.to_bits() {
             map::write_point(point, value, &mut bank);

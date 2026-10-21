@@ -36,6 +36,8 @@ fn snapshot() -> Snapshot {
     state.alarm_bits = 1 << site::POWER_LIMITED;
     state.event_log.count = 1234;
     Snapshot {
+        measured: Vec::new(),
+        readings: crate::instruments::Readings::exact(&state),
         state,
         input_regs: Vec::new(),
         holding_regs: Vec::new(),
@@ -229,6 +231,7 @@ fn the_station_service_counter_reads_its_meter() {
     snap.state.substation.import_wh = 111.0;
     snap.state.substation.export_wh = 222.0;
     snap.state.substation.station_service_wh = 333.0;
+    snap.readings = crate::instruments::Readings::exact(&snap.state);
     let body = metrics_body(&snap);
     let read = |name: &str| value_of(&body, name);
     assert!((read("bess_import_watthours_total") - 111.0).abs() < 1.0e-9);

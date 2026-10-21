@@ -13,8 +13,17 @@ Two PRs, each landing green.
 - Tests: kernel-unaware digest, S-curve unit, determinism.
 
 Accept: the two-meters-disagree integration test shows a bounded
-wandering difference, and switching instrumentation off restores
-pre-phase published bytes.
+wandering difference, and switching instrumentation off restores pre-phase published bytes.
+
+*As built (feature/m2_5-phase3-pr1, 2026-10-21):* `crates/bess-emulator/src/instruments/`
+(inventory, model, tests); every published value goes through one
+`measured` vector per snapshot (the banks, the topics, the REST summary
+and the metrics read it; the viewer reads the kernel); `--exact-instruments`
+publishes the truth; the signal map CSV gains `instrument` and
+`accuracy_class` columns. Tests: inventory shape, S-curve, class
+compliance sweep, low load worse than rated, determinism and switch-off,
+constant ratio on cumulative registers, two meters disagree. No kernel
+change: records and digests unmoved.
 
 ## PR2: gates, docs, release v0.6.0
 
