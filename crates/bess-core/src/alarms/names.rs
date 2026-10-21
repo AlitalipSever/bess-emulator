@@ -91,7 +91,9 @@ impl FaultAction {
             | Self::EarthingSwitch { .. }
             | Self::GridFrequencyOffset { .. }
             | Self::ExternalLimit { .. }
-            | Self::ExternalLimitClear => AlarmNode::Site.path(),
+            | Self::ExternalLimitClear
+            | Self::Award { .. }
+            | Self::AwardsClear => AlarmNode::Site.path(),
             Self::RackSelfDischarge {
                 block,
                 container,
@@ -149,7 +151,7 @@ mod tests {
             AlarmNode::Site.alarm_name(site::POWER_LIMITED),
             "site.power_limited"
         );
-        assert_eq!(AlarmNode::Site.alarm_name(7), "site.bit7");
+        assert_eq!(AlarmNode::Site.alarm_name(12), "site.bit12");
         assert_eq!(RACK.alarm_name(11), "rack.bit11");
         assert_eq!(Severity::Warning.name(), "warning");
         assert_eq!(Severity::Trip.name(), "trip");

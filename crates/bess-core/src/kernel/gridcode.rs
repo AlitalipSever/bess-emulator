@@ -204,6 +204,9 @@ mod tests {
             reactive_q_var: 0.0,
             external_limit: crate::kernel::ExternalLimit::none(),
             limit_binding: false,
+            awards: crate::kernel::Awards::NONE,
+            awards_pinned: false,
+            reservoir: crate::kernel::Reservoir::default(),
         }
     }
 

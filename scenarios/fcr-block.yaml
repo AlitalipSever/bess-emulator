@@ -1,0 +1,23 @@
+# A four-hour FCR block on a summer night, the plan idle. At midnight the
+# plant holds 20 MW of primary reserve: the droop answers the synthetic
+# frequency inside seconds, delivering or absorbing a few megawatts most
+# of the time, the reservoir's working range (7.5 to 92.5 % for 20 MW on
+# this plant) is published, and inside the dead band the manager nudges
+# the state of charge toward the range's centre at up to the prequalified
+# power. No alert on a night like this; the award is cleared at 04:00 and
+# the droop rests.
+schema: 1
+name: fcr-block
+taxonomy: market
+seed: 7
+start: 2026-07-14T00:00:00Z
+length: PT4H10M
+events:
+  - at: PT0S
+    target: site.market
+    fault: award
+    product: fcr
+    mw: 20
+  - at: PT4H
+    target: site.market
+    fault: award_clear

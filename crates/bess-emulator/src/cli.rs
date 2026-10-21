@@ -85,6 +85,13 @@ pub struct Args {
     #[arg(long, value_name = "PATH")]
     pub frequency: Option<PathBuf>,
 
+    /// Replay a year of German balancing tender results compiled by
+    /// `compile-balancing` from regelleistung.net's files (M4 phase 3)
+    /// in place of the bundled annual figures. The file is yours; a
+    /// headless record names its hash.
+    #[arg(long, value_name = "PATH")]
+    pub balancing: Option<PathBuf>,
+
     /// Write the Modbus/MQTT signal map as CSV to this path and exit.
     #[arg(long, value_name = "PATH")]
     pub dump_signal_map: Option<PathBuf>,

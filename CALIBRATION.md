@@ -1659,6 +1659,100 @@ period of every hour is measured here, not excused.
 Batteriespeichersysteme mit Anschluss am Höchstspannungsnetz", May 2026
 (netztransparenz.de). Numbers cited, nothing reproduced.
 
+## M4 (v0.9.0, unreleased): the balancing products and their prices
+
+Phase 3 PR1 gives the plant products to hold: FCR, served by the phase 1
+droop block at the awarded power under the reservoir rules of a limited
+energy store (`crates/bess-core/src/kernel/market.rs`), and aFRR awards
+as headroom (their service is PR2's). What the plant holds comes from
+the EMS strategy (`DayAheadEms::with_awards`, a fixed plan per block) or
+is pinned by a scenario (`site.market`, `award`); what it is paid comes
+from the German tender results.
+
+**The prices, fetched and cited.** regelleistung.net's data centre
+serves one result file per day and product with no login and no
+licence statement, so nothing of it is bundled (DATA-LICENSES.md):
+`scripts/fetch-balancing.sh` downloads the 1,098 files of 2024,
+`scripts/xlsx-to-csv.py` writes a CSV beside each, `compile-balancing`
+builds the replay artifact `--balancing` loads, and a headless record
+names its hash. What the emulator bundles are the annual figures
+(`bess-models/src/market/prices.rs`), derived on 2026-10-21 from the
+366 days: the FCR settlement capacity price per four-hour block, EUR
+per MW and block, means 40.22, 50.97, 78.04, 103.54, 71.71 and 45.93
+(blocks 00 to 04 through 20 to 24), 142,890 EUR/MW over the year for a
+plant holding every block; the aFRR volume-weighted average accepted
+capacity price per block and direction, EUR per MW and hour, positive
+4.87, 9.64, 16.98, 10.14, 21.29, 15.92 and negative 7.39, 6.33, 13.52,
+26.60, 8.71, 2.52 (115 and 95 kEUR/MW over the year holding every
+block); and the aFRR energy merit order's cheapest bid, 102.49 EUR/MWh
+positive and 66.15 negative, and its volume-weighted average, 1,328 and
+−1,142, means over the 35,136 quarter-hours. The FCR annual sum sits
+within 3 % of the public BESS Index's 2026 FCR indicator (146.7
+kEUR/MW/year) and the aFRR figures under the ISEA index's aFRR-only
+figure, which is the shape the design expected.
+
+**What the files taught.** On 26 days of 2024 the FCR file carries a
+second tender's rows with no price anywhere (an additional procurement
+that cleared nothing); the compiler skips them and would fall back to
+the cross-border settlement price if a block's only priced row were
+that one, which happened to none. The aFRR energy results are the
+merit order as bid, not as activated: the marginal column is the cap
+(±15,000 EUR/MWh) in almost every quarter-hour and the average over the
+whole list sits above a thousand, far from what an activated unit is
+paid. PR2 therefore prices activated energy against the cheapest bid as
+the floor and names the average as the ceiling, labeled; the activated
+price itself (PICASSO's cross-border marginal) is not in these files.
+
+**The reservoir rules, sourced.** The SOGL rules for FCR from a limited
+energy reservoir as the Swissgrid prequalification annex states them for
+Continental Europe (the same rules Germany's prequalification applies):
+continuous delivery in the normal state, a working range that keeps at
+least 15 minutes of full activation in reserve each way (`SoC_min =
+E_min + 0.25 h × P / E`, the mirror at the top; 7.5 to 92.5 % for 20 MW
+on GW-01), and an alert state entered at |Δf| ≥ 50 mHz for 15 min,
+≥ 100 mHz for 5 min or ≥ 200 mHz, in which the range may be left and
+full power must be held for at least 15 minutes. The German degrees of
+freedom for charge management are modelled at their public values: the
+dead band used to move toward the range's centre at up to the
+prequalified power, over-fulfilment of the characteristic by up to 20 %
+when its direction helps, and a scheduled transaction (an energy block
+on the plan at the prequalified power) when the reservoir sits outside
+the range. **Labeled estimates:** the alert's release (a calm minute
+inside 50 mHz once the minimum activation is delivered; the rules state
+the entry, not the exit), the recentering's proportional shape, and the
+transaction's size. `a_day_of_fcr_keeps_the_reservoir_in_its_range`
+holds a day of 20 MW on the synthetic frequency inside the range with
+the droop delivering most of the day; `an_excursion_enters_the_alert_
+state_and_the_calm_releases_it` holds the entry and the release.
+
+**Headroom.** The plan's target is kept inside the rating less what
+balancing holds in each direction (FCR both ways, aFRR its own), so a
+plant selling 20 MW of FCR and 10 MW of positive aFRR discharges at
+most 70 MW on its plan (`awards_arm_the_droop_and_take_headroom_from_
+the_plan`).
+
+**What it moved.** Nothing in energy: the annual record is made with
+`AwardPlan::NONE`, the plant that sells nothing, until phase 4's planner
+decides what to sell; every library record moved (the awards and the
+reservoir in the tree). One new library case, `fcr-block`, taxonomy
+`market`.
+
+**Known gaps.**
+
+- **The activated aFRR energy price** is not in the public files; PR2's
+  band is labeled.
+- **The alert's exit, the recentering shape and the transaction's
+  size** are estimates, above.
+- **The block boundaries** are local time through the price year's
+  day table; a 25-hour day's extra hour sits in the last block.
+
+**Sources:** regelleistung.net, the German TSOs' data centre (the 2024
+result files, fetched 2026-10-21; numbers derived, files not
+redistributed); Swissgrid, Anhang 01 Präqualifikationsbedingungen
+(public): sections 5.5 and 5.6 (activation duration, the 15-minute
+criterion, charge management); the German TSOs' 2026 operational
+requirements (the ~2 GW aFRR demand). Numbers cited, nothing reproduced.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

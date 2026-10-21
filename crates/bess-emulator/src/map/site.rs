@@ -287,6 +287,59 @@ pub(super) fn points() -> Vec<Point> {
             Input,
             |s: &SiteState| s.kpi.redispatch_down_wh / 1.0e6
         ),
+        // The balancing products the plant holds (M4 phase 3): the
+        // awarded power per product and the FCR reservoir's working
+        // range. Controller values, exact.
+        point!(
+            "site.market.fcr_awarded_kw",
+            "kW",
+            Slow,
+            U32,
+            1.0,
+            72,
+            Input,
+            |s: &SiteState| s.ems.awards.fcr_w / 1000.0
+        ),
+        point!(
+            "site.market.afrr_pos_awarded_kw",
+            "kW",
+            Slow,
+            U32,
+            1.0,
+            74,
+            Input,
+            |s: &SiteState| s.ems.awards.afrr_pos_w / 1000.0
+        ),
+        point!(
+            "site.market.afrr_neg_awarded_kw",
+            "kW",
+            Slow,
+            U32,
+            1.0,
+            76,
+            Input,
+            |s: &SiteState| s.ems.awards.afrr_neg_w / 1000.0
+        ),
+        point!(
+            "site.market.fcr_range_min_pct",
+            "%",
+            Slow,
+            U16,
+            10.0,
+            78,
+            Input,
+            |s: &SiteState| s.ems.reservoir.range_min * 100.0
+        ),
+        point!(
+            "site.market.fcr_range_max_pct",
+            "%",
+            Slow,
+            U16,
+            10.0,
+            79,
+            Input,
+            |s: &SiteState| s.ems.reservoir.range_max * 100.0
+        ),
         // The grid-code block (M4 phase 1): what it is doing, and what
         // the FCR droop delivers. Controller values, exact.
         point!(

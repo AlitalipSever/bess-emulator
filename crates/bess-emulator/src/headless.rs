@@ -47,6 +47,11 @@ pub struct Record {
     /// the same file.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frequency: Option<String>,
+    /// FNV-1a 64 of the replayed balancing year's bytes when one was
+    /// attached (`--balancing`, M4 phase 3); absent on the bundled
+    /// annual figures.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub balancing: Option<String>,
 }
 
 /// The kernel's event log at the end: how many, and the hash of all.
@@ -93,6 +98,7 @@ pub fn run(resolved: &Resolved) -> Result<Record, String> {
         },
         revenue_periods_closed: state.substation.revenue.periods_closed,
         frequency: weather.frequency().map(|year| hex(year.hash())),
+        balancing: bess_models::replayed_balancing().map(|year| hex(year.hash())),
     })
 }
 

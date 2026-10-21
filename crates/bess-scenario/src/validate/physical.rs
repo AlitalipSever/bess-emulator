@@ -31,6 +31,8 @@ pub(super) fn physical(spec: &EventSpec, path: &str, cfg: &PlantConfig) -> Resul
         (Target::Grid, "frequency_offset") => Ready(frequency_offset(spec)?),
         (Target::Ems, "limit") => Ready(limit(spec)?),
         (Target::Ems, "limit_clear") => Ready(A::ExternalLimitClear),
+        (Target::Market, "award") => Ready(award(spec)?),
+        (Target::Market, "award_clear") => Ready(A::AwardsClear),
         (Target::Block { block }, "maintenance_enter") => Ready(A::BlockMaintenanceEnter { block }),
         (Target::Block { block }, "maintenance_exit") => Ready(A::BlockMaintenanceExit { block }),
         (
@@ -86,6 +88,7 @@ pub(super) fn physical(spec: &EventSpec, path: &str, cfg: &PlantConfig) -> Resul
         "self_discharge" => &["rate_pct_per_month"],
         "frequency_offset" => &["mhz"],
         "limit" => &["pct", "revert"],
+        "award" => &["product", "mw"],
         _ => &[],
     };
     only_taken(spec, fault, takes)?;
@@ -143,6 +146,46 @@ fn limit(spec: &EventSpec) -> Result<FaultAction, Refusal> {
     })
 }
 
+/// `award`'s parameters: the product and the power in MW.
+fn award(spec: &EventSpec) -> Result<FaultAction, Refusal> {
+    let product = spec.product.as_deref().ok_or((
+        "product",
+        Reason::ParameterMissing {
+            fault: "award",
+            parameter: "product",
+        },
+    ))?;
+    let product = bess_core::kernel::Product::parse(product).ok_or((
+        "product",
+        Reason::ParameterOutOfRange {
+            parameter: "product",
+            value: f64::NAN,
+            range: "fcr, afrr_pos or afrr_neg",
+        },
+    ))?;
+    let mw = spec.mw.ok_or((
+        "mw",
+        Reason::ParameterMissing {
+            fault: "award",
+            parameter: "mw",
+        },
+    ))?;
+    if !(0.0..=1000.0).contains(&mw) {
+        return Err((
+            "mw",
+            Reason::ParameterOutOfRange {
+                parameter: "mw",
+                value: mw,
+                range: "0 to 1000 (megawatts)",
+            },
+        ));
+    }
+    Ok(FaultAction::Award {
+        product,
+        kw: (mw * 1000.0).round() as u32,
+    })
+}
+
 fn not_for(spec: &EventSpec, target: Target) -> Refusal {
     let allowed = match target {
         Target::Site => "protection_trip or alarm_reset",
@@ -152,6 +195,7 @@ fn not_for(spec: &EventSpec, target: Target) -> Refusal {
         }
         Target::Grid => "frequency_offset",
         Target::Ems => "limit or limit_clear",
+        Target::Market => "award or award_clear",
         Target::Block { .. } => "maintenance_enter, maintenance_exit or alarm_reset",
         Target::Pcs { .. } => "trip",
         Target::Hvac { .. } => "failure or repair",

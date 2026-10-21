@@ -328,3 +328,26 @@ fn the_staggered_return_shows_on_the_quarter_hour_report() {
     // plan's business, not the trip's.
     let _ = sim;
 }
+
+/// `fcr-block`: the award arms the droop at once, the droop delivers on
+/// the synthetic frequency for most of the block, the range is the
+/// 20 MW one, nothing alerts, and the clear at 04:00 rests the droop.
+#[test]
+fn the_fcr_block_delivers_and_rests_at_the_clear() {
+    let (sim, log) = played("fcr-block");
+    assert!(log.iter().any(|(tick, e)| *tick == 0
+        && matches!(
+            e,
+            Event::FaultApplied(FaultAction::Award {
+                product: bess_core::kernel::Product::Fcr,
+                kw: 20_000
+            })
+        )));
+    let site_bit = |bit: u8| move |node: AlarmNode, b: u8| node == AlarmNode::Site && b == bit;
+    assert!(raise_after(&log, 0, site_bit(s::FCR_ALERT_STATE)).is_none());
+    let st = sim.state();
+    assert!(!st.ems.awards_pinned);
+    assert_eq!(st.ems.fcr_prequalified_w, 0.0);
+    assert_eq!(st.ems.fcr_output_w, 0.0);
+    assert_eq!(st.ems.reservoir.range_min, PlantConfig::gw01().rack.soc_min);
+}

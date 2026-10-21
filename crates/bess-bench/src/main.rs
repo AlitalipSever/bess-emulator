@@ -68,6 +68,12 @@ struct Cli {
     #[arg(long, value_name = "PATH", conflicts_with_all = ["write", "check"])]
     frequency: Option<PathBuf>,
 
+    /// Replay a year of balancing tender results (`compile-balancing`
+    /// output) in place of the bundled annual figures. A research run,
+    /// like `--frequency`.
+    #[arg(long, value_name = "PATH", conflicts_with_all = ["write", "check"])]
+    balancing: Option<PathBuf>,
+
     /// Update the committed record and the generated block of CALIBRATION.md.
     #[arg(long)]
     write: bool,
@@ -121,6 +127,18 @@ impl Cli {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+
+    if let Some(path) = &cli.balancing {
+        match bess_models::BalancingYear::load(path) {
+            Ok(year) => {
+                println!("replaying balancing year {:#018x}", year.hash());
+                if bess_models::replay_balancing(year).is_none() {
+                    return fail("a balancing year is already attached");
+                }
+            }
+            Err(message) => return fail(&message),
+        }
+    }
 
     if let Some(path) = &cli.frequency {
         match bess_models::FrequencyYear::load(path) {

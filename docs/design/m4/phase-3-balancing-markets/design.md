@@ -13,7 +13,10 @@ Each decision is proposed here and confirmed or revised in its PR.
   result files carry (`GERMANY_SETTLEMENTCAPACITY_PRICE_[EUR/MW]`,
   `GERMANY_MARGINAL_ENERGY_PRICE_[EUR/MWh]`). mFRR is left out: the
   public fleet index reports it as the smallest stream and the plant's
-  two-hour duration points at the other two.
+  two-hour duration points at the other two. *As built (PR1):* `Product`
+  and `Awards` in `kernel/market.rs`; the aFRR capacity price in the
+  files is per MW and hour (the German pay-as-bid average), carried per
+  block as four times it.
 - **D2, prices are fetched, figures are cited.** The results are the
   TSOs' platform's; no licence statement was found, so the series is not
   bundled. `fetch-balancing.sh` downloads the 366 daily files for 2024
@@ -22,8 +25,14 @@ Each decision is proposed here and confirmed or revised in its PR.
   bundled fallback is a table of annual figures (mean settlement price
   per FCR block, mean capacity price per aFRR block and direction, mean
   marginal energy price per direction), each a number cited in
-  CALIBRATION.md with the download it came from, the way datasheet
-  values are cited. A replayed run's record names the file's hash.
+  CALIBRATION.md with the download it came from, the way datasheet values are cited. A replayed run's record names the
+  file's hash. *As built (PR1):* `fetch-balancing.sh`, `xlsx-to-csv.py`
+  (the platform serves xlsx only; a standard-library converter keeps the
+  data crate dependency-free), `compile-balancing` (second-tender rows
+  without a price skipped, the cross-border price as the fallback for a
+  German `-`), `BalancingYear` in `bess-data`, `--balancing` on the
+  shell and the bench, `market::replay_balancing` once per process; the
+  annual figures in `bess-models/src/market/prices.rs`.
 - **D3, the imbalance price is bundled.** SMARD's reBAP (chart-data
   filter 4998, DE-LU, quarter-hourly, 2024) is CC BY 4.0 like the
   day-ahead year, compiled by the same compiler family
@@ -40,7 +49,15 @@ Each decision is proposed here and confirmed or revised in its PR.
   German degrees of freedom (dead-band use, over-fulfilment up to 120 %,
   scheduled transactions) are modelled; the TSO document that states
   them is not reproduced and the 120 % figure is labeled as the common
-  public statement of it.
+  public statement of it. *As built (PR1):* `ReservoirRules` and
+  `Reservoir` in `kernel/market.rs`: the working range from the usable
+  window and the prequalified power, the three alert criteria, a labeled
+  release (a calm minute after the 15-minute minimum), the dead-band
+  recentering proportional to the reservoir's lean, the over-fulfilment
+  when the characteristic helps, and the transaction at the prequalified
+  power on the plan while the reservoir sits outside the range. The
+  awards arm the droop (`fcr_prequalified_w` is the FCR award) and take
+  headroom from the plan in `Simulation::take_awards`.
 - **D5, the aFRR request is replayed or synthetic.** Netztransparenz
   publishes the NRV's per-second SRL-Sollwert and the 15-minute activated
   energy; both are the TSOs' copyright and the web API needs
@@ -58,13 +75,19 @@ Each decision is proposed here and confirmed or revised in its PR.
   metered energy at the replayed hourly price: the plant is taken as a
   price taker on its own schedule, no bid curve.
 - **D7, checkpoint bump.** Format 19: awards, the droop's SoC manager,
-  the aFRR request follower, the EUR accumulators.
+  the aFRR request follower, the EUR accumulators. *As built (PR1):*
+  format 19 with `EmsState::awards`, `awards_pinned` and `reservoir`;
+  PR2 and PR3 widen it.
 - **D8, points.** Site inputs 70 to 79: `site.market.fcr_awarded_kw`,
   `site.market.afrr_pos_awarded_kw`, `site.market.afrr_neg_awarded_kw`,
   `site.market.afrr_request_pct`, `site.market.afrr_activated_kw`,
   `site.revenue.period_eur_x100` (four rows and total); a `fcr_alert_state`
   site bit (7, warning). Scenario files gain `site.market` with `award`
-  kinds.
+  kinds. *As built (PR1):* `site.market.fcr_awarded_kw` (72),
+  `afrr_pos_awarded_kw` (74), `afrr_neg_awarded_kw` (76), the reservoir's
+  `fcr_range_min_pct` (78) and `fcr_range_max_pct` (79); `fcr_alert_state`
+  is bit 7; `award` takes `product` and `mw`, `award_clear` nothing; the
+  request and the EUR points are PR2's and PR3's.
 
 ## Signal map impact
 

@@ -102,7 +102,7 @@ fn the_failure_cases_follow_the_epri_shares() {
         .filter(|c| {
             matches!(
                 c.1,
-                Taxonomy::Calendar | Taxonomy::Maintenance | Taxonomy::Grid
+                Taxonomy::Calendar | Taxonomy::Maintenance | Taxonomy::Grid | Taxonomy::Market
             )
         })
         .count();

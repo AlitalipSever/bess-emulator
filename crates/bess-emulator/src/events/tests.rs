@@ -141,5 +141,5 @@ fn site_faults_and_resets_name_their_scope() {
 
 #[test]
 fn a_free_bit_still_has_a_name() {
-    assert_eq!(alarm_name(AlarmNode::Site, 7), "site.bit7");
+    assert_eq!(alarm_name(AlarmNode::Site, 12), "site.bit12");
 }

@@ -3,7 +3,8 @@
 //! Every file of the repository's `scenarios/` directory, as written, so
 //! the content hash a run carries is the file's and the browser plays the
 //! same bytes CI does. The order is the library README's: grouped by
-//! taxonomy, `bos`, `controls`, `cell`, `calendar`, `maintenance`, `grid`.
+//! taxonomy, `bos`, `controls`, `cell`, `calendar`, `maintenance`, `grid`,
+//! `market`.
 //! A test
 //! holds this list and the directory equal, so a case added to one and not
 //! the other fails CI rather than quietly missing from the browser.
@@ -52,6 +53,7 @@ pub const CASES: &[Case] = &[
     case!("rack-isolation-and-restore"),
     case!("substation-earthing-work"),
     case!("frequency-event"),
+    case!("fcr-block"),
 ];
 
 /// Longest a headline may be, characters: a paragraph, not a page.

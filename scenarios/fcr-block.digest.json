@@ -1,0 +1,14 @@
+{
+  "scenario": "fcr-block",
+  "content_hash": "0x452d6d185e21dfb0",
+  "engine_version": "0.8.0",
+  "seed": 7,
+  "start_unix_s": 1783987200,
+  "ticks": 15000,
+  "state_digest": "0xf877a0896644af25",
+  "event_log": {
+    "count": 19300,
+    "digest": "0x4f64f045a31a21a5"
+  },
+  "revenue_periods_closed": 16
+}

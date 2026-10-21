@@ -63,7 +63,9 @@ pub fn object_of_event(event: &Event) -> Selection {
             | FaultAction::EarthingSwitch { .. }
             | FaultAction::GridFrequencyOffset { .. }
             | FaultAction::ExternalLimit { .. }
-            | FaultAction::ExternalLimitClear => Selection::Transformer,
+            | FaultAction::ExternalLimitClear
+            | FaultAction::Award { .. }
+            | FaultAction::AwardsClear => Selection::Transformer,
         },
     }
 }

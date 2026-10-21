@@ -23,6 +23,7 @@ mod fault;
 mod gridcode;
 mod kpi;
 mod limit;
+mod market;
 mod reactive;
 mod restart;
 mod setpoint;
@@ -36,6 +37,7 @@ pub use fault::{FaultAction, FaultError};
 pub use gridcode::{FcrDroop, GridCode, GridCodeState};
 pub use kpi::{KpiMeter, KpiTick};
 pub use limit::{ControlCommand, ExternalLimit};
+pub use market::{Awards, Product, Reservoir, ReservoirRules};
 pub use reactive::ReactiveControl;
 use restart::dispatchable;
 pub use restart::ReturnPolicy;
@@ -83,6 +85,7 @@ pub struct Simulation {
     gridcode: GridCode,
     droop: FcrDroop,
     reactive: ReactiveControl,
+    reservoir: ReservoirRules,
     scratch: Scratch,
 }
 
@@ -110,6 +113,7 @@ impl Simulation {
             gridcode: GridCode::default(),
             droop: FcrDroop::default(),
             reactive: ReactiveControl::default(),
+            reservoir: ReservoirRules::default(),
             scratch: Scratch {
                 rack_limits: vec![PowerLimits::default(); racks_per_block],
                 bms_heat: vec![0.0; racks_per_block],
@@ -161,11 +165,101 @@ impl Simulation {
         self.droop = droop;
     }
 
-    /// Arm the FCR droop block with a prequalified power, W, or disarm it
-    /// with zero. Phase 3's products call this per block; until then it
-    /// is the research switch and the tests' door.
+    /// Pin the plant's awards by hand (M4 phase 3): the EMS strategy's
+    /// awards are ignored until `unpin_awards`. A scenario's `award`
+    /// kinds and the tests come through here.
+    pub fn pin_awards(&mut self, awards: Awards) {
+        self.state.ems.awards = awards;
+        self.state.ems.awards_pinned = true;
+    }
+
+    /// Hand the awards back to the EMS strategy.
+    pub fn unpin_awards(&mut self) {
+        self.state.ems.awards_pinned = false;
+        self.state.ems.awards = Awards::NONE;
+    }
+
+    /// Arm the FCR droop block with a prequalified power, W, by pinning
+    /// an FCR award of that size (zero unpins). The research switch and
+    /// the tests' door since phase 1; phase 3's products are the plant's
+    /// own way.
     pub fn set_fcr_prequalified_w(&mut self, pq_w: f64) {
-        self.state.ems.fcr_prequalified_w = pq_w.max(0.0);
+        if pq_w > 0.0 {
+            self.pin_awards(Awards {
+                fcr_w: pq_w,
+                ..self.state.ems.awards
+            });
+        } else {
+            self.unpin_awards();
+        }
+    }
+
+    /// Replace the reservoir rules (M4 phase 3). Research runs.
+    pub fn set_reservoir_rules(&mut self, rules: ReservoirRules) {
+        self.reservoir = rules;
+    }
+
+    /// Step 1a of the tick: the awards in force (the strategy's unless
+    /// pinned), the droop armed with the FCR award, the reservoir's
+    /// working range for it, and the plan's headroom: the target is kept
+    /// inside the rating less what balancing holds in each direction.
+    fn take_awards(&mut self, target_w: f64) -> f64 {
+        if !self.state.ems.awards_pinned {
+            self.state.ems.awards = self
+                .models
+                .ems
+                .awards_at(self.state.unix_time_s(), &self.state);
+        }
+        let awards = self.state.ems.awards;
+        self.state.ems.fcr_prequalified_w = awards.fcr_w.max(0.0);
+        let energy_wh = self.cfg.nominal_energy_wh();
+        let (lo, hi) = self.reservoir.range(
+            awards.fcr_w,
+            self.cfg.rack.soc_min,
+            self.cfg.rack.soc_max,
+            energy_wh,
+        );
+        self.state.ems.reservoir.range_min = lo;
+        self.state.ems.reservoir.range_max = hi;
+        let rated = self.cfg.grid.site_rated_w;
+        let (up, down) = awards.headroom_w();
+        let capped = target_w.clamp(-(rated - down).max(0.0), (rated - up).max(0.0));
+        // The reservoir's scheduled transaction rides on the plan.
+        (capped + self.state.ems.reservoir.transaction_w).clamp(-rated, rated)
+    }
+
+    /// Step 1c of the tick: the reservoir's charge management for the
+    /// FCR award, W, to add to the fast term, and the scheduled
+    /// transaction for the next tick's plan.
+    fn manage_reservoir(&mut self, frequency_hz: f64, dt_s: f64) -> f64 {
+        let ems = &mut self.state.ems;
+        let pq_w = ems.fcr_prequalified_w;
+        let df = self.droop.nominal_hz - frequency_hz;
+        self.reservoir.advance_alert(&mut ems.reservoir, df, dt_s);
+        if pq_w <= 0.0 {
+            ems.reservoir.recenter_w = 0.0;
+            ems.reservoir.transaction_w = 0.0;
+            return 0.0;
+        }
+        let soc = self.state.average_soc();
+        let ems = &mut self.state.ems;
+        let in_deadband = df.abs() <= self.droop.deadband_hz;
+        let droop_target = self.droop.target_w(frequency_hz, pq_w);
+        let term = self
+            .reservoir
+            .manage(&mut ems.reservoir, soc, pq_w, droop_target, in_deadband);
+        // Outside the working range in the normal state the plant books
+        // a transaction at the prequalified power toward the range.
+        ems.reservoir.transaction_w = if ems.reservoir.alert {
+            0.0
+        } else if soc > ems.reservoir.range_max {
+            pq_w
+        } else if soc < ems.reservoir.range_min {
+            -pq_w
+        } else {
+            0.0
+        };
+        term
     }
 
     /// A scenario's grid event: add `mhz` to the driver's frequency from
@@ -388,9 +482,11 @@ impl Simulation {
         //    trips at the end of the tick.
         let connected = self.state.substation.hv_breaker == BreakerState::Closed;
         let target_w = self.site_target_w(connected);
+        let target_w = self.take_awards(target_w);
         let target_w = self.apply_external_limit(target_w, dt_s);
         self.state.ems.site_setpoint_w = target_w;
         let (frequency_hz, fast_site_w) = self.grid_response(inputs, connected, dt_s);
+        let fast_site_w = fast_site_w + self.manage_reservoir(frequency_hz, dt_s);
 
         // 2. Allocate the target evenly over the dispatchable blocks: in
         //    service, not in fault, released by the return sequencer. The

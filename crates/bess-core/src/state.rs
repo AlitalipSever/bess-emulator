@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::alarms::EventLog;
-use crate::kernel::{BreakerSequence, Event, ExternalLimit, KpiMeter, Weather};
+use crate::kernel::{Awards, BreakerSequence, Event, ExternalLimit, KpiMeter, Reservoir, Weather};
 use crate::rng::Rng;
 
 mod energy;
@@ -197,6 +197,13 @@ pub struct EmsState {
     /// Whether the limit bound the target this tick: the unlimited target
     /// exceeded the cap. Mirrored by `site.external_limitation`.
     pub limit_binding: bool,
+    /// The balancing products the plant holds this tick (M4 phase 3).
+    pub awards: Awards,
+    /// Whether the awards were pinned by hand (a scenario, a test), so
+    /// the EMS strategy's are ignored.
+    pub awards_pinned: bool,
+    /// The FCR reservoir manager's state (M4 phase 3).
+    pub reservoir: Reservoir,
 }
 
 impl EmsState {
@@ -222,6 +229,9 @@ impl EmsState {
             reactive_q_var: 0.0,
             external_limit: ExternalLimit::none(),
             limit_binding: false,
+            awards: Awards::NONE,
+            awards_pinned: false,
+            reservoir: Reservoir::default(),
         }
     }
 }
