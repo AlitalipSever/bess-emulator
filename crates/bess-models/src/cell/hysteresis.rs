@@ -57,11 +57,11 @@ pub struct Hysteresis {
 
 impl Hysteresis {
     /// GW-01 default: the LFP envelope above and a rate that covers 95 % of
-    /// a transition within one 4 % SoC step, the step size of the pinned
-    /// characterization, after which its measured rest voltage lay on the
-    /// new branch. The rate is an interpretation of that protocol, since
-    /// the source publishes no intermediate rest points, and is labeled
-    /// so in CALIBRATION.md.
+    /// a transition within one 4 % SoC step walked tick by tick, the step
+    /// size of the pinned characterization, after which its measured rest
+    /// voltage lay on the new branch. The rate is an interpretation of
+    /// that protocol, since the source publishes no intermediate rest
+    /// points, and is labeled so in CALIBRATION.md.
     pub fn lfp_barai_2015() -> Self {
         Self {
             gamma: 75.0,
@@ -96,9 +96,15 @@ impl Hysteresis {
     ///
     /// `h_v` is the rack-level state (cell value times `cells_series`),
     /// `i_a` the rack current (positive = discharge), `capacity_ah` the
-    /// rack's capacity at its state of health. Exact solution of the linear
-    /// equation over the tick, then clamped into the envelope at the new
-    /// SoC so the containment invariant holds whatever the SoC did.
+    /// rack's capacity at its state of health. Implicit Euler over the
+    /// tick, `h' = (h + gamma dz target) / (1 + gamma dz)`, rather than
+    /// the exact exponential: the kernel's determinism contract is
+    /// byte-identity across platforms, and `exp` is the one thing in the
+    /// C library that macOS and glibc round differently. Rational
+    /// arithmetic is IEEE-exact everywhere; at a tick's `gamma dz` (under
+    /// 0.03 at 1C) the two differ by well under a percent of a transition.
+    /// Then clamped into the envelope at the new SoC so the containment
+    /// invariant holds whatever the SoC did.
     pub fn step(
         &self,
         h_v: f64,
@@ -113,9 +119,9 @@ impl Hysteresis {
             return h_v.clamp(-bound_v, bound_v);
         }
         let dz = i_a.abs() * dt_s / (3600.0 * capacity_ah);
-        let keep = (-self.gamma * dz).exp();
+        let pull = self.gamma * dz;
         let target_v = if i_a > 0.0 { -bound_v } else { bound_v };
-        (keep * h_v + (1.0 - keep) * target_v).clamp(-bound_v, bound_v)
+        ((h_v + pull * target_v) / (1.0 + pull)).clamp(-bound_v, bound_v)
     }
 }
 
@@ -179,13 +185,29 @@ mod tests {
     #[test]
     fn ninety_five_percent_of_a_transition_fits_one_source_step() {
         let h = Hysteresis::lfp_barai_2015();
-        // From the discharge branch, charge exactly 4 % of capacity.
+        // From the discharge branch, charge exactly 4 % of capacity over
+        // an hour, one second at a time, as the kernel would.
         let soc = 0.5;
         let start = -h.half_gap_cell_v(soc) * CELLS as f64;
-        let i_a = -0.04 * Q_AH; // 4 % in one hour
-        let end = h.step(start, soc, i_a, 3600.0, Q_AH, CELLS);
+        let i_a = -0.04 * Q_AH;
+        let mut state = start;
+        for _ in 0..3600 {
+            state = h.step(state, soc, i_a, 1.0, Q_AH, CELLS);
+        }
         let bound = h.half_gap_cell_v(soc) * CELLS as f64;
-        let covered = (end - start) / (bound - start);
+        let covered = (state - start) / (bound - start);
         assert!((0.94..=0.96).contains(&covered), "covered {covered}");
+    }
+
+    /// The step is rational arithmetic only: the same inputs give the
+    /// same bits on every platform, which `exp` could not promise.
+    #[test]
+    fn the_step_is_bit_exact_rational_arithmetic() {
+        let h = Hysteresis::lfp_barai_2015();
+        let out = h.step(1.25, 0.5, -100.0, 1.0, Q_AH, CELLS);
+        let pull = 75.0 * 100.0 / (3600.0 * Q_AH);
+        let bound = h.half_gap_cell_v(0.5) * CELLS as f64;
+        let expect = (1.25 + pull * bound) / (1.0 + pull);
+        assert_eq!(out.to_bits(), expect.to_bits());
     }
 }
