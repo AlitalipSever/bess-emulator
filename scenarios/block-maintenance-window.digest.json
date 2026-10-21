@@ -5,10 +5,10 @@
   "seed": 7,
   "start_unix_s": 1775779200,
   "ticks": 86400,
-  "state_digest": "0x46c98be7693271eb",
+  "state_digest": "0x39bf63adaab752a0",
   "event_log": {
-    "count": 170,
-    "digest": "0xb0390d617c77c457"
+    "count": 254,
+    "digest": "0x4516748ed373c021"
   },
   "revenue_periods_closed": 96
 }

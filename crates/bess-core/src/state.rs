@@ -177,6 +177,24 @@ impl SiteState {
         }
     }
 
+    /// Mean reported state of charge over in-service racks: what the plant
+    /// controller aggregates, since it only ever sees what the BMSs say.
+    pub fn average_soc_reported(&self) -> f64 {
+        let mut sum = 0.0;
+        let mut n = 0u32;
+        for rack in self.racks() {
+            if rack.in_service {
+                sum += rack.soc_reported;
+                n += 1;
+            }
+        }
+        if n == 0 {
+            0.0
+        } else {
+            sum / f64::from(n)
+        }
+    }
+
     /// Iterator over every rack on site.
     pub fn racks(&self) -> impl Iterator<Item = &RackState> {
         self.blocks
@@ -209,6 +227,23 @@ impl BlockState {
         for rack in self.containers.iter().flat_map(|c| c.racks.iter()) {
             if rack.in_service {
                 sum += rack.soc;
+                n += 1;
+            }
+        }
+        if n == 0 {
+            0.0
+        } else {
+            sum / f64::from(n)
+        }
+    }
+
+    /// Mean reported state of charge over this block's in-service racks.
+    pub fn average_soc_reported(&self) -> f64 {
+        let mut sum = 0.0;
+        let mut n = 0u32;
+        for rack in self.containers.iter().flat_map(|c| c.racks.iter()) {
+            if rack.in_service {
+                sum += rack.soc_reported;
                 n += 1;
             }
         }

@@ -177,4 +177,6 @@ pub struct Kpis {
     pub alarms: crate::alarms::AlarmKpis,
     /// Quarter-hours the fiscal meter closed, and those on the DST days.
     pub periods: crate::periods::PeriodKpis,
+    /// How wrong the BMS estimators were, and how often they said so.
+    pub estimator: crate::estimator::EstimatorKpis,
 }

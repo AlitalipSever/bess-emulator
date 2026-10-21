@@ -13,6 +13,19 @@ use crate::rng::Rng;
 /// Salt that separates the commissioning-spread stream from the main one.
 const SPREAD_STREAM: u64 = 0x5b12_ead0_ba1a_4ce5;
 
+/// Salt that separates the current-sensor stream from the others.
+const SENSOR_STREAM: u64 = 0x7a3c_91e0_5d4b_28f1;
+
+/// Bound on the rack current sensor's offset, A: a shunt-based pack sensor
+/// of the 500 A class publishes 75 mA (CALIBRATION.md, M2.5 reported SoC).
+/// Drawn uniformly inside the bound; the bound is a specification limit,
+/// not a distribution, and is labeled so there.
+const SENSOR_OFFSET_BOUND_A: f64 = 0.075;
+
+/// Bound on the rack current sensor's gain error, relative: 0.4 % of
+/// reading, the same sensor's total accuracy over temperature.
+const SENSOR_GAIN_BOUND: f64 = 0.004;
+
 /// SoC spread a rack leaves the factory with, drawn uniformly per rack.
 /// Strings are top-balanced at commissioning; what remains is the spread a
 /// balancing run leaves behind, well under one percent.
@@ -27,6 +40,7 @@ impl SiteState {
         // The commissioning spread draws from a stream of its own, so adding
         // it left every draw that predates it where it was.
         let mut spread_rng = Rng::from_seed(seed ^ SPREAD_STREAM);
+        let mut sensor_rng = Rng::from_seed(seed ^ SENSOR_STREAM);
         let ambient_c = 12.0;
         let blocks = (0..cfg.blocks)
             .map(|_| BlockState {
@@ -49,24 +63,7 @@ impl SiteState {
                             failed: false,
                         },
                         racks: (0..cfg.racks_per_container)
-                            .map(|_| RackState {
-                                in_service: true,
-                                soc: (cfg.initial_soc + rng.uniform(-0.005, 0.005)).clamp(0.0, 1.0),
-                                soh: 1.0,
-                                voltage_v: cfg.rack.nominal_v(),
-                                current_a: 0.0,
-                                cell_temp_c: 20.0,
-                                polarization_v: 0.0,
-                                hysteresis_v: 0.0,
-                                resistance_scale: rng.uniform(0.97, 1.03),
-                                temp_offset_c: rng.uniform(-1.5, 1.5),
-                                alarm_bits: 0,
-                                cell_dsoc: spread_rng
-                                    .uniform(COMMISSIONING_DSOC.0, COMMISSIONING_DSOC.1),
-                                cell_dv_v: 0.0,
-                                balancing_active: false,
-                                self_discharge_excess_per_s: 0.0,
-                            })
+                            .map(|_| new_rack(cfg, &mut rng, &mut spread_rng, &mut sensor_rng))
                             .collect(),
                     })
                     .collect(),
@@ -117,5 +114,38 @@ impl SiteState {
             event_log: EventLog::default(),
             pending_events: Vec::new(),
         }
+    }
+}
+
+/// One rack at commissioning: its draws from the three streams, in the
+/// order the streams were added, so no earlier draw moves.
+fn new_rack(
+    cfg: &PlantConfig,
+    rng: &mut Rng,
+    spread_rng: &mut Rng,
+    sensor_rng: &mut Rng,
+) -> RackState {
+    let soc = (cfg.initial_soc + rng.uniform(-0.005, 0.005)).clamp(0.0, 1.0);
+    RackState {
+        in_service: true,
+        soc,
+        soh: 1.0,
+        voltage_v: cfg.rack.nominal_v(),
+        current_a: 0.0,
+        cell_temp_c: 20.0,
+        polarization_v: 0.0,
+        hysteresis_v: 0.0,
+        // The BMS is told the truth at commissioning
+        // and walks away from it from there.
+        soc_reported: soc,
+        sensor_offset_a: sensor_rng.uniform(-SENSOR_OFFSET_BOUND_A, SENSOR_OFFSET_BOUND_A),
+        sensor_gain: 1.0 + sensor_rng.uniform(-SENSOR_GAIN_BOUND, SENSOR_GAIN_BOUND),
+        resistance_scale: rng.uniform(0.97, 1.03),
+        temp_offset_c: rng.uniform(-1.5, 1.5),
+        alarm_bits: 0,
+        cell_dsoc: spread_rng.uniform(COMMISSIONING_DSOC.0, COMMISSIONING_DSOC.1),
+        cell_dv_v: 0.0,
+        balancing_active: false,
+        self_discharge_excess_per_s: 0.0,
     }
 }

@@ -13,6 +13,7 @@ pub fn kind(event: &Event) -> &'static str {
         Event::AlarmCleared { .. } => "cleared",
         Event::PcsStateChanged { .. } => "pcs_state",
         Event::FaultApplied(_) => "fault",
+        Event::SocResnapped { .. } => "soc_resnap",
     }
 }
 
@@ -22,6 +23,17 @@ pub fn node_path(event: &Event) -> String {
         Event::AlarmRaised { node, .. } | Event::AlarmCleared { node, .. } => node.path(),
         Event::PcsStateChanged { block, .. } => AlarmNode::Block { block: *block }.path(),
         Event::FaultApplied(action) => action.node_path(),
+        Event::SocResnapped {
+            block,
+            container,
+            rack,
+            ..
+        } => AlarmNode::Rack {
+            block: *block,
+            container: *container,
+            rack: *rack,
+        }
+        .path(),
     }
 }
 
@@ -36,6 +48,11 @@ pub fn what(event: &Event) -> String {
             format!("{} -> {}", from.name(), to.name())
         }
         Event::FaultApplied(action) => action.name().to_owned(),
+        Event::SocResnapped { jump, .. } => format!(
+            "soc {:.1} % -> {:.1} %",
+            f64::from(jump.from_permille) / 10.0,
+            f64::from(jump.to_permille) / 10.0
+        ),
     }
 }
 
@@ -45,7 +62,7 @@ pub fn severity(event: &Event) -> Option<Severity> {
         Event::AlarmRaised { severity, .. } | Event::AlarmCleared { severity, .. } => {
             Some(*severity)
         }
-        Event::PcsStateChanged { .. } | Event::FaultApplied(_) => None,
+        Event::PcsStateChanged { .. } | Event::FaultApplied(_) | Event::SocResnapped { .. } => None,
     }
 }
 
@@ -55,7 +72,7 @@ pub fn block(event: &Event) -> Option<usize> {
         Event::AlarmRaised { node, .. } | Event::AlarmCleared { node, .. } => {
             super::block_of(*node)
         }
-        Event::PcsStateChanged { block, .. } => Some(*block),
+        Event::PcsStateChanged { block, .. } | Event::SocResnapped { block, .. } => Some(*block),
         Event::FaultApplied(action) => fault_block(action),
     }
 }

@@ -4,6 +4,7 @@
 pub mod alarms;
 pub mod balance;
 pub mod derate;
+pub mod estimator;
 
 use bess_core::config::RackConfig;
 use bess_core::state::RackState;
@@ -12,6 +13,7 @@ use bess_core::traits::{BmsFlows, BmsLogic, PowerLimits};
 pub use alarms::RackAlarmThresholds;
 pub use balance::Balancing;
 pub use derate::{TempCurve, EVE_MB31_CHARGE_P, EVE_MB31_DISCHARGE_P};
+pub use estimator::Estimator;
 
 /// Battery management: enforce the SoC operating window by tapering the
 /// power limit linearly to zero inside a band at each end, and derate each
@@ -31,6 +33,8 @@ pub struct BasicBms {
     pub balancing: Balancing,
     /// Where the rack alarm bits raise, clear and latch.
     pub alarms: RackAlarmThresholds,
+    /// The SoC estimator: how the reported SoC drifts and snaps.
+    pub estimator: Estimator,
 }
 
 impl Default for BasicBms {
@@ -41,6 +45,18 @@ impl Default for BasicBms {
             discharge_temp: TempCurve::new(EVE_MB31_DISCHARGE_P),
             balancing: Balancing::default(),
             alarms: RackAlarmThresholds::default(),
+            estimator: Estimator::default(),
+        }
+    }
+}
+
+impl BasicBms {
+    /// The same BMS with a perfect estimator: the reported SoC equals the
+    /// truth. The decoupling proof and anyone who wants an oracle use it.
+    pub fn with_perfect_estimator() -> Self {
+        Self {
+            estimator: Estimator::perfect(),
+            ..Self::default()
         }
     }
 }
@@ -62,7 +78,9 @@ impl BmsLogic for BasicBms {
     }
 
     fn step_bms(&self, rack: &mut RackState, cfg: &RackConfig, dt_s: f64) -> BmsFlows {
-        self.balancing.step(rack, cfg, dt_s)
+        let mut flows = self.balancing.step(rack, cfg, dt_s);
+        flows.soc_resnap = self.estimator.step(rack, cfg, dt_s);
+        flows
     }
 
     fn rack_alarms(&self, rack: &RackState, cfg: &RackConfig) -> u32 {
@@ -94,6 +112,9 @@ mod tests {
             cell_temp_c,
             polarization_v: 0.0,
             hysteresis_v: 0.0,
+            soc_reported: 0.5,
+            sensor_offset_a: 0.0,
+            sensor_gain: 1.0,
             resistance_scale: 1.0,
             temp_offset_c: 0.0,
             alarm_bits: 0,

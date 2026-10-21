@@ -76,24 +76,18 @@ pub(super) fn step_block(
         rack_heat,
     } = scratch;
 
-    // The BMS's own dynamics first (spread, balancing), then the DC
-    // capability of this block, rack by rack.
-    let mut block_limits = PowerLimits::default();
-    let mut in_service = 0usize;
-    {
-        let mut i = 0;
-        for container in &mut block.containers {
-            for rack in &mut container.racks {
-                bms_heat[i] = models.bms.step_bms(rack, &cfg.rack, dt_s).heat_w;
-                let lim = models.bms.rack_limits(rack, &cfg.rack);
-                rack_limits[i] = lim;
-                block_limits.max_charge_w += lim.max_charge_w;
-                block_limits.max_discharge_w += lim.max_discharge_w;
-                in_service += usize::from(rack.in_service);
-                i += 1;
-            }
-        }
-    }
+    // The BMS's own dynamics first (spread, balancing, the estimator),
+    // then the DC capability of this block, rack by rack.
+    let (block_limits, in_service) = step_bms(
+        models,
+        cfg,
+        block,
+        block_idx,
+        dt_s,
+        rack_limits,
+        bms_heat,
+        events,
+    );
     let ac_capability = if in_set {
         models.pcs.ac_capability_w(&block_limits)
     } else {
@@ -177,6 +171,46 @@ pub(super) fn step_block(
         battery_heat_w,
         ac_capability,
     }
+}
+
+/// Step every rack's BMS and collect the block's DC limits. Returns the
+/// summed limits and the count of in-service racks; the per-rack limits
+/// and balancing heat land in the scratch slices, in rack order.
+#[allow(clippy::too_many_arguments)]
+fn step_bms(
+    models: &Models,
+    cfg: &PlantConfig,
+    block: &mut BlockState,
+    block_idx: usize,
+    dt_s: f64,
+    rack_limits: &mut [PowerLimits],
+    bms_heat: &mut [f64],
+    events: &mut Vec<Event>,
+) -> (PowerLimits, usize) {
+    let mut block_limits = PowerLimits::default();
+    let mut in_service = 0usize;
+    let mut i = 0;
+    for (container_idx, container) in block.containers.iter_mut().enumerate() {
+        for (rack_idx, rack) in container.racks.iter_mut().enumerate() {
+            let flows = models.bms.step_bms(rack, &cfg.rack, dt_s);
+            bms_heat[i] = flows.heat_w;
+            if let Some(jump) = flows.soc_resnap {
+                events.push(Event::SocResnapped {
+                    block: block_idx,
+                    container: container_idx,
+                    rack: rack_idx,
+                    jump,
+                });
+            }
+            let lim = models.bms.rack_limits(rack, &cfg.rack);
+            rack_limits[i] = lim;
+            block_limits.max_charge_w += lim.max_charge_w;
+            block_limits.max_discharge_w += lim.max_discharge_w;
+            in_service += usize::from(rack.in_service);
+            i += 1;
+        }
+    }
+    (block_limits, in_service)
 }
 
 /// Evaluate and store the rack words of one container, pushing what changed.

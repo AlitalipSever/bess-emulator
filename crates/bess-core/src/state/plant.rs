@@ -130,6 +130,18 @@ pub struct RackState {
     /// which is why a rested LFP rack cannot tell its SoC from its voltage.
     /// Bounded by the envelope in `bess-models` (M2.5 phase 1).
     pub hysteresis_v: f64,
+    /// State of charge as the rack's BMS reports it, 0..1: the estimator's
+    /// output, not the truth. Drifts with the current sensor's error and
+    /// snaps back toward `soc` at the knees of the OCV curve (M2.5 phase 2).
+    /// The published SoC points carry this; `soc` stays internal.
+    pub soc_reported: f64,
+    /// Offset error of the rack current sensor, A, drawn once per rack at
+    /// commissioning from the seeded PRNG inside the sensor's class bound.
+    /// The estimator counts `current_a * sensor_gain + sensor_offset_a`.
+    pub sensor_offset_a: f64,
+    /// Gain error of the rack current sensor, dimensionless multiplier
+    /// around 1, drawn once per rack at commissioning.
+    pub sensor_gain: f64,
     /// Per-rack manufacturing spread multiplier on internal resistance
     /// (drawn once at initialization from the seeded PRNG).
     pub resistance_scale: f64,

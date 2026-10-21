@@ -17,6 +17,7 @@
 
 mod alarms;
 mod bands;
+mod estimator;
 mod periods;
 mod report;
 mod run;

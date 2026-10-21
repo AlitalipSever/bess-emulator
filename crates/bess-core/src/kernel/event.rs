@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::alarms::{AlarmNode, Severity};
 use crate::state::PcsOpState;
+use crate::traits::SocResnap;
 
 use super::FaultAction;
 
@@ -48,4 +49,18 @@ pub enum Event {
     /// reads cause, then effect, and a fault whose consequences take days
     /// (a leaking rack) still has a mark on the tick it happened.
     FaultApplied(FaultAction),
+    /// A rack's BMS corrected its reported SoC by a jump: the estimator
+    /// admitting the error it had accumulated, at a knee of the OCV curve
+    /// where voltage finally tells it so. Real BMS logs show these, and
+    /// they are what make the reported-SoC sawtooth a sequence of facts.
+    SocResnapped {
+        /// Block index.
+        block: usize,
+        /// Container index within the block.
+        container: usize,
+        /// Rack index within the container.
+        rack: usize,
+        /// The jump.
+        jump: SocResnap,
+    },
 }

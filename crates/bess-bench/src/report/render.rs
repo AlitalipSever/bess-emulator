@@ -18,6 +18,7 @@ pub fn render(kpis: &Kpis) -> String {
     write_thermal(&mut out, kpis);
     write_alarms(&mut out, kpis);
     write_periods(&mut out, kpis);
+    write_estimator(&mut out, kpis);
     out.push_str(END);
     out
 }
@@ -224,6 +225,27 @@ fn write_periods(out: &mut String, kpis: &Kpis) {
         bands::PERIODS_ON_SHORT_DST_DAY,
         bands::PERIODS_ON_LONG_DST_DAY
     );
+}
+
+fn write_estimator(out: &mut String, kpis: &Kpis) {
+    let e = &kpis.estimator;
+    let _ = write!(
+        out,
+        "Reported SoC against the truth, over every rack: mean absolute error \
+         {:.3} points (gate: {}), largest {:.2} points (gate: {}); {} \
+         corrections, {:.3} per rack and day.\n\n",
+        e.mean_abs_error_pct,
+        points_band_text(bands::ESTIMATOR_MEAN_ABS_ERROR_PCT),
+        e.max_abs_error_pct,
+        points_band_text(bands::ESTIMATOR_MAX_ABS_ERROR_PCT),
+        thousands_int(e.corrections),
+        e.corrections_per_rack_day
+    );
+}
+
+/// A band already in percentage points, printed as points, not as a share.
+fn points_band_text(band: Band) -> String {
+    format!("{:.2} to {:.2} points", band.lo, band.hi)
 }
 
 /// A count with thousands separated.

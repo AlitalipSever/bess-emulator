@@ -47,6 +47,19 @@ pub fn topic(prefix: &str, event: &Event) -> String {
             format!("{prefix}events/block{block:02}/pcs/state")
         }
         Event::FaultApplied(action) => format!("{prefix}events/{}/fault", fault_path(&action)),
+        Event::SocResnapped {
+            block,
+            container,
+            rack,
+            ..
+        } => format!(
+            "{prefix}events/{}/soc_resnap",
+            node_path(AlarmNode::Rack {
+                block,
+                container,
+                rack
+            })
+        ),
     }
 }
 
@@ -99,6 +112,19 @@ pub fn payload(event: &Event, seq: u64, ts: i64) -> Value {
             }
             v
         }
+        Event::SocResnapped {
+            block,
+            container,
+            rack,
+            jump,
+        } => json!({
+            "seq": seq,
+            "ts": ts,
+            "node": node_path(AlarmNode::Rack { block, container, rack }),
+            "event": "soc_resnap",
+            "from_pct": f64::from(jump.from_permille) / 10.0,
+            "to_pct": f64::from(jump.to_permille) / 10.0,
+        }),
     }
 }
 
