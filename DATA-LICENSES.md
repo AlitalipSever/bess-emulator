@@ -56,6 +56,22 @@ minute reserve prices and volumes) on 2025-05-22 (SMARD user manual,
 section 4.3), so the reserve prices cannot come from the CC BY source
 the day-ahead year came from.
 
+### M5 sources, recorded ahead of landing
+
+Per the policy's first rule, the sources M5 reaches for are listed here
+before any of them enters the tree. Read on 2026-10-22; the design is in
+`docs/design/m5/`. M5 bundles no data series: what it carries are the
+constants of two published aging models, from code under BSD 3-Clause.
+
+| Source and terms | Handling |
+|---|---|
+| NREL BLAST-Lite (github.com/NREL/BLAST-Lite), `Lfp_Gr_250AhPrismatic`: a capacity model for a large-format prismatic LFP cell above 250 Ah, ten parameters and two power-law trajectories, identified by Paul Gasper on the data in Gasper et al., J. Energy Storage 2023 (doi 10.1016/j.est.2023.109042). Licence BSD 3-Clause, copyright 2023 Alliance for Energy Innovation, LLC | the constants and the trajectory equations in `bess-models/src/aging/nrel.rs` with the attribution the licence asks for; no code vendored; labeled in CALIBRATION.md with the model's own stated limits (conservative test rates, the cycle term's temperature dependence) |
+| SimSES (gitlab.lrz.de/open-ees-ses/simses, TUM, archived), the Sony/Murata LFP calendar and cyclic degradation models carrying the resistance laws of Naumann et al. (J. Energy Storage 17 (2018) 153; J. Power Sources 451 (2020) 227666). Licence BSD 3-Clause | the resistance-growth constants in `bess-models/src/aging/naumann.rs` with attribution, labeled as a different cell's law |
+| Naumann et al. calendar and cycle aging datasets, Mendeley Data (kxh42bfgtj, 6hgyr25h8d), CC BY 4.0 | not needed; cited as the resistance laws' provenance |
+| Figgener et al., "Multi-year field measurements of home storage systems and their use in capacity estimation", Nature Energy 9 (2024) 1438, CC BY-NC-ND 4.0; dataset Zenodo 12091223, CC BY 4.0, 146 GB of one-second field data from 21 systems | figures cited for the field band (2.2 percentage points a year for the LFP systems, 0.7 per 100 cycles); nothing bundled, nothing fetched |
+| Preger et al., "Degradation of Commercial Lithium-Ion Cells as a Function of Chemistry and Cycling Conditions", J. Electrochem. Soc. 167 (2020) 120532, CC BY-NC-ND 4.0; the cycling files on batteryarchive.org (terms not stated on the site) | figures cited for the laboratory band (2,500 to 9,000 cycles to 80 % for LFP); nothing bundled |
+| EVE MB31 314 Ah datasheet, the manufacturer's document | the cycle-life claim (8,000 cycles to 70 % at 25 °C, 0.5P) cited beside the model's figure, not gated |
+
 ### DWD Lindenberg 2024: compilation record
 
 Compiled 2026-08-19 from the DWD CDC hourly archives current on that date.

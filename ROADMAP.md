@@ -18,7 +18,7 @@ scheduled. Architecture and rationale live in
 | M2.6 | Alarm view mini-iteration: alarms on screen, the scenario library in the browser | done (v0.6.0; library re-timed in v0.6.1) |
 | M3 | PCS + electrical | done (v0.8.0) |
 | M4 | EMS + market signals | done (v0.9.0) |
-| M5 | Degradation | planned |
+| M5 | Degradation | designed (docs/design/m5/), not started |
 | M6+ | Grid protocols (IEC 60870-5-104, 61850), OPC UA, cell granularity, native viewer | ideas, no promises |
 
 ## How this roadmap works
