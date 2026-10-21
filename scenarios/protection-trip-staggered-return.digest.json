@@ -1,7 +1,7 @@
 {
   "scenario": "protection-trip-staggered-return",
   "content_hash": "0x8e5fee4215ea57c7",
-  "engine_version": "0.8.0",
+  "engine_version": "0.9.0",
   "seed": 7,
   "start_unix_s": 1784052000,
   "ticks": 7200,

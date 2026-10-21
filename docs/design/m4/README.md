@@ -1,7 +1,10 @@
 # M4: EMS and market signals
 
-Status: designed 2026-10-21 after M3 shipped as v0.8.0; phase 1 landed
-the same day (PRs #48 and #49), phase 2 after it (PRs #50 and #51), phase 3 after that (PRs #52, #53 and #54), phase 4 PR1 after that (PR #55). ROADMAP.md defines the goal and the calibration gate; this folder
+Status: done, released as v0.9.0 (2026-10-21; the tag and the npm
+publish are the maintainer's). Designed 2026-10-21 after M3 shipped as
+v0.8.0; all four phases landed the same day in a stacked chain (PRs #47
+to #55) and the release PR. The release note is drafted in
+[release-notes.md](release-notes.md) from the inventory below. ROADMAP.md defines the goal and the calibration gate; this folder
 fixes the architecture, the decisions and the work breakdown, one phase
 per subfolder, each phase's documents to be marked with what was actually
 built. Layout per [docs/design/README.md](../README.md).

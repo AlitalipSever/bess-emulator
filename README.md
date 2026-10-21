@@ -157,7 +157,13 @@ and its own order of events: the converter converts on a surface at the
 racks' voltage, walks real startup states, follows a setpoint through a
 ramp, gets warm and spends an overload budget, and the substation has
 interlocked switchgear, a transformer with IEC 60076-7 temperatures and
-a tap changer.
+a tap changer; and M4, EMS and market signals, as v0.9.0, which made the
+plant a market participant: the grid's frequency has a shape and the
+plant answers it, a dispatch application writes limits and reactive
+modes the plant obeys and flags, the plant reports its tracking and
+availability per quarter-hour, holds FCR and aFRR on the 2024 German
+prices, books EUR, and a strategy that decides what to sell earns inside
+the band the public index gave.
 
 M2.6 added no physics. The viewer shows what is in alarm, by node and
 severity, and the journal of what raised and cleared, numbered as MQTT

@@ -1,7 +1,7 @@
 {
   "scenario": "afrr-activation-day",
   "content_hash": "0xb85859193824fb90",
-  "engine_version": "0.8.0",
+  "engine_version": "0.9.0",
   "seed": 7,
   "start_unix_s": 1783987200,
   "ticks": 22200,
