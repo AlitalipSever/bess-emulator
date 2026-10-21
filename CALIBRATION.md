@@ -1053,6 +1053,53 @@ reproduced.
 | v0.7.0 | 0.8296 | 66,777.9 MWh | 55,396.9 MWh | 276.1 | the M2.5 plant |
 | after phase 1 | 0.8302 | 66,739.3 MWh | 55,405.9 MWh | 276.1 | the surface at the racks' voltage: the PCS row fell 2,812.0 to 2,763.7 MWh, since the record converts a little better below Vdco and the racks spend most of the year there; current-bounded limits never bound against the plan |
 
+## M3 (v0.8.0): the converter's state machine
+
+A reset no longer drops a converter straight into the connected set.
+`PcsOpState` grew from three values to eight (`Off`, `Precharge`,
+`ContactorClose`, `Synchronize`, `Ramp`, `Standby`, `Run`, `Fault`), and a
+cleared converter walks the three startup states for their durations
+before it ramps and runs (`crates/bess-core/src/kernel/startup.rs`). The
+plant controller's return still spaces the blocks 30 s apart; each block
+now runs 16 s after its release, so a full return takes 9.5 minutes of
+spacing plus the startup, and the site reports partial availability until
+the last converter has synchronized.
+
+**Durations, labeled estimates.** Precharge 10 s, contactor close 1 s,
+synchronization 5 s. Utility converter manuals describe the sequence in
+this order and in seconds, but no public manual found gives the three
+figures for one unit, so these are the order of magnitude the manuals
+describe, not a cited column, and the gate is the sequence's own
+arithmetic: `a_cleared_converter_reaches_ramp_after_the_published_durations`
+holds the walk to 0, 10, 11 and 16 s. The ramp itself (phase 2 PR2) will
+take its gradient from VDE-AR-N 4110's 10 % of agreed power per minute,
+the public figure the return's spacing already rests on.
+
+**On the wire.** `blockNN.pcs.state` carries SunSpec's operating-state
+numbering (models 701/702 `InvSt`: 1 off, 3 starting, 4 running, 7 fault,
+8 standby); the three startup states share `starting` there and carry
+their own names on MQTT and REST. Map 0.5.0, the major step promised
+since M0.
+
+**What it moved.** Nothing in a clean year: no block trips or is
+maintained in the annual run, so the record did not move. The two trip
+cases of the library and the maintenance case regenerated their records
+for the new states and the later returns; their headers say so.
+
+**Known gaps.**
+
+- **The durations are estimates** (above); a public manual with the
+  three figures would pin them.
+- **`Ramp` lasts one tick** until phase 2 PR2 gives it the gradient.
+- **No shutdown sequence.** A converter that is asked for nothing drops
+  to `Standby` in one tick, as since M0; a graceful stop is not modeled.
+
+**Sources:** SunSpec Alliance, SunSpec Device Information Model
+Specification, models 701 and 702 (DER AC measurement and capacity),
+operating-state enumeration, public specification; VDE-AR-N 4110:2018,
+section on active power gradients after reconnection (public summary
+cited at the M2 return policy). Numbers cited, nothing reproduced.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

@@ -68,7 +68,9 @@ impl PcsModel for FlatPcs {
         // Positive in both directions: on discharge AC < DC, on charge
         // |DC| < |AC|; either way the difference is dissipated.
         pcs.loss_w = p_dc_actual_w - p_ac_w;
-        if pcs.op_state != PcsOpState::Fault {
+        // A connected converter flips between idle and converting by
+        // power; the startup states, Off and Fault are the kernel's.
+        if pcs.op_state.is_connected() {
             pcs.op_state = if p_dc_actual_w.abs() < f64::EPSILON {
                 PcsOpState::Standby
             } else {
@@ -207,7 +209,9 @@ impl PcsModel for CurvePcs {
         pcs.p_dc_w = p_dc_actual_w;
         pcs.p_ac_w = p_ac_w;
         pcs.loss_w = p_dc_actual_w - p_ac_w;
-        if pcs.op_state != PcsOpState::Fault {
+        // A connected converter flips between idle and converting by
+        // power; the startup states, Off and Fault are the kernel's.
+        if pcs.op_state.is_connected() {
             pcs.op_state = if p_dc_actual_w.abs() < f64::EPSILON {
                 PcsOpState::Standby
             } else {
@@ -293,7 +297,9 @@ impl PcsModel for SurfacePcs {
         pcs.p_dc_w = p_dc_actual_w;
         pcs.p_ac_w = p_ac_w;
         pcs.loss_w = p_dc_actual_w - p_ac_w;
-        if pcs.op_state != PcsOpState::Fault {
+        // A connected converter flips between idle and converting by
+        // power; the startup states, Off and Fault are the kernel's.
+        if pcs.op_state.is_connected() {
             pcs.op_state = if p_dc_actual_w.abs() < f64::EPSILON {
                 PcsOpState::Standby
             } else {
@@ -316,6 +322,7 @@ mod tests {
             p_dc_w: 0.0,
             loss_w: 0.0,
             dc_voltage_v: 1_331.2,
+            state_elapsed_s: 0.0,
         }
     }
 
@@ -458,6 +465,7 @@ mod surface_tests {
             p_dc_w: 0.0,
             loss_w: 0.0,
             dc_voltage_v: vdc,
+            state_elapsed_s: 0.0,
         }
     }
 

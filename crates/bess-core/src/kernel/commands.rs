@@ -80,10 +80,13 @@ impl Simulation {
     }
 
     /// Put a block into maintenance or back into service, from the next
-    /// tick on. A maintained block is asked for nothing, so its PCS settles
-    /// in `Standby` through its own transition and stops paying its standby
-    /// tare; its containers keep their HVAC and its racks keep balancing.
-    /// `block.maintenance` mirrors the mode on the next tick.
+    /// tick on. Entering maintenance opens the converter's contactors: its
+    /// PCS goes to `Off` (unless it is in fault, which only a reset
+    /// clears) and stops paying its standby tare; its containers keep
+    /// their HVAC and its racks keep balancing. Leaving maintenance hands
+    /// the block back to the plant controller, whose clearance starts the
+    /// converter's startup sequence. `block.maintenance` mirrors the mode
+    /// on the next tick.
     pub fn set_block_mode(&mut self, block: usize, mode: BlockMode) -> Result<(), CommandError> {
         let b = self
             .state
@@ -91,6 +94,16 @@ impl Simulation {
             .get_mut(block)
             .ok_or(CommandError::NoSuchNode(AlarmNode::Block { block }))?;
         b.mode = mode;
+        let from = b.pcs.op_state;
+        if mode == BlockMode::Maintenance && from != PcsOpState::Fault && from != PcsOpState::Off {
+            b.pcs.op_state = PcsOpState::Off;
+            b.pcs.state_elapsed_s = 0.0;
+            self.state.pending_events.push(Event::PcsStateChanged {
+                block,
+                from,
+                to: PcsOpState::Off,
+            });
+        }
         Ok(())
     }
 

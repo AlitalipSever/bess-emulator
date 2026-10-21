@@ -1,7 +1,7 @@
 # M3: PCS and electrical
 
 Status: in progress. Designed 2026-10-21 after M2.5 shipped as v0.7.0;
-phase 1 PR1 the same day. ROADMAP.md defines the goal and the
+phase 1 PR1 and phase 2 PR1 the same day. ROADMAP.md defines the goal and the
 calibration gate; this folder fixes the architecture, the decisions and
 the work breakdown, one phase per subfolder, each phase's documents to be
 marked with what was actually built. Layout per
@@ -114,6 +114,16 @@ Filled as PRs land.
   read a few percent lower at the bottom of the window and higher at
   the top than the flat nominal they carried before.
 - **Checkpoint format 11** (phase 1 PR1): `PcsState::dc_voltage_v`.
+- **`blockNN.pcs.state` is SunSpec-numbered, breaking** (phase 2 PR1).
+  1 off, 3 starting, 4 running, 7 fault, 8 standby, in place of the M0
+  0/1/2. The converter has a state machine behind it: a reset leaves it
+  off with its contactors open, a cleared block walks precharge,
+  contactor close and synchronization (16 s) before it runs, so after a
+  trip the staggered return takes 30 s per block plus 16 s, and the
+  partial-availability bit holds until the last converter has
+  synchronized. MQTT `pcs/state` and the stream carry the finer names
+  (`precharge`, `contactor_close`, `synchronize`, `ramp`, `off`).
+- **Checkpoint format 12** (phase 2 PR1): `PcsState::state_elapsed_s`.
 
 ## Open questions
 

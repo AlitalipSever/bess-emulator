@@ -1,7 +1,7 @@
 //! The site's telemetry: grid connection, energy, weather, house load and
 //! the run's own bookkeeping, at input 0 onward.
 
-use bess_core::state::{BreakerState, EmsMode, PcsOpState, SiteState};
+use bess_core::state::{BreakerState, EmsMode, SiteState};
 
 use super::{point, Class, Encoding, Point, Space};
 
@@ -222,7 +222,7 @@ pub(super) fn points() -> Vec<Point> {
             |s: &SiteState| {
                 s.blocks
                     .iter()
-                    .filter(|b| b.pcs.op_state == PcsOpState::Run)
+                    .filter(|b| b.pcs.op_state.is_converting())
                     .count() as f64
             }
         ),

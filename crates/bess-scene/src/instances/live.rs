@@ -5,7 +5,7 @@
 //! Everything here is a function of the state tree and the frame clock. The
 //! geometry it decorates is built once in [`super::site`].
 
-use bess_core::state::{HvacMode, PcsOpState, SiteState};
+use bess_core::state::{HvacMode, SiteState};
 
 use crate::layout::{Selection, SiteLayout, CONTAINER_SIZE, GANTRY_H, GANTRY_X, TRANSFORMER_X};
 use crate::style::{Palette, Style};
@@ -181,7 +181,7 @@ pub fn build_dynamic(out: &mut Vec<f32>, inp: &DynamicInput) {
         status::push_block(out, b, block_l, block_s, s, palette);
 
         // PCS fan on the grille face while converting
-        if block_s.pcs.op_state == PcsOpState::Run {
+        if block_s.pcs.op_state.is_converting() {
             let [px, _, pz] = block_l.pcs_center;
             let spin = anim * 14.0;
             for k in 0..4 {

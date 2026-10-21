@@ -31,16 +31,71 @@ pub enum BlockMode {
     Maintenance,
 }
 
-/// PCS operating state (full state machine arrives in M3).
+/// PCS operating state: the converter's state machine (M3 phase 2).
+///
+/// Three groups. Disconnected: `Off` (contactors open: after a reset,
+/// under maintenance) and the startup sequence `Precharge`,
+/// `ContactorClose`, `Synchronize` it walks when cleared. Connected:
+/// `Ramp` (the first converting tick after synchronization; phase 2 PR2
+/// gives it the ramp's duration), `Run` and `Standby`, between which an
+/// idle converter flips by power as it did since M0. And `Fault`,
+/// reached from any state by a trip and left only through a reset.
+/// Published on Modbus with SunSpec's operating-state numbering
+/// (`sunspec_code`), by name on MQTT and REST.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PcsOpState {
-    /// Energized, not converting.
+    /// Contactors open, controls energized: after a reset, under
+    /// maintenance, before clearance.
+    Off,
+    /// Charging the DC link through the precharge resistor.
+    Precharge,
+    /// Closing and checking the main contactors.
+    ContactorClose,
+    /// Synchronizing to the grid before the gate drives enable.
+    Synchronize,
+    /// The first converting tick after synchronization.
+    Ramp,
+    /// Connected, not converting.
     Standby,
     /// Converting power.
     Run,
     /// Tripped; leaves only through an operator reset
     /// (`Simulation::reset_alarms`) or a scenario action.
     Fault,
+}
+
+impl PcsOpState {
+    /// Connected to the grid: takes a share of the site target and counts
+    /// toward availability.
+    pub fn is_connected(self) -> bool {
+        matches!(self, Self::Ramp | Self::Standby | Self::Run)
+    }
+
+    /// Inside the startup sequence.
+    pub fn is_starting(self) -> bool {
+        matches!(
+            self,
+            Self::Precharge | Self::ContactorClose | Self::Synchronize
+        )
+    }
+
+    /// Converting power right now.
+    pub fn is_converting(self) -> bool {
+        matches!(self, Self::Ramp | Self::Run)
+    }
+
+    /// SunSpec operating-state code (models 701/702 `InvSt`): 1 off,
+    /// 3 starting, 4 running, 7 fault, 8 standby. The three startup states
+    /// share `starting` on the wire; MQTT and REST carry the finer name.
+    pub fn sunspec_code(self) -> u16 {
+        match self {
+            Self::Off => 1,
+            Self::Precharge | Self::ContactorClose | Self::Synchronize => 3,
+            Self::Ramp | Self::Run => 4,
+            Self::Fault => 7,
+            Self::Standby => 8,
+        }
+    }
 }
 
 /// Power conversion system state.
@@ -61,6 +116,9 @@ pub struct PcsState {
     /// (M3 phase 1). Derived every tick, kept in the tree so a checkpoint
     /// says what the converter converted at.
     pub dc_voltage_v: f64,
+    /// Seconds spent in the current startup state (`is_starting`); zero
+    /// elsewhere. State, so a resume continues a precharge where it was.
+    pub state_elapsed_s: f64,
 }
 
 /// One battery container.

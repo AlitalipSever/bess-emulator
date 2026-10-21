@@ -24,7 +24,10 @@ const TICKS: u64 = 4 * 3600;
 /// If a deliberate model or state-schema change moves this value, update it
 /// from the number printed by the failing assertion. Any other change that
 /// moves it is a broken determinism contract. Last regenerated in M3
-/// phase 1, for physics and schema: the converter converts on the Sandia
+/// phase 2 PR1, for schema alone: `PcsState` gained `state_elapsed_s`
+/// (zero on a plant that starts connected) and `PcsOpState` its new
+/// variants, none visited in these four hours; the physics is phase 1's,
+/// 0x4d61_5d7b_b58a_1f8a. Before that, M3 phase 1, for physics and schema: the converter converts on the Sandia
 /// surface at the racks' DC voltage, rack limits are current-bounded at
 /// the voltage the rack presents, and `PcsState` carries `dc_voltage_v`.
 /// Earlier value: 0xa57c_9428_cb1e_3071 (M2.5 phase 2 PR1 after the
@@ -59,7 +62,7 @@ const TICKS: u64 = 4 * 3600;
 /// two-node thermal model), 0x0817_b721_5412_38c8 (M1 PR4, staged HVAC),
 /// 0x1446_6f26_c751_bc02 (M1 PR5, the auxiliary inventory),
 /// 0xcd26_9803_d062_e1ad (M2 phase 1 PR2, cell spread and balancing).
-const GOLDEN_DIGEST: u64 = 0x4d61_5d7b_b58a_1f8a;
+const GOLDEN_DIGEST: u64 = 0xa2fe_2b19_360f_b636;
 
 fn run(seed: u64, ticks: u64) -> Simulation {
     let cfg = PlantConfig::gw01();

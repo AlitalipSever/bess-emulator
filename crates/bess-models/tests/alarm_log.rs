@@ -192,7 +192,7 @@ fn a_faulted_pcs_waits_for_the_operator() {
             Event::PcsStateChanged {
                 block: 3,
                 from: PcsOpState::Fault,
-                to: PcsOpState::Standby
+                to: PcsOpState::Off
             }
         )),
         "the PCS left fault without saying so: {events:?}"
@@ -200,6 +200,14 @@ fn a_faulted_pcs_waits_for_the_operator() {
     let st = sim.state();
     assert_ne!(st.blocks[3].pcs.op_state, PcsOpState::Fault);
     assert!(!has_bit(st.blocks[3].alarm_bits, b::PCS_FAULT));
+    // The block is out of fault but still starting up, so the site is
+    // partly available until its converter has synchronized.
+    assert!(has_bit(st.alarm_bits, s::PARTIAL_AVAILABILITY));
+    for _ in 0..16 {
+        sim.step(&weather.inputs_at(sim.unix_time_s()));
+    }
+    let st = sim.state();
+    assert!(st.blocks[3].pcs.op_state.is_connected());
     assert!(!has_bit(st.alarm_bits, s::PARTIAL_AVAILABILITY));
 }
 
