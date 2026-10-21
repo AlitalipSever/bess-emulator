@@ -6,35 +6,23 @@
 //! for tests and offline use where a smooth, dataset-free input is easier to
 //! reason about than a real day.
 //!
-//! Grid frequency is synthetic in both drivers. Frequency replay is an M4
-//! deliverable tied to grid-code behavior; until then a driver that pretended
-//! to replay it would be inventing a signal.
+//! Grid frequency is the synthetic series of `grid_signal` in both drivers
+//! unless a measured year is replayed (`HistoricalWeather::with_frequency`,
+//! M4 phase 1); the voltage stays synthetic.
 
 use std::f64::consts::{PI, TAU};
 use std::fmt;
 
 use bess_core::kernel::{Inputs, Weather};
-use bess_data::{HourSample, WeatherYear};
+use bess_data::{FrequencyYear, HourSample, WeatherYear};
 
-use crate::calendar::reference_position_h;
+use crate::calendar::{reference_position_h, reference_second};
 // Re-exported where it always lived, so callers do not notice the move.
 pub use crate::calendar::month_day_from_unix_days;
 
-/// Grid frequency at a UTC timestamp: 50 Hz plus a +/- 10 mHz wander on a
-/// 10 minute period. Deterministic and shared by both drivers.
-pub fn synthetic_grid_frequency_hz(unix_time_s: i64) -> f64 {
-    let second_of_day = unix_time_s.rem_euclid(86_400) as f64;
-    50.0 + 0.01 * (TAU * second_of_day / 600.0).sin()
-}
-
-/// Grid voltage at a UTC timestamp, per unit: a +/- 2 % daily swing,
-/// highest at 04:00 and lowest at 16:00, as a triangle so the kernel
-/// stays rational. Synthetic until M4 replays a measured series.
-pub fn synthetic_grid_voltage_pu(unix_time_s: i64) -> f64 {
-    let since_peak_s = (unix_time_s - 4 * 3600).rem_euclid(86_400) as f64;
-    let phase = since_peak_s / 86_400.0;
-    1.0 + 0.02 * (4.0 * (phase - 0.5).abs() - 1.0)
-}
+// The grid drivers moved to `grid_signal` in M4 phase 1; re-exported
+// where they always lived.
+pub use crate::grid_signal::{synthetic_grid_frequency_hz, synthetic_grid_voltage_pu};
 
 /// Synthetic diurnal weather and grid-frequency driver.
 ///
@@ -109,6 +97,9 @@ impl SyntheticWeather {
 #[derive(Clone, Copy)]
 pub struct HistoricalWeather {
     year: &'static WeatherYear,
+    /// A measured frequency year to replay (M4 phase 1), or the
+    /// synthetic series when none is attached.
+    frequency: Option<&'static FrequencyYear>,
 }
 
 impl fmt::Debug for HistoricalWeather {
@@ -117,6 +108,7 @@ impl fmt::Debug for HistoricalWeather {
         f.debug_struct("HistoricalWeather")
             .field("year", &self.year.year())
             .field("station_id", &self.year.station_id())
+            .field("frequency", &self.frequency.map(FrequencyYear::hash))
             .finish()
     }
 }
@@ -129,7 +121,26 @@ impl HistoricalWeather {
 
     /// Replay a caller-supplied compiled year.
     pub fn new(year: &'static WeatherYear) -> Self {
-        Self { year }
+        Self {
+            year,
+            frequency: None,
+        }
+    }
+
+    /// The same driver replaying a measured frequency year instead of the
+    /// synthetic series: the timestamp maps onto the reference year by
+    /// calendar date like the weather, to the second, and the year loops.
+    #[must_use]
+    pub fn with_frequency(self, frequency: &'static FrequencyYear) -> Self {
+        Self {
+            frequency: Some(frequency),
+            ..self
+        }
+    }
+
+    /// The frequency year being replayed, if one is attached.
+    pub fn frequency(&self) -> Option<&'static FrequencyYear> {
+        self.frequency
     }
 
     /// The dataset being replayed.
@@ -145,7 +156,10 @@ impl HistoricalWeather {
                 ambient_c: interpolate(self.year.temp_c(), position_h),
                 irradiance_wm2: interpolate(self.year.ghi_wm2(), position_h - 0.5),
             },
-            grid_frequency_hz: synthetic_grid_frequency_hz(unix_time_s),
+            grid_frequency_hz: match self.frequency {
+                Some(year) => year.frequency_hz_at(reference_second(unix_time_s, year.year())),
+                None => synthetic_grid_frequency_hz(unix_time_s),
+            },
             grid_voltage_pu: synthetic_grid_voltage_pu(unix_time_s),
         }
     }
@@ -206,11 +220,13 @@ mod tests {
         assert!(w.inputs_at(12 * 3600).weather.irradiance_wm2 > 800.0);
     }
 
+    /// The synthetic series stays well inside the connection band and
+    /// the LFSM thresholds (the statistics are `grid_signal`'s tests).
     #[test]
     fn frequency_stays_near_nominal() {
         for s in (0..86_400).step_by(97) {
             let f = synthetic_grid_frequency_hz(s);
-            assert!((49.98..50.02).contains(&f));
+            assert!((49.85..50.15).contains(&f), "{f}");
         }
     }
 

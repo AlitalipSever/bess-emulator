@@ -113,6 +113,16 @@ pub struct EmsState {
     pub blocks_released: usize,
     /// Seconds until the return releases the next block.
     pub next_release_s: f64,
+    /// Power prequalified for FCR, W: zero disarms the droop block (M4
+    /// phase 1). Phase 3's products set it per block; until then a kernel
+    /// command does.
+    pub fcr_prequalified_w: f64,
+    /// What the FCR droop block is delivering this tick, W, positive for
+    /// a low frequency. Published as `site.fcr.output_kw`.
+    pub fcr_output_w: f64,
+    /// The limited-frequency-sensitive cut this tick, W, signed like
+    /// active power: negative above the over-frequency threshold.
+    pub lfsm_cut_w: f64,
 }
 
 /// High-voltage breaker position.
@@ -172,8 +182,13 @@ pub struct SubstationState {
     pub poi_reactive_power_var: f64,
     /// POI voltage, kV.
     pub poi_voltage_kv: f64,
-    /// Grid frequency, Hz (replayed or synthetic, passed in as input).
+    /// Grid frequency, Hz: the driver's (replayed or synthetic), plus any
+    /// offset a scenario's grid event adds.
     pub frequency_hz: f64,
+    /// A scenario's grid event: millihertz added to the driver's
+    /// frequency until the next event clears it (M4 phase 1). Zero in a
+    /// plant with no story.
+    pub frequency_offset_mhz: i32,
     /// Transformer losses during the last tick, W.
     pub transformer_loss_w: f64,
     /// Total auxiliary consumption during the last tick (HVAC + station), W.

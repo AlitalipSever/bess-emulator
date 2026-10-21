@@ -1,0 +1,43 @@
+# The warmest evening, the grid misbehaving. Ten minutes into the
+# full-power discharge the frequency drops 300 mHz for a minute: the
+# under-frequency characteristic asks four megawatts more and the
+# converters hand them over at once from their overload, lfsm_active
+# raised, the follower never consulted. At 19:30 it rises 400 mHz for two
+# minutes and the plant cuts eight the same way. At 19:45 it falls to
+# 47.4 Hz, outside the connection band: the kernel trips the site,
+# grid_frequency_trip latches. The grid recovers at 19:50; the reset at
+# 19:55 closes the breaker and the staggered return follows.
+schema: 1
+name: frequency-event
+taxonomy: grid
+seed: 7
+start: 2026-07-14T19:00:00Z
+length: PT2H
+events:
+  - at: PT10M
+    target: site.grid
+    fault: frequency_offset
+    mhz: -300
+  - at: PT11M
+    target: site.grid
+    fault: frequency_offset
+    mhz: 0
+  - at: PT30M
+    target: site.grid
+    fault: frequency_offset
+    mhz: 400
+  - at: PT32M
+    target: site.grid
+    fault: frequency_offset
+    mhz: 0
+  - at: PT45M
+    target: site.grid
+    fault: frequency_offset
+    mhz: -2600
+  - at: PT50M
+    target: site.grid
+    fault: frequency_offset
+    mhz: 0
+  - at: PT55M
+    target: site
+    fault: alarm_reset

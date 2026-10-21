@@ -62,6 +62,12 @@ struct Cli {
     #[arg(long, value_name = "PATH")]
     json: Option<PathBuf>,
 
+    /// Replay a measured grid-frequency year (`compile-frequency` output)
+    /// instead of the synthetic series. A research run: --write and
+    /// --check publish the synthetic year and refuse it.
+    #[arg(long, value_name = "PATH", conflicts_with_all = ["write", "check"])]
+    frequency: Option<PathBuf>,
+
     /// Update the committed record and the generated block of CALIBRATION.md.
     #[arg(long)]
     write: bool,
@@ -115,6 +121,18 @@ impl Cli {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+
+    if let Some(path) = &cli.frequency {
+        match bess_models::FrequencyYear::load(path) {
+            Ok(year) => {
+                println!("replaying frequency year {:#018x}", year.hash());
+                if bess_models::replay_frequency(year).is_err() {
+                    return fail("a frequency year is already attached");
+                }
+            }
+            Err(message) => return fail(&message),
+        }
+    }
 
     if cli.check_docs {
         return match check_docs(&cli.record, &cli.calibration) {

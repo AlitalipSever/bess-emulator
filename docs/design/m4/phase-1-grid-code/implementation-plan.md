@@ -18,6 +18,13 @@ Accept: the FCR shape test passes; LFSM cuts the target at the standard's
 gradient; the annual record moves only through the frequency responses
 and stays inside the M1 band; the switch-off proof holds.
 
+*As built (PR #48):* as the design's as-built notes say. The switch-off
+proof is `inside_the_band_the_grid_code_block_is_inert`: characteristics
+pushed out of reach leave the same tree as the defaults over six hours
+on a flat grid, and the synthetic series never reaches a threshold. The
+kernel's tick grew past clippy's line bound and the auxiliary step moved
+to `step_aux`.
+
 ## PR2: reactive power
 
 - `PcsModel::reactive`, `ReactiveMode`, `set_reactive_mode`, the Q(U)

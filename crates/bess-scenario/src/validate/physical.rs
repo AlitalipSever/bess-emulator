@@ -28,6 +28,26 @@ pub(super) fn physical(spec: &EventSpec, path: &str, cfg: &PlantConfig) -> Resul
         (Target::Substation, "disconnectors_open") => Ready(A::Disconnectors { closed: false }),
         (Target::Substation, "earthing_close") => Ready(A::EarthingSwitch { closed: true }),
         (Target::Substation, "earthing_open") => Ready(A::EarthingSwitch { closed: false }),
+        (Target::Grid, "frequency_offset") => {
+            let mhz = spec.mhz.ok_or((
+                "mhz",
+                Reason::ParameterMissing {
+                    fault: "frequency_offset",
+                    parameter: "mhz",
+                },
+            ))?;
+            if !(-3000..=3000).contains(&mhz) {
+                return Err((
+                    "mhz",
+                    Reason::ParameterOutOfRange {
+                        parameter: "mhz",
+                        value: f64::from(mhz),
+                        range: "-3000 to 3000 (millihertz; 0 ends the event)",
+                    },
+                ));
+            }
+            Ready(A::GridFrequencyOffset { mhz })
+        }
         (Target::Block { block }, "maintenance_enter") => Ready(A::BlockMaintenanceEnter { block }),
         (Target::Block { block }, "maintenance_exit") => Ready(A::BlockMaintenanceExit { block }),
         (
@@ -79,10 +99,10 @@ pub(super) fn physical(spec: &EventSpec, path: &str, cfg: &PlantConfig) -> Resul
     if spec.duration.is_some() {
         return Err(("duration", Reason::DurationForbidden(fault)));
     }
-    let takes: &[&str] = if fault == "self_discharge" {
-        &["rate_pct_per_month"]
-    } else {
-        &[]
+    let takes: &[&str] = match fault {
+        "self_discharge" => &["rate_pct_per_month"],
+        "frequency_offset" => &["mhz"],
+        _ => &[],
     };
     only_taken(spec, fault, takes)?;
     Ok(Fault::Physical { target, action })
@@ -95,6 +115,7 @@ fn not_for(spec: &EventSpec, target: Target) -> Refusal {
             "breaker_open, breaker_close, disconnectors_open, disconnectors_close, \
              earthing_open or earthing_close"
         }
+        Target::Grid => "frequency_offset",
         Target::Block { .. } => "maintenance_enter, maintenance_exit or alarm_reset",
         Target::Pcs { .. } => "trip",
         Target::Hvac { .. } => "failure or repair",

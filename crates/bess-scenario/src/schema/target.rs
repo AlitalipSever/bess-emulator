@@ -19,6 +19,8 @@ pub enum Target {
     Site,
     /// The site's substation: its switchgear (M3 phase 4).
     Substation,
+    /// The grid the site is connected to: a frequency event (M4 phase 1).
+    Grid,
     /// A block.
     Block {
         /// Block index.
@@ -87,6 +89,9 @@ impl Target {
         }
         if parts == ["site", "substation"] {
             return Ok(Self::Substation);
+        }
+        if parts == ["site", "grid"] {
+            return Ok(Self::Grid);
         }
         let block = match indexed(parts[0], "block") {
             Some(Ok(b)) if b < cfg.blocks => b,
@@ -161,7 +166,7 @@ impl Target {
                 container,
                 rack,
             }),
-            Self::Pcs { .. } | Self::Hvac { .. } | Self::Substation => None,
+            Self::Pcs { .. } | Self::Hvac { .. } | Self::Substation | Self::Grid => None,
         }
     }
 
@@ -177,6 +182,7 @@ impl Target {
             | FaultAction::HvBreakerClose
             | FaultAction::Disconnectors { .. }
             | FaultAction::EarthingSwitch { .. } => Self::Substation,
+            FaultAction::GridFrequencyOffset { .. } => Self::Grid,
             FaultAction::BlockMaintenanceEnter { block }
             | FaultAction::BlockMaintenanceExit { block }
             | FaultAction::AlarmReset(ResetScope::Block(block)) => Self::Block { block },
@@ -215,6 +221,7 @@ impl fmt::Display for Target {
         match *self {
             Self::Site => f.write_str("site"),
             Self::Substation => f.write_str("site.substation"),
+            Self::Grid => f.write_str("site.grid"),
             Self::Block { block } => write!(f, "block[{block}]"),
             Self::Pcs { block } => write!(f, "block[{block}].pcs"),
             Self::Hvac { block, container } => {
@@ -232,6 +239,7 @@ impl fmt::Display for Target {
 fn kind_name(target: Target) -> &'static str {
     match target {
         Target::Substation => "substation",
+        Target::Grid => "grid",
         Target::Site => "site",
         Target::Block { .. } => "block",
         Target::Pcs { .. } => "pcs",

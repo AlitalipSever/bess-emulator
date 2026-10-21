@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::alarms::BlockSiteThresholds;
 use crate::config::PlantConfig;
-use crate::state::{BlockMode, BreakerState, EmsMode, PcsOpState, SiteState};
+use crate::state::{AuxPower, BlockMode, BreakerState, EmsMode, PcsOpState, SiteState};
 use crate::traits::{AuxDemand, GridConditions, Models, PowerLimits};
 use crate::TICK_SECONDS;
 
@@ -18,6 +18,7 @@ mod block;
 mod commands;
 mod event;
 mod fault;
+mod gridcode;
 mod restart;
 mod setpoint;
 mod startup;
@@ -27,6 +28,7 @@ use block::{step_block, Scratch, TickContext};
 pub use commands::CommandError;
 pub use event::Event;
 pub use fault::{FaultAction, FaultError};
+pub use gridcode::{FcrDroop, GridCode, GridCodeState};
 use restart::dispatchable;
 pub use restart::ReturnPolicy;
 pub use setpoint::SetpointDynamics;
@@ -70,6 +72,8 @@ pub struct Simulation {
     startup: StartupSequence,
     dynamics: SetpointDynamics,
     switchgear: SwitchgearTimes,
+    gridcode: GridCode,
+    droop: FcrDroop,
     scratch: Scratch,
 }
 
@@ -94,6 +98,8 @@ impl Simulation {
             startup: StartupSequence::default(),
             dynamics: SetpointDynamics::default(),
             switchgear: SwitchgearTimes::default(),
+            gridcode: GridCode::default(),
+            droop: FcrDroop::default(),
             scratch: Scratch {
                 rack_limits: vec![PowerLimits::default(); racks_per_block],
                 bms_heat: vec![0.0; racks_per_block],
@@ -137,6 +143,27 @@ impl Simulation {
         self.dynamics = dynamics;
     }
 
+    /// Replace the connection code's frequency characteristics and the
+    /// FCR droop's rules (M4 phase 1). Research runs and the switch-off
+    /// proof.
+    pub fn set_grid_code(&mut self, gridcode: GridCode, droop: FcrDroop) {
+        self.gridcode = gridcode;
+        self.droop = droop;
+    }
+
+    /// Arm the FCR droop block with a prequalified power, W, or disarm it
+    /// with zero. Phase 3's products call this per block; until then it
+    /// is the research switch and the tests' door.
+    pub fn set_fcr_prequalified_w(&mut self, pq_w: f64) {
+        self.state.ems.fcr_prequalified_w = pq_w.max(0.0);
+    }
+
+    /// A scenario's grid event: add `mhz` to the driver's frequency from
+    /// the next tick on, until another call changes it. Zero clears it.
+    pub fn set_grid_frequency_offset_mhz(&mut self, mhz: i32) {
+        self.state.substation.frequency_offset_mhz = mhz;
+    }
+
     /// Chemical energy currently stored across all racks, Wh.
     pub fn stored_energy_wh(&self) -> f64 {
         self.state
@@ -175,6 +202,47 @@ impl Simulation {
         raw_target.clamp(-rated, rated)
     }
 
+    /// The frequency the plant sees this tick (the driver's plus a
+    /// scenario's offset) and what the grid asks on top of the EMS target
+    /// at it: the LFSM cut plus the FCR droop's output, W, the fast term
+    /// the converters do not ramp. Nothing on a disconnected site.
+    fn grid_response(&mut self, inputs: &Inputs, connected: bool, dt_s: f64) -> (f64, f64) {
+        let frequency_hz = inputs.grid_frequency_hz
+            + f64::from(self.state.substation.frequency_offset_mhz) / 1000.0;
+        if !connected {
+            self.state.ems.lfsm_cut_w = 0.0;
+            self.state.ems.fcr_output_w = 0.0;
+            return (frequency_hz, 0.0);
+        }
+        let rated = self.cfg.grid.site_rated_w;
+        self.state.ems.lfsm_cut_w = self.gridcode.lfsm_w(frequency_hz, rated);
+        let fcr_w = self.droop.advance(&mut self.state.ems, frequency_hz, dt_s);
+        (frequency_hz, self.state.ems.lfsm_cut_w + fcr_w)
+    }
+
+    /// Step 4 of the tick: the auxiliary inventory, what the site consumes
+    /// to run itself, breaker open or closed. A tripped site keeps its
+    /// house load on the station-service feed, and the substation meters
+    /// it there.
+    fn step_aux(&mut self, hvac_aux_w: f64, wh: f64) -> AuxPower {
+        let aux = self.models.aux.step_site(AuxDemand {
+            hvac_w: hvac_aux_w,
+            racks: self.cfg.total_racks(),
+            // Standby and Fault both mean energized and not converting; see
+            // AuxDemand for why a tripped unit still pays. A maintained unit
+            // is locked out and switched off, so it does not.
+            pcs_not_converting: self
+                .state
+                .blocks
+                .iter()
+                .filter(|b| b.pcs.op_state != PcsOpState::Run && b.mode == BlockMode::InService)
+                .count(),
+        });
+        self.state.aux = aux;
+        self.state.energy.aux_items.accumulate(&aux, wh);
+        aux
+    }
+
     /// Advance the plant by one tick. Returns the events emitted.
     pub fn step(&mut self, inputs: &Inputs) -> &[Event] {
         let dt_s = TICK_SECONDS as f64;
@@ -195,10 +263,15 @@ impl Simulation {
             &mut self.events,
         );
 
-        // 1. EMS: site active-power target.
+        // 1. EMS: site active-power target, then what the grid asks on
+        //    top of it: the LFSM cut and the FCR droop, a fast term the
+        //    converters do not ramp. The frequency is the driver's plus a
+        //    scenario's offset; outside the connection band the plant
+        //    trips at the end of the tick.
         let connected = self.state.substation.hv_breaker == BreakerState::Closed;
         let target_w = self.site_target_w(connected);
         self.state.ems.site_setpoint_w = target_w;
+        let (frequency_hz, fast_site_w) = self.grid_response(inputs, connected, dt_s);
 
         // 2. Allocate the target evenly over the dispatchable blocks: in
         //    service, not in fault, released by the return sequencer. The
@@ -217,6 +290,8 @@ impl Simulation {
         // share this tick.
         self.start_converters(connected, dt_s);
         let share_w = restart::share_w(&self.state.blocks, &self.state.ems, connected, target_w);
+        let fast_share_w =
+            restart::share_w(&self.state.blocks, &self.state.ems, connected, fast_site_w);
 
         // 3. Per block: BMS limits -> PCS conversion -> racks -> thermal.
         let mut p_ac_site_w = 0.0;
@@ -228,6 +303,7 @@ impl Simulation {
             thresholds: &self.thresholds,
             dynamics: &self.dynamics,
             share_w,
+            fast_share_w,
             weather: inputs.weather,
             dt_s,
         };
@@ -251,27 +327,7 @@ impl Simulation {
         self.state.ems.available_discharge_w = avail.max_discharge_w;
         self.state.ems.available_charge_w = avail.max_charge_w;
 
-        // 4. Auxiliary inventory: what the site consumes to run itself,
-        //    breaker open or closed. A tripped site keeps its house load on
-        //    the station-service feed, and the substation meters it there.
-        //    What losing that supply as well does to a container that still
-        //    has heat in it is an M3 question, arriving with the breaker
-        //    state machine.
-        let aux = self.models.aux.step_site(AuxDemand {
-            hvac_w: hvac_aux_w,
-            racks: self.cfg.total_racks(),
-            // Standby and Fault both mean energized and not converting; see
-            // AuxDemand for why a tripped unit still pays. A maintained unit
-            // is locked out and switched off, so it does not.
-            pcs_not_converting: self
-                .state
-                .blocks
-                .iter()
-                .filter(|b| b.pcs.op_state != PcsOpState::Run && b.mode == BlockMode::InService)
-                .count(),
-        });
-        self.state.aux = aux;
-        self.state.energy.aux_items.accumulate(&aux, wh);
+        let aux = self.step_aux(hvac_aux_w, wh);
 
         // 5. Substation: losses, POI measurements, meters.
         self.models.grid.step(
@@ -279,7 +335,7 @@ impl Simulation {
             p_ac_site_w,
             aux.total_w(),
             GridConditions {
-                frequency_hz: inputs.grid_frequency_hz,
+                frequency_hz,
                 voltage_pu: inputs.grid_voltage_pu,
                 ambient_c: inputs.weather.ambient_c,
             },

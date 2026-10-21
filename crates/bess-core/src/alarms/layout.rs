@@ -93,6 +93,9 @@ pub mod site {
     /// The transformer's hot spot is past the normal-cyclic limit.
     /// Hysteresis (M3 phase 4).
     pub const TRANSFORMER_OVER_TEMPERATURE: u8 = 3;
+    /// A limited-frequency-sensitive mode is cutting or raising the
+    /// target. Mirrors `EmsState::lfsm_cut_w` (M4 phase 1).
+    pub const LFSM_ACTIVE: u8 = 4;
     /// Protection has tripped the site. Latched: raised by
     /// `Simulation::trip_protection`, cleared by a site reset, which also
     /// closes the breaker and starts the staggered return.
@@ -102,6 +105,10 @@ pub mod site {
     /// Latched like `PROTECTION_TRIP`, cleared by the same site reset
     /// (M3 phase 4).
     pub const TRANSFORMER_TRIP: u8 = 9;
+    /// The grid frequency left the band the plant stays connected in and
+    /// the kernel tripped the site. Latched like `PROTECTION_TRIP`,
+    /// cleared by the same site reset (M4 phase 1).
+    pub const GRID_FREQUENCY_TRIP: u8 = 10;
 
     /// Every laid-out bit and the name the surfaces publish it under.
     pub const NAMES: &[(u8, &str)] = &[
@@ -109,8 +116,10 @@ pub mod site {
         (PARTIAL_AVAILABILITY, "partial_availability"),
         (HV_BREAKER_OPEN, "hv_breaker_open"),
         (TRANSFORMER_OVER_TEMPERATURE, "transformer_over_temperature"),
+        (LFSM_ACTIVE, "lfsm_active"),
         (PROTECTION_TRIP, "protection_trip"),
         (TRANSFORMER_TRIP, "transformer_trip"),
+        (GRID_FREQUENCY_TRIP, "grid_frequency_trip"),
     ];
 }
 

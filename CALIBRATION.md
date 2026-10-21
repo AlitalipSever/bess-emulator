@@ -1374,6 +1374,105 @@ temperatures are new readings beside unchanged losses. The seventeen
 library records moved in their version string and nothing else at the
 bump. The 0.8323 sits inside the M1 field band, 0.3 points over v0.7.0.
 
+## M4 (v0.9.0, unreleased): the grid's frequency and the plant's response
+
+Phase 1 PR1 gives the frequency at the POI a shape and the plant an
+answer to it: a synthetic series with the Continental European
+statistics in place of the 10 mHz sinusoid, a measured year replayed by
+path for whoever fetches one, the limited-frequency-sensitive modes of
+the connection code, and the FCR droop block a balancing product will
+arm in phase 3 (`crates/bess-models/src/grid_signal/`,
+`crates/bess-core/src/kernel/gridcode.rs`).
+
+**The frequency, a shape and not a dataset.** No one-second series for
+2024 is open enough to bundle (DATA-LICENSES.md, the M4 table:
+Energy-Charts is non-commercial, the TSOs' platforms are copyright, the
+Zenodo republication of TransnetBW's series is by permission). The
+bundled driver is synthetic and calibrated to what Rydin Gorjão et al.,
+"Open database analysis of scaling and spatio-temporal properties of
+power grid frequencies", Nature Communications 11, 6362 (2020), CC BY
+4.0, report for Continental Europe: a near-Gaussian distribution, an
+approximately exponential autocorrelation decay, and a deterministic
+pattern at the dispatch boundaries, strongest at the hour and visible at
+the quarter-hours. The series is value noise on two octaves (10 s and
+120 s knots) plus a sawtooth at the boundaries (the opposite drift over
+the five minutes before, the step on the boundary, a five-minute decay
+after), with the schedule's sign: up through the morning hours, down
+through the evening. The figures are **labeled estimates**: 20 mHz
+standard deviation, 30 mHz hour steps, 10 mHz quarter-hour steps; the
+paper gives the shape and the pattern, its numbers are for 2015 to 2019
+and a 2024 figure is an open gate. `a_day_has_the_stated_mean_and_spread`
+holds the mean to 50.000 Hz within 3 mHz over a day and 1.5 mHz over a
+week and the spread between 15 and 25 mHz; the series never leaves
+±150 mHz, so inside a clean year the grid-code block is inert
+(`inside_the_band_the_grid_code_block_is_inert`). The replay path:
+`fetch-frequency.sh` (122 three-day requests to Energy-Charts' API, the
+user's own acceptance of its terms), `compile-frequency` (one-second
+millihertz, gaps up to 60 s filled linearly and counted, longer ones
+refused), `--frequency` on the shell and the bench, the samples' hash in
+every headless record made with it.
+
+**LFSM, sourced.** VDE-AR-N 4110:2018 (public summaries; the 110 kV rule
+VDE-AR-N 4120 is not freely available and the 4110 figures are used, as
+the M2 return policy did): above 50.2 Hz active power falls at 40 % per
+hertz, referred to the instantaneous power in the standard and to rated
+power here (a plant at its rating reads the same either way; a plant
+at partial load cuts more here, the conservative reading, labeled),
+up to the 51.5 Hz disconnection. Below 49.8 Hz the storage mirrors it
+with the same gradient down to 47.5 Hz: the project's reading of the
+under-frequency rule for a unit that can both deliver and absorb,
+labeled. Outside the band the kernel trips the site like a protection
+trip (`grid_frequency_trip`, latched, the site reset clears it).
+`lfsm_cuts_and_raises_at_the_gradient_without_a_ramp` holds a plant at
+its rating to 12 % less at 50.5 Hz from the tick after the excursion and
+4 % more absorbed at 49.7 Hz.
+
+**The FCR droop, sourced.** The SOGL activation rules as the Swissgrid
+prequalification annex (Anhang 01, Präqualifikationsbedingungen, public)
+states them for Continental Europe, the same rules the German TSOs'
+±200 mHz, ±10 mHz, 30 s figures express: activation within 2 s, at least
+50 % of the prequalified power at 15 s and 100 % at 30 s on a ±200 mHz
+deviation, at least linear, proportional below ±200 mHz, a combined
+insensitivity and dead band of at most 10 mHz. The block ramps at the
+prequalified power over 30 s and holds the characteristic beyond
+±200 mHz. `the_droop_meets_the_activation_shape` (unit) and
+`the_fcr_droop_meets_the_activation_shape_in_the_plant` (the plant,
+20 MW prequalified on an idle night) hold the shape; the over-fulfilment
+degree of freedom (up to 120 %, the common public statement of the
+German rule) is a parameter phase 3's reservoir manager will drive and
+rests at 100 %.
+
+**The fast term.** Both responses are handed to the dispatchable blocks
+as an even share the setpoint follower does not ramp or lag: the
+follower's state is the followed value less the fast term it carried,
+so a 10 %/min ramp on a third-party command and a 30 s frequency
+response coexist on one converter (`the_fast_term_neither_ramps_nor_lags`).
+The share is clamped at each converter's permitted power, so a plant at
+its rating answers an under-frequency from its overload budget and no
+further.
+
+**What it moved.** Nothing in energy: the clean year never leaves the
+band, the droop is disarmed, and the annual record's figures are phase
+4's (0.8323). Every record moved: the frequency in the tree is a
+different series, and the digests say so.
+
+**Known gaps.**
+
+- **The standard deviation and the boundary amplitudes** are estimates,
+  above; a public 2024 figure would pin them.
+- **One LFSM gradient** referred to rated power in both directions; the
+  standard's over-frequency rule refers to the instantaneous power.
+- **The synthetic series carries no large excursions**: a frequency
+  event is a scenario's doing (`frequency-event`, `site.grid` with
+  `frequency_offset`), not the series'.
+
+**Sources:** Rydin Gorjão et al., Nature Communications 2020, CC BY 4.0
+(statistics); Swissgrid, Anhang 01 Präqualifikationsbedingungen
+(activation shape, dead band, 15-minute criterion), public; VDE-AR-N
+4110:2018 through public summaries (LFSM-O); Energy-Charts / Fraunhofer
+ISE API documentation (the replay source's resolution and terms).
+Numbers cited, nothing reproduced.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);
@@ -1385,5 +1484,7 @@ bump. The 0.8323 sits inside the M1 field band, 0.3 points over v0.7.0.
   (0.8323 at v0.8.0); the four further sections above carry the
   gradient, the converter's knee and overload, the switchgear and the
   transformer, each with its sources and its labeled estimates.
-- **M4:** simulated annual revenue inside public German fleet index bands.
+- **M4:** simulated annual revenue inside public German fleet index bands
+  (the band to be written before the number; phase 1's frequency and
+  grid-code section above carries its sources and labeled estimates).
 - **M5:** capacity fade inside published LFP field bands.

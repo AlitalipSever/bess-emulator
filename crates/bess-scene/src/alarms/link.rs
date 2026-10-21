@@ -60,7 +60,8 @@ pub fn object_of_event(event: &Event) -> Selection {
             | FaultAction::HvBreakerOpen
             | FaultAction::HvBreakerClose
             | FaultAction::Disconnectors { .. }
-            | FaultAction::EarthingSwitch { .. } => Selection::Transformer,
+            | FaultAction::EarthingSwitch { .. }
+            | FaultAction::GridFrequencyOffset { .. } => Selection::Transformer,
         },
     }
 }
