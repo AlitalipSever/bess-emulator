@@ -984,7 +984,7 @@ nothing reproduced.
 
 The record was regenerated for the version bump, as every release
 regenerates it, and the figures are phase 1's: round trip 0.8296, import
-66,778.0 MWh, export 55,396.9 MWh, 276.1 equivalent full cycles. Of the
+66,777.9 MWh, export 55,396.9 MWh, 276.1 equivalent full cycles. Of the
 three phases only the first touched the physics; the estimator (phase 2)
 is held to leave the truth untouched, byte for byte, and the instruments
 (phase 3) live in the shell, which the bench never reads. The fifteen
