@@ -83,7 +83,12 @@ impl FaultAction {
             | Self::BlockMaintenanceEnter { block }
             | Self::BlockMaintenanceExit { block }
             | Self::AlarmReset(ResetScope::Block(block)) => AlarmNode::Block { block }.path(),
-            Self::ProtectionTrip | Self::AlarmReset(ResetScope::Site) => AlarmNode::Site.path(),
+            Self::ProtectionTrip
+            | Self::AlarmReset(ResetScope::Site)
+            | Self::HvBreakerOpen
+            | Self::HvBreakerClose
+            | Self::Disconnectors { .. }
+            | Self::EarthingSwitch { .. } => AlarmNode::Site.path(),
             Self::RackSelfDischarge {
                 block,
                 container,

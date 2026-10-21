@@ -14,6 +14,8 @@ pub fn kind(event: &Event) -> &'static str {
         Event::PcsStateChanged { .. } => "pcs_state",
         Event::FaultApplied(_) => "fault",
         Event::SocResnapped { .. } => "soc_resnap",
+        Event::BreakerSequenceChanged { .. } => "breaker_sequence",
+        Event::SwitchOperated { .. } => "switch",
     }
 }
 
@@ -34,6 +36,9 @@ pub fn node_path(event: &Event) -> String {
             rack: *rack,
         }
         .path(),
+        Event::BreakerSequenceChanged { .. } | Event::SwitchOperated { .. } => {
+            AlarmNode::Site.path()
+        }
     }
 }
 
@@ -53,6 +58,14 @@ pub fn what(event: &Event) -> String {
             f64::from(jump.from_permille) / 10.0,
             f64::from(jump.to_permille) / 10.0
         ),
+        Event::BreakerSequenceChanged { from, to } => {
+            format!("breaker {} -> {}", from.name(), to.name())
+        }
+        Event::SwitchOperated { switch, closed } => format!(
+            "{} {}",
+            switch.name(),
+            if *closed { "closed" } else { "opened" }
+        ),
     }
 }
 
@@ -62,7 +75,11 @@ pub fn severity(event: &Event) -> Option<Severity> {
         Event::AlarmRaised { severity, .. } | Event::AlarmCleared { severity, .. } => {
             Some(*severity)
         }
-        Event::PcsStateChanged { .. } | Event::FaultApplied(_) | Event::SocResnapped { .. } => None,
+        Event::PcsStateChanged { .. }
+        | Event::FaultApplied(_)
+        | Event::SocResnapped { .. }
+        | Event::BreakerSequenceChanged { .. }
+        | Event::SwitchOperated { .. } => None,
     }
 }
 
@@ -74,6 +91,7 @@ pub fn block(event: &Event) -> Option<usize> {
         }
         Event::PcsStateChanged { block, .. } | Event::SocResnapped { block, .. } => Some(*block),
         Event::FaultApplied(action) => fault_block(action),
+        Event::BreakerSequenceChanged { .. } | Event::SwitchOperated { .. } => None,
     }
 }
 
@@ -90,7 +108,12 @@ fn fault_block(action: &FaultAction) -> Option<usize> {
         | FaultAction::AlarmReset(ResetScope::Block(block) | ResetScope::Rack { block, .. }) => {
             Some(block)
         }
-        FaultAction::ProtectionTrip | FaultAction::AlarmReset(ResetScope::Site) => None,
+        FaultAction::ProtectionTrip
+        | FaultAction::AlarmReset(ResetScope::Site)
+        | FaultAction::HvBreakerOpen
+        | FaultAction::HvBreakerClose
+        | FaultAction::Disconnectors { .. }
+        | FaultAction::EarthingSwitch { .. } => None,
     }
 }
 

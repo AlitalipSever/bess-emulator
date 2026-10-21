@@ -30,6 +30,9 @@ pub fn object_of_event(event: &Event) -> Selection {
     match *event {
         Event::AlarmRaised { node, .. } | Event::AlarmCleared { node, .. } => object_of(node),
         Event::PcsStateChanged { block, .. } => Selection::Pcs { block },
+        Event::BreakerSequenceChanged { .. } | Event::SwitchOperated { .. } => {
+            Selection::Transformer
+        }
         Event::SocResnapped {
             block, container, ..
         } => Selection::Container { block, container },
@@ -52,9 +55,12 @@ pub fn object_of_event(event: &Event) -> Selection {
             | FaultAction::BlockMaintenanceEnter { block }
             | FaultAction::BlockMaintenanceExit { block }
             | FaultAction::AlarmReset(ResetScope::Block(block)) => Selection::Pcs { block },
-            FaultAction::ProtectionTrip | FaultAction::AlarmReset(ResetScope::Site) => {
-                Selection::Transformer
-            }
+            FaultAction::ProtectionTrip
+            | FaultAction::AlarmReset(ResetScope::Site)
+            | FaultAction::HvBreakerOpen
+            | FaultAction::HvBreakerClose
+            | FaultAction::Disconnectors { .. }
+            | FaultAction::EarthingSwitch { .. } => Selection::Transformer,
         },
     }
 }

@@ -1,0 +1,14 @@
+{
+  "scenario": "substation-earthing-work",
+  "content_hash": "0x5e53e9b520f87106",
+  "engine_version": "0.7.0",
+  "seed": 11,
+  "start_unix_s": 1773108000,
+  "ticks": 10800,
+  "state_digest": "0x23dd7deafd08c839",
+  "event_log": {
+    "count": 136,
+    "digest": "0x37e0d045060a4217"
+  },
+  "revenue_periods_closed": 12
+}

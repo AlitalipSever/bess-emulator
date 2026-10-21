@@ -174,6 +174,15 @@ pub fn selection_detail(
                     bess_core::state::BreakerState::Open => "open",
                 });
                 ui.end_row();
+                ui.label("Sequence");
+                ui.label(sub.sequence.name());
+                ui.end_row();
+                ui.label("Disconnectors");
+                ui.label(position_name(sub.disconnectors));
+                ui.end_row();
+                ui.label("Earthing switch");
+                ui.label(position_name(sub.earthing_switch));
+                ui.end_row();
                 ui.label("POI voltage");
                 ui.label(format!("{:.1} kV", sub.poi_voltage_kv));
                 ui.end_row();
@@ -188,4 +197,11 @@ pub fn selection_detail(
     }
     ui.add_space(4.0);
     ui.weak(RichText::new("Click the object again to deselect.").small());
+}
+
+fn position_name(p: bess_core::state::SwitchPosition) -> &'static str {
+    match p {
+        bess_core::state::SwitchPosition::Closed => "closed",
+        bess_core::state::SwitchPosition::Open => "open",
+    }
 }

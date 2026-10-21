@@ -29,6 +29,10 @@ pub enum CommandError {
         /// Container index within the block.
         container: usize,
     },
+    /// The substation's interlocks refuse the switching operation; the
+    /// message says which one (M3 phase 4).
+    #[error("interlocked: {0}")]
+    Interlocked(&'static str),
 }
 
 impl Simulation {

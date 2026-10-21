@@ -13,7 +13,7 @@ use crate::alarms::{
 use crate::config::PlantConfig;
 use crate::state::{BlockMode, BlockState, BreakerState, PcsOpState, SiteState};
 
-use super::restart::{self, dispatchable};
+use super::restart::dispatchable;
 use super::setpoint::SetpointDynamics;
 use super::{Event, Simulation};
 
@@ -173,12 +173,13 @@ impl Simulation {
     /// fault are events; they wait in the tree (`SiteState::pending_events`,
     /// so a checkpoint taken now keeps them) and go out with the next tick.
     ///
-    /// A site reset on a tripped site is also "close": the breaker closes
-    /// and the staggered return starts, block 0 on the next tick and each
-    /// further block one `ReturnPolicy::spacing_s` later. M3's breaker
-    /// state machine is where those become two commands. A block reset
-    /// during a trip takes that PCS out of fault and nothing more: the
-    /// breaker stays open and the block unreleased.
+    /// A site reset on a tripped site is also "close": the breaker's
+    /// closing sequence starts (`close_hv_breaker`), and when the breaker
+    /// is in the staggered return starts, block 0 on the next tick and
+    /// each further block one `ReturnPolicy::spacing_s` later. An
+    /// interlock leaves the breaker open and the trip cleared. A block
+    /// reset during a trip takes that PCS out of fault and nothing more:
+    /// the breaker stays open and the block unreleased.
     ///
     /// Returns the bits whose cause is still present. They re-raise on the
     /// next tick, as a real plant does to an impatient operator. A scope
@@ -235,13 +236,17 @@ impl Simulation {
             let old = self.state.alarm_bits;
             self.state.alarm_bits &= !TRIP_MASK;
             push_changes(&mut events, AlarmNode::Site, old, self.state.alarm_bits);
-            if self.state.substation.hv_breaker == BreakerState::Open {
-                self.state.substation.hv_breaker = BreakerState::Closed;
-                restart::start_over(&mut self.state.ems);
-            }
         }
 
         self.state.pending_events.extend(events);
+        if site_too && self.state.substation.hv_breaker == BreakerState::Open {
+            // The reset is also "close": the breaker's closing sequence
+            // starts, and the return with it when the breaker is in. An
+            // interlock (disconnectors open, earthing switch closed) leaves
+            // the breaker open for the operator to deal with; the trip is
+            // cleared either way.
+            let _ = self.close_hv_breaker();
+        }
         Ok(still)
     }
 

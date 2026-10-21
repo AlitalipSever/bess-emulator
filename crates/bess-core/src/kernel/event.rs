@@ -17,6 +17,21 @@ use super::FaultAction;
 /// and the fault actions applied to the plant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Event {
+    /// The HV breaker's closing sequence moved (M3 phase 4).
+    BreakerSequenceChanged {
+        /// Where it was.
+        from: super::BreakerSequence,
+        /// Where it is.
+        to: super::BreakerSequence,
+    },
+    /// An operator moved the disconnectors or the earthing switch (M3
+    /// phase 4).
+    SwitchOperated {
+        /// Which switch.
+        switch: super::Switch,
+        /// Its new position.
+        closed: bool,
+    },
     /// A PCS changed operating state.
     PcsStateChanged {
         /// Block index.

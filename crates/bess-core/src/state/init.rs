@@ -3,11 +3,11 @@
 use super::{
     AuxPower, BlockMode, BlockState, BreakerState, ContainerState, EmsMode, EmsState,
     EnergyAccounting, HvacMode, HvacState, PcsOpState, PcsState, RackState, RevenueMeter, SiteMeta,
-    SiteState, SubstationState,
+    SiteState, SubstationState, SwitchPosition,
 };
 use crate::alarms::EventLog;
 use crate::config::PlantConfig;
-use crate::kernel::Weather;
+use crate::kernel::{BreakerSequence, Weather};
 use crate::rng::Rng;
 
 /// Salt that separates the commissioning-spread stream from the main one.
@@ -104,6 +104,10 @@ impl SiteState {
             },
             substation: SubstationState {
                 hv_breaker: BreakerState::Closed,
+                disconnectors: SwitchPosition::Closed,
+                earthing_switch: SwitchPosition::Open,
+                sequence: BreakerSequence::Idle,
+                sequence_elapsed_s: 0.0,
                 poi_active_power_w: 0.0,
                 poi_reactive_power_var: 0.0,
                 poi_voltage_kv: cfg.grid.poi_nominal_kv,

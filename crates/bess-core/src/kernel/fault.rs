@@ -86,6 +86,20 @@ pub enum FaultAction {
     },
     /// The operator reset, over a scope.
     AlarmReset(ResetScope),
+    /// The operator opens the HV breaker (M3 phase 4).
+    HvBreakerOpen,
+    /// The operator closes the HV breaker, through its sequence.
+    HvBreakerClose,
+    /// The operator moves the line disconnectors.
+    Disconnectors {
+        /// Closed (`true`) or open.
+        closed: bool,
+    },
+    /// The operator moves the earthing switch.
+    EarthingSwitch {
+        /// Closed (`true`) or open.
+        closed: bool,
+    },
 }
 
 impl FaultAction {
@@ -104,6 +118,12 @@ impl FaultAction {
             Self::BlockMaintenanceEnter { .. } => "maintenance_enter",
             Self::BlockMaintenanceExit { .. } => "maintenance_exit",
             Self::AlarmReset(_) => "alarm_reset",
+            Self::HvBreakerOpen => "breaker_open",
+            Self::HvBreakerClose => "breaker_close",
+            Self::Disconnectors { closed: true } => "disconnectors_close",
+            Self::Disconnectors { closed: false } => "disconnectors_open",
+            Self::EarthingSwitch { closed: true } => "earthing_close",
+            Self::EarthingSwitch { closed: false } => "earthing_open",
         }
     }
 }
@@ -188,6 +208,10 @@ impl Simulation {
             FaultAction::BlockMaintenanceExit { block } => {
                 self.mode_to(block, BlockMode::InService)?
             }
+            FaultAction::HvBreakerOpen => self.open_hv_breaker(),
+            FaultAction::HvBreakerClose => self.close_hv_breaker()?,
+            FaultAction::Disconnectors { closed } => self.set_disconnectors(closed)?,
+            FaultAction::EarthingSwitch { closed } => self.set_earthing_switch(closed)?,
             FaultAction::AlarmReset(scope) => {
                 // What a reset still finds present re-raises on the next
                 // tick, which the log shows; the list itself is the HMI's.

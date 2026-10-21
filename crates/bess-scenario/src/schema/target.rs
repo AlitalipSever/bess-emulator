@@ -17,6 +17,8 @@ use bess_core::PlantConfig;
 pub enum Target {
     /// The site.
     Site,
+    /// The site's substation: its switchgear (M3 phase 4).
+    Substation,
     /// A block.
     Block {
         /// Block index.
@@ -82,6 +84,9 @@ impl Target {
 
         if parts == ["site"] {
             return Ok(Self::Site);
+        }
+        if parts == ["site", "substation"] {
+            return Ok(Self::Substation);
         }
         let block = match indexed(parts[0], "block") {
             Some(Ok(b)) if b < cfg.blocks => b,
@@ -156,7 +161,7 @@ impl Target {
                 container,
                 rack,
             }),
-            Self::Pcs { .. } | Self::Hvac { .. } => None,
+            Self::Pcs { .. } | Self::Hvac { .. } | Self::Substation => None,
         }
     }
 
@@ -168,6 +173,10 @@ impl Target {
             | FaultAction::HvacRepair { block, container } => Self::Hvac { block, container },
             FaultAction::PcsTrip { block } => Self::Pcs { block },
             FaultAction::ProtectionTrip | FaultAction::AlarmReset(ResetScope::Site) => Self::Site,
+            FaultAction::HvBreakerOpen
+            | FaultAction::HvBreakerClose
+            | FaultAction::Disconnectors { .. }
+            | FaultAction::EarthingSwitch { .. } => Self::Substation,
             FaultAction::BlockMaintenanceEnter { block }
             | FaultAction::BlockMaintenanceExit { block }
             | FaultAction::AlarmReset(ResetScope::Block(block)) => Self::Block { block },
@@ -205,6 +214,7 @@ impl fmt::Display for Target {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Self::Site => f.write_str("site"),
+            Self::Substation => f.write_str("site.substation"),
             Self::Block { block } => write!(f, "block[{block}]"),
             Self::Pcs { block } => write!(f, "block[{block}].pcs"),
             Self::Hvac { block, container } => {
@@ -221,6 +231,7 @@ impl fmt::Display for Target {
 
 fn kind_name(target: Target) -> &'static str {
     match target {
+        Target::Substation => "substation",
         Target::Site => "site",
         Target::Block { .. } => "block",
         Target::Pcs { .. } => "pcs",

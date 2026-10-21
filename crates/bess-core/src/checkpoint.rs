@@ -37,6 +37,8 @@ pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// v6 (M2): blocks gained an operating mode, the plant controller the
 /// return sequencer's count and countdown, and the substation a
 /// station-service meter.
+/// v15 (M3 phase 4): the substation's disconnector and earthing-switch
+/// positions and the breaker's closing sequence with its timer.
 /// v14 (M3 phase 3): the converter's thermal node, its overload budget
 /// with its arming latch, and the AC power it permits.
 /// v13 (M3 phase 2 PR2): the converter's setpoint follower, its ramped
@@ -54,7 +56,7 @@ pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Pre-1.0 checkpoints are not migrated; an older file is rejected with its
 /// version named rather than half-restored, since a missing item would
 /// otherwise restore as a plant whose auxiliary meters silently read zero.
-pub const FORMAT_VERSION: u32 = 14;
+pub const FORMAT_VERSION: u32 = 15;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {

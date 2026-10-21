@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::alarms::EventLog;
-use crate::kernel::{Event, Weather};
+use crate::kernel::{BreakerSequence, Event, Weather};
 use crate::rng::Rng;
 
 mod energy;
@@ -124,11 +124,31 @@ pub enum BreakerState {
     Closed,
 }
 
+/// Position of a switch an operator moves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SwitchPosition {
+    /// Open.
+    Open,
+    /// Closed.
+    Closed,
+}
+
 /// Substation and point-of-interconnection state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SubstationState {
     /// Main HV breaker position.
     pub hv_breaker: BreakerState,
+    /// The line disconnectors on the HV side of the breaker (M3 phase 4).
+    /// They never move under a closed breaker.
+    pub disconnectors: SwitchPosition,
+    /// The earthing switch on the isolated bus (M3 phase 4). It closes
+    /// only with the breaker and the disconnectors open, and the breaker
+    /// never closes onto it.
+    pub earthing_switch: SwitchPosition,
+    /// Where the breaker is in its closing sequence (M3 phase 4).
+    pub sequence: BreakerSequence,
+    /// Seconds spent in the current sequence state.
+    pub sequence_elapsed_s: f64,
     /// Active power at the POI, W (positive = export).
     pub poi_active_power_w: f64,
     /// Reactive power at the POI, var.
