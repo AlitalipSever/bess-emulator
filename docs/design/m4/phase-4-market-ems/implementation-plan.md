@@ -12,6 +12,12 @@ Two PRs, each landing green.
 Accept: the ordering unit tests pass; the annual revenue is inside the
 band or the section says by how much it is not and why.
 
+*As built (PR #55):* as the design's as-built notes say. The market year
+runs beside the clean one in the bench (`--market`, its own record
+`calibration/m4-market.json`, the revenue band as its gate, a second CI
+step); the shell's default strategy stays the day-ahead plan so the
+library's stories keep their timing.
+
 ## PR2: release v0.9.0
 
 - Version bump, records regenerated, ROADMAP M4 done, README status,

@@ -7,7 +7,7 @@
 
 use bess_core::state::HvacMode;
 use bess_core::{PlantConfig, Simulation, SiteState, TICK_SECONDS};
-use bess_models::{gw01_models, gw01_weather};
+use bess_models::{gw01_market_models, gw01_models, gw01_weather};
 mod record;
 
 pub use record::{
@@ -45,6 +45,9 @@ pub struct RunSpec {
     pub start_unix_s: i64,
     /// Days to simulate.
     pub days: u64,
+    /// The market participant's strategy in place of the day-ahead plan
+    /// (M4 phase 4).
+    pub market: bool,
 }
 
 impl Default for RunSpec {
@@ -53,6 +56,7 @@ impl Default for RunSpec {
             seed: DEFAULT_SEED,
             start_unix_s: DEFAULT_START_UNIX_S,
             days: DEFAULT_DAYS,
+            market: false,
         }
     }
 }
@@ -182,7 +186,11 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
     let racks = cfg.total_racks();
     let nominal_energy_wh = cfg.nominal_energy_wh();
     let site_rated_w = cfg.grid.site_rated_w;
-    let models = gw01_models(&cfg);
+    let models = if spec.market {
+        gw01_market_models(&cfg)
+    } else {
+        gw01_models(&cfg)
+    };
     let mut sim = Simulation::new(cfg, models, spec.seed, spec.start_unix_s);
     let weather = gw01_weather();
 
@@ -232,6 +240,7 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
             start_unix_s: spec.start_unix_s,
             days: spec.days,
             ticks,
+            market: spec.market,
         },
         energy: energy_of(state, stored_delta_wh, nominal_energy_wh),
         losses,

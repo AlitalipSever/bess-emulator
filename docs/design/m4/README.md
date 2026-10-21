@@ -1,7 +1,7 @@
 # M4: EMS and market signals
 
 Status: designed 2026-10-21 after M3 shipped as v0.8.0; phase 1 landed
-the same day (PRs #48 and #49), phase 2 after it (PRs #50 and #51), phase 3 after that (PRs #52, #53 and #54). ROADMAP.md defines the goal and the calibration gate; this folder
+the same day (PRs #48 and #49), phase 2 after it (PRs #50 and #51), phase 3 after that (PRs #52, #53 and #54), phase 4 PR1 after that (PR #55). ROADMAP.md defines the goal and the calibration gate; this folder
 fixes the architecture, the decisions and the work breakdown, one phase
 per subfolder, each phase's documents to be marked with what was actually
 built. Layout per [docs/design/README.md](../README.md).
@@ -229,6 +229,16 @@ Filled as PRs land.
   `site.revenue.total_eur` (97), Prometheus counters, a `revenue`
   section in the annual record. The first EUR the emulator publishes.
   Checkpoint 19 widened.
+- **A strategy that decides** (phase 4 PR1). `MarketEms`: per local day
+  and four-hour block, the best-paid use of the plant's power
+  (arbitrage on the day's spread, FCR at the index's 80 % share, aFRR at
+  50 % each way), the awards following the decision, and a day-ahead
+  plan whose charges precede its discharges (the M2 finding made a
+  rule). The bench runs the market year beside the clean one
+  (`--market`, `calibration/m4-market.json`) with the revenue band as its
+  gate, 97.5 to 195 kEUR/MW from the ISEA/enspired index, written before
+  the number; `site.market.block_use` (99). The shell's default stays
+  the day-ahead plan.
 
 ## Open questions
 

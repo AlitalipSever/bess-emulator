@@ -215,6 +215,9 @@ pub struct EmsState {
     pub afrr_energy_pos_wh: f64,
     /// aFRR energy absorbed since tick 0, Wh.
     pub afrr_energy_neg_wh: f64,
+    /// What the strategy does with the current block (M4 phase 4): 0
+    /// arbitrage, 1 FCR, 2 aFRR; what `EmsStrategy::block_use_at` said.
+    pub block_use: u16,
 }
 
 impl EmsState {
@@ -247,6 +250,7 @@ impl EmsState {
             afrr_followed_w: 0.0,
             afrr_energy_pos_wh: 0.0,
             afrr_energy_neg_wh: 0.0,
+            block_use: 0,
         }
     }
 }

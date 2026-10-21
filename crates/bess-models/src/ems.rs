@@ -8,6 +8,7 @@
 //! hours. Balancing-market activation replay and setpoint tracking quality
 //! arrive in M4; market behaviour does not get smarter here.
 
+pub mod market;
 pub mod plan;
 
 use std::fmt;
@@ -19,6 +20,7 @@ use bess_data::PriceYear;
 
 use crate::calendar::reference_hour;
 use crate::market::AwardPlan;
+pub use market::{BlockUse, DayDecision, MarketEms, MarketRules};
 pub use plan::DayPlan;
 
 /// Day-ahead strategy: one [`DayPlan`] per local day of a price year,
@@ -103,11 +105,34 @@ impl EmsStrategy for DayAheadEms {
     /// the annual figure), labeled as the floor of what an activated unit
     /// is paid; the imbalance at the day-ahead price, a labeled stand-in
     /// for the imbalance price (CALIBRATION.md).
-    fn prices_at(&self, unix_time_s: i64, _state: &SiteState) -> MarketPrices {
-        let idx = self
-            .prices
-            .index_at_utc_hour(reference_hour(unix_time_s, self.prices.year()));
-        let day_ahead = self.prices.price_eur_mwh(idx);
+    fn prices_at(&self, unix_time_s: i64, state: &SiteState) -> MarketPrices {
+        day_ahead_prices_at(self.prices, unix_time_s, state)
+    }
+
+    fn site_target_w(&self, unix_time_s: i64, _state: &SiteState) -> f64 {
+        let (day, slot) = self.local(unix_time_s);
+        let plan = self.plans[day];
+        if plan.charges(slot) {
+            -self.power_w
+        } else if plan.discharges(slot) {
+            self.power_w
+        } else {
+            0.0
+        }
+    }
+}
+
+/// The prices a strategy on `prices` books at a timestamp: the
+/// day-ahead hour, the aFRR energy floor (the replayed year's quarter or
+/// the annual figure), the day-ahead as the labeled imbalance stand-in.
+pub fn day_ahead_prices_at(
+    prices: &PriceYear,
+    unix_time_s: i64,
+    _state: &SiteState,
+) -> MarketPrices {
+    {
+        let idx = prices.index_at_utc_hour(reference_hour(unix_time_s, prices.year()));
+        let day_ahead = prices.price_eur_mwh(idx);
         let (pos, neg) = match crate::market::replayed_balancing() {
             Some(year) => {
                 let quarter = year.index_at_utc_quarter(
@@ -128,18 +153,6 @@ impl EmsStrategy for DayAheadEms {
             afrr_pos_eur_mwh: pos,
             afrr_neg_eur_mwh: neg,
             imbalance_eur_mwh: day_ahead,
-        }
-    }
-
-    fn site_target_w(&self, unix_time_s: i64, _state: &SiteState) -> f64 {
-        let (day, slot) = self.local(unix_time_s);
-        let plan = self.plans[day];
-        if plan.charges(slot) {
-            -self.power_w
-        } else if plan.discharges(slot) {
-            self.power_w
-        } else {
-            0.0
         }
     }
 }

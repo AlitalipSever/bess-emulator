@@ -382,6 +382,19 @@ pub(super) fn points() -> Vec<Point> {
             Input,
             |s: &SiteState| s.ems.afrr_energy_neg_wh / 1000.0
         ),
+        // What the market participant does with the block (M4 phase 4):
+        // 0 arbitrage, 1 fcr, 2 afrr; a plant on the day-ahead plan reads
+        // 0. Exact.
+        point!(
+            "site.market.block_use",
+            "enum",
+            Slow,
+            U16,
+            1.0,
+            99,
+            Input,
+            |s: &SiteState| f64::from(s.ems.block_use)
+        ),
         // The grid-code block (M4 phase 1): what it is doing, and what
         // the FCR droop delivers. Controller values, exact.
         point!(

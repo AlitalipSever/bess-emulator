@@ -120,6 +120,7 @@ impl SiteState {
                 afrr_followed_w: 0.0,
                 afrr_energy_pos_wh: 0.0,
                 afrr_energy_neg_wh: 0.0,
+                block_use: 0,
             },
             substation: substation_at_rest(cfg, ambient_c, start_unix_s),
             aux: AuxPower::default(),

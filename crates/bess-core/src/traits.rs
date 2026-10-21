@@ -212,6 +212,12 @@ pub trait EmsStrategy: Send + Sync {
     fn prices_at(&self, _unix_time_s: i64, _state: &SiteState) -> MarketPrices {
         MarketPrices::default()
     }
+
+    /// What the strategy does with the current block (M4 phase 4): 0
+    /// arbitrage, 1 FCR, 2 aFRR. A plan without a market arbitrages.
+    fn block_use_at(&self, _unix_time_s: i64, _state: &SiteState) -> u16 {
+        0
+    }
 }
 
 /// What the site is asking its auxiliary systems to supply this tick.

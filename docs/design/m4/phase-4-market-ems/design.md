@@ -22,25 +22,42 @@ Each decision is proposed here and confirmed or revised in its PR.
   cross-market figure, the lower bound for the intraday revenue the
   emulator does not model and the perfect-foresight assumption it only
   partly shares; the mix (balancing share of the total) between the
-  shares the two single-market figures imply. The band is written in
-  CALIBRATION.md before the first number.
+  shares the two single-market figures imply. The band is written in CALIBRATION.md before the first number. *As
+  built (PR1):* `bands::MARKET_REVENUE_KEUR_PER_MW`, 97.5 to 195, the
+  total only (the mix is reported, not gated), checked on the market
+  year (`RunRecord::market`); the band was committed before the market
+  bench ran.
 - **D2, the ordering rule is the M2 finding made a decision.** Charge
   slots precede the discharge slots they feed; the plan reads the
   day-start SoC. The three-charge/two-discharge rule is kept (the 2 h
   plant needs the extra hour for losses), so the clean-year record
   changes only in ordering; both plans are kept and the switch is a
-  config value, so the M2 annual record can still be reproduced.
+  config value, so the M2 annual record can still be reproduced. *As built (PR1):*
+  `ordered` in `ems/market.rs` re-ranks the discharges among the slots
+  after the first charge; `MarketRules::ordered` switches it; the
+  day-ahead plant (the shell's default) keeps the unordered plan and the
+  clean year's record did not move.
 - **D3, the daily block decision is value-ranked, not optimized.** A
   ranking the way the index describes its own method ("simple enough to
   be calculable in Excel"): per block, the three values compared and
   the best taken, with FCR's share bounded by the working range. An
-  optimizer would be a second project; the ranking is stated as the
-  method in CALIBRATION.md.
+  optimizer would be a second project; the ranking is stated as the method in CALIBRATION.md. *As built
+  (PR1):* `decide` values arbitrage as the day's spread shared over the
+  plan's blocks, FCR at the index's 80 % share, aFRR at 50 % each way
+  (labeled); the awards follow the block's use through
+  `EmsStrategy::awards_at` and the headroom rule.
 - **D4, checkpoint bump.** Format 20: the planner's day decision and
-  the plan's ordering state.
+  the plan's ordering state. *As built (PR1):* no bump; the decisions
+  are a pure function of the price year and live in the strategy, and
+  the tree carries only the block's use (`EmsState::block_use`), inside
+  the unreleased format 19.
 - **D5, points.** `site.ems.mode` and `control.ems_mode` gain value 2
   (`market`); `site.market.block_use` (80: 0 arbitrage, 1 fcr, 2 afrr,
-  3 split) for the current block.
+  3 split) for the current block. *As built (PR1): revised.* No mode
+  value: the strategy is the model bundle's choice (`gw01_models` or
+  `gw01_market_models`), not a mode an operator switches, and the two
+  mode points keep their values. `site.market.block_use` at 99 (80 went
+  to the aFRR request in phase 3) with three values, no split.
 
 ## Signal map impact
 

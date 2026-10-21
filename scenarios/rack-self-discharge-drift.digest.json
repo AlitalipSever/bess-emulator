@@ -5,7 +5,7 @@
   "seed": 7,
   "start_unix_s": 1775865600,
   "ticks": 518400,
-  "state_digest": "0xa03af1d91a970338",
+  "state_digest": "0x336cf099459c6c81",
   "event_log": {
     "count": 3156,
     "digest": "0x26a479b55a37cc61"

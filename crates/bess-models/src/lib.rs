@@ -21,7 +21,7 @@ pub mod weather;
 pub use aux::InventoryAux;
 pub use bms::BasicBms;
 pub use cell::Ecm1Rc;
-pub use ems::DayAheadEms;
+pub use ems::{DayAheadEms, MarketEms, MarketRules};
 pub use grid::SimpleGrid;
 pub use grid_signal::{SyntheticAfrr, SyntheticFrequency};
 pub use pcs::{CurvePcs, FlatPcs, SurfacePcs};
@@ -99,6 +99,20 @@ pub fn gw01_models(cfg: &PlantConfig) -> Models {
         aux: Box::new(InventoryAux::gw01()),
         grid: Box::new(SimpleGrid::new(cfg.grid.site_rated_w)),
     }
+}
+
+/// The GW-01 bundle with the market participant's strategy (M4 phase 4):
+/// the same plant, selling FCR and aFRR block by block on the 2024 prices
+/// and planning the rest with charges before discharges.
+pub fn gw01_market_models(cfg: &PlantConfig) -> Models {
+    let mut models = gw01_models(cfg);
+    models.ems = Box::new(MarketEms::from_price_year(
+        bess_data::dayahead_de_lu_2024(),
+        cfg.grid.site_rated_w,
+        cfg.nominal_energy_wh() * (cfg.rack.soc_max - cfg.rack.soc_min),
+        MarketRules::default(),
+    ));
+    models
 }
 
 /// The exogenous input driver for the GW-01 reference site.

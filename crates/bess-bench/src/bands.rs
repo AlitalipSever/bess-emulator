@@ -148,9 +148,29 @@ pub const GATES: &[Gate] = &[
     },
 ];
 
+/// The M4 gate, kEUR per MW over the year for the market participant:
+/// 50 % to 100 % of the ISEA/enspired Battery Revenue Index's cross-
+/// market figure for a two-hour system over the twelve months to October
+/// 2024 (about 195 kEUR/MW); the lower bound for the intraday markets the
+/// emulator does not model and the perfect foresight it only partly
+/// shares. Written before the number (CALIBRATION.md, M4 revenue gate).
+pub const MARKET_REVENUE_KEUR_PER_MW: Band = Band {
+    lo: 97.5,
+    hi: 195.0,
+};
+
 /// Check every gate. Returns one line per failure, empty when all hold.
 pub fn check(kpis: &Kpis) -> Vec<String> {
     let mut failures = Vec::new();
+    if kpis.run.market && !MARKET_REVENUE_KEUR_PER_MW.contains(kpis.revenue.total_keur_per_mw) {
+        failures.push(format!(
+            "Annual revenue per MW: measured {:.2} kEUR/MW, outside [{:.1}, {:.1}] (sourced, \
+             ISEA/enspired Battery Revenue Index, two-hour system, twelve months to Oct 2024)",
+            kpis.revenue.total_keur_per_mw,
+            MARKET_REVENUE_KEUR_PER_MW.lo,
+            MARKET_REVENUE_KEUR_PER_MW.hi
+        ));
+    }
     for gate in GATES {
         let value = (gate.read)(kpis);
         if !gate.band.contains(value) {
