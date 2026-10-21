@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::alarms::BlockSiteThresholds;
 use crate::config::PlantConfig;
-use crate::state::{AuxPower, BlockMode, BreakerState, EmsMode, PcsOpState, SiteState};
+use crate::state::{
+    AuxPower, BlockMode, BreakerState, EmsMode, PcsOpState, ReactiveMode, SiteState,
+};
 use crate::traits::{AuxDemand, GridConditions, Models, PowerLimits};
 use crate::TICK_SECONDS;
 
@@ -19,6 +21,7 @@ mod commands;
 mod event;
 mod fault;
 mod gridcode;
+mod reactive;
 mod restart;
 mod setpoint;
 mod startup;
@@ -29,6 +32,7 @@ pub use commands::CommandError;
 pub use event::Event;
 pub use fault::{FaultAction, FaultError};
 pub use gridcode::{FcrDroop, GridCode, GridCodeState};
+pub use reactive::ReactiveControl;
 use restart::dispatchable;
 pub use restart::ReturnPolicy;
 pub use setpoint::SetpointDynamics;
@@ -74,6 +78,7 @@ pub struct Simulation {
     switchgear: SwitchgearTimes,
     gridcode: GridCode,
     droop: FcrDroop,
+    reactive: ReactiveControl,
     scratch: Scratch,
 }
 
@@ -100,6 +105,7 @@ impl Simulation {
             switchgear: SwitchgearTimes::default(),
             gridcode: GridCode::default(),
             droop: FcrDroop::default(),
+            reactive: ReactiveControl::default(),
             scratch: Scratch {
                 rack_limits: vec![PowerLimits::default(); racks_per_block],
                 bms_heat: vec![0.0; racks_per_block],
@@ -162,6 +168,54 @@ impl Simulation {
     /// the next tick on, until another call changes it. Zero clears it.
     pub fn set_grid_frequency_offset_mhz(&mut self, mhz: i32) {
         self.state.substation.frequency_offset_mhz = mhz;
+    }
+
+    /// Choose how the plant sets its reactive power (M4 phase 1 PR2):
+    /// the operator's mode, in force from the next tick.
+    pub fn set_reactive_mode(&mut self, mode: ReactiveMode) {
+        self.state.ems.reactive_mode = mode;
+    }
+
+    /// Replace the reactive-power rules (settling, the Q(U) band and
+    /// slope). Research runs.
+    pub fn set_reactive_control(&mut self, control: ReactiveControl) {
+        self.reactive = control;
+    }
+
+    /// Step 3b of the tick: the site's reactive target in the operator's
+    /// mode, settled, shared evenly over the dispatchable blocks and
+    /// bounded by each converter's circle beside the active power it just
+    /// converted. Returns the converters' total, var; zero on a
+    /// disconnected site.
+    fn step_reactive(
+        &mut self,
+        p_ac_site_w: f64,
+        voltage_pu: f64,
+        connected: bool,
+        dt_s: f64,
+    ) -> f64 {
+        let raw = if connected {
+            self.reactive.target_var(
+                self.state.ems.reactive_mode,
+                p_ac_site_w,
+                voltage_pu,
+                self.cfg.grid.site_rated_w,
+            )
+        } else {
+            0.0
+        };
+        let target = self.reactive.settle(&mut self.state.ems, raw, dt_s);
+        let share = restart::share_w(&self.state.blocks, &self.state.ems, connected, target);
+        let mut total = 0.0;
+        for (block_idx, block) in self.state.blocks.iter_mut().enumerate() {
+            block.pcs.q_var = if dispatchable(block, block_idx, &self.state.ems, connected) {
+                self.models.pcs.reactive(&block.pcs, share)
+            } else {
+                0.0
+            };
+            total += block.pcs.q_var;
+        }
+        total
     }
 
     /// Chemical energy currently stored across all racks, Wh.
@@ -326,6 +380,8 @@ impl Simulation {
         }
         self.state.ems.available_discharge_w = avail.max_discharge_w;
         self.state.ems.available_charge_w = avail.max_charge_w;
+        let q_ac_site_var =
+            self.step_reactive(p_ac_site_w, inputs.grid_voltage_pu, connected, dt_s);
 
         let aux = self.step_aux(hvac_aux_w, wh);
 
@@ -333,6 +389,7 @@ impl Simulation {
         self.models.grid.step(
             &mut self.state.substation,
             p_ac_site_w,
+            q_ac_site_var,
             aux.total_w(),
             GridConditions {
                 frequency_hz,

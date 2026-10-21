@@ -1473,6 +1473,67 @@ different series, and the digests say so.
 ISE API documentation (the replay source's resolution and terms).
 Numbers cited, nothing reproduced.
 
+## M4 (v0.9.0, unreleased): reactive power
+
+Phase 1 PR2 gives the plant its reactive power: a mode the operator
+chooses (`ReactiveMode`: fixed cos φ, fixed Q, Q(U)), a settled site
+target shared over the converters (`crates/bess-core/src/kernel/reactive.rs`),
+each converter's share bounded by its apparent-power circle
+(`PcsModel::reactive`), the transformer's reactive consumption on the
+way to the POI (`SimpleGrid`), and `site.poi.reactive_power_var` reading
+something other than zero for the first time, with a power factor
+beside it.
+
+**The circle, sourced and labeled.** Each 5 MW converter is taken as
+5 MVA: the SG2500U datasheet (the M3 source) rates apparent and active
+power equal at unity, so the circle's radius is the rating and the
+reactive room beside an active power P is √(S² − P²). At zero active
+power the whole rating is available for vars, which is what VDE-AR-N
+4110 asks of a storage unit (reactive power at zero active power, the
+rule the M0 architecture listed for M4);
+`zero_active_power_leaves_the_rating_for_vars` holds an idle plant asked
+for 100 Mvar to the converters' 100 Mvar and the POI's 88. The circle
+holds at every tick in every mode
+(`every_mode_keeps_the_converters_on_their_circle`).
+
+**The range and the modes, sourced.** VDE-AR-N 4110 asks a generating
+unit at medium voltage for cos φ 0.9 under-excited to 0.9 over-excited
+at rated active power (public summaries; the 110 kV rule, VDE-AR-N
+4120, is not freely available), which is 48.4 % of rated power in vars
+either way, the range the Q(U) characteristic reaches. The three modes
+are the rule's: fixed displacement factor, fixed reactive power, and the
+voltage characteristic. The characteristic's dead band (±2 % of nominal)
+and the voltage at which it reaches its range (±5 %) are **labeled
+estimates** inside the ranges a connection agreement sets, and so is the
+10 s first-order settling on the site target (the rule asks for a
+settling time of seconds to tens of seconds for a Q(U) step).
+
+**The transformer's reactive consumption, labeled.** I²X on the
+apparent loading with a 12 % short-circuit reactance on the 100 MVA base,
+the common figure for an HV/MV unit of that size and a labeled estimate:
+12 Mvar at rated current, so a plant at its rating at unity reads a power
+factor of 0.993 at the POI, not 1.000. The consumption is a var figure,
+not an energy row: `reactive_power_moves_no_energy` holds the energy
+accounting of a day in fixed-Q mode to the unity day's, byte for byte.
+
+**What it moved.** No energy figure; the annual record's are phase 4's
+(0.8323). Every library record moved for the second time in the phase:
+the converters' vars, the mode and the power factor are in the tree.
+
+**Known gaps.**
+
+- **The transformer's reactance, the dead band, the slope's knee and
+  the settling** are estimates, above.
+- **The converter's circle is a circle**: a real unit's P-Q capability
+  narrows with DC voltage and temperature; the datasheet gives the
+  rating at unity only.
+- **Q(U) reads the grid's voltage input**, not a bus the plant's own
+  vars would move: the emulator's grid is stiff.
+
+**Sources:** VDE-AR-N 4110:2018 through public summaries (the cos φ 0.9
+range, the three modes, reactive power at zero active power); the Sungrow
+SG2500U datasheet (apparent rating). Numbers cited, nothing reproduced.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

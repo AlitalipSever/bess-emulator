@@ -27,7 +27,7 @@ fn the_inventory_is_explicit_and_small() {
         .map(|(_, n)| n.as_str())
         .collect();
     // 15 site points plus 6 per block over 20 blocks.
-    assert_eq!(instrumented.len(), 18 + 7 * 20, "{instrumented:?}");
+    assert_eq!(instrumented.len(), 18 + 8 * 20, "{instrumented:?}");
     for exact in [
         "site.soc_pct",
         "site.alarm_bits",

@@ -37,6 +37,10 @@ pub struct SimpleGrid {
     /// load-dependent drop the MV bus sees at unity power factor, the
     /// copper losses over the rating (M3 phase 4).
     pub resistive_drop_pu: f64,
+    /// Reactive short-circuit voltage of the transformer, per unit: the
+    /// vars it consumes at rated current, over its rating (M4 phase 1
+    /// PR2). 12 % for a 100 MVA HV/MV unit, a labeled estimate.
+    pub reactance_pu: f64,
     /// The transformer's two temperatures (M3 phase 4).
     pub thermal: TransformerThermal,
     /// The on-load tap changer and its regulator (M3 phase 4).
@@ -54,6 +58,7 @@ impl SimpleGrid {
             poi_nominal_kv: 110.0,
             mv_nominal_kv: 33.0,
             resistive_drop_pu: 600.0e3 / 100.0e6,
+            reactance_pu: 0.12,
             thermal: TransformerThermal::onaf_100_mva(),
             tap: TapChanger::default(),
         }
@@ -65,13 +70,13 @@ impl GridInterface for SimpleGrid {
         &self,
         substation: &mut SubstationState,
         p_ac_total_w: f64,
+        q_ac_total_var: f64,
         aux_w: f64,
         grid: GridConditions,
         dt_s: f64,
     ) {
         substation.frequency_hz = grid.frequency_hz;
         substation.poi_voltage_kv = grid.voltage_pu * self.poi_nominal_kv;
-        substation.poi_reactive_power_var = 0.0;
 
         // The transformer's temperatures follow the through-power, or
         // cool toward the ambient when the breaker has de-energized it;
@@ -116,6 +121,8 @@ impl GridInterface for SimpleGrid {
             // station-service feed and is metered there. (The breaker state
             // machine with interlocks arrives in M3.)
             substation.poi_active_power_w = 0.0;
+            substation.poi_reactive_power_var = 0.0;
+            substation.poi_power_factor = 1.0;
             substation.transformer_loss_w = 0.0;
             substation.aux_power_w = aux_w;
             substation.station_service_wh += aux_w * dt_s / 3600.0;
@@ -127,9 +134,24 @@ impl GridInterface for SimpleGrid {
             self.no_load_loss_w + self.load_loss_at_rated_w * loading * loading;
         let poi_w = p_ac_total_w - transformer_loss_w - aux_w;
 
+        // The transformer's reactive consumption, I²X on the apparent
+        // loading: what the converters delivered less what the leakage
+        // reactance took.
+        let s_rated = self.site_rated_w;
+        let apparent_sq = p_ac_total_w * p_ac_total_w + q_ac_total_var * q_ac_total_var;
+        let reactive_loss_var = self.reactance_pu * apparent_sq / s_rated;
+        let poi_var = q_ac_total_var - reactive_loss_var;
+        let poi_s = (poi_w * poi_w + poi_var * poi_var).sqrt();
+
         substation.transformer_loss_w = transformer_loss_w;
         substation.aux_power_w = aux_w;
         substation.poi_active_power_w = poi_w;
+        substation.poi_reactive_power_var = poi_var;
+        substation.poi_power_factor = if poi_s > 0.0 {
+            poi_w.abs() / poi_s
+        } else {
+            1.0
+        };
 
         let wh = poi_w * dt_s / 3600.0;
         if wh >= 0.0 {
@@ -161,6 +183,7 @@ mod tests {
             hot_spot_rise_2_k: 0.0,
             poi_active_power_w: 0.0,
             poi_reactive_power_var: 0.0,
+            poi_power_factor: 1.0,
             poi_voltage_kv: 110.0,
             frequency_hz: 50.0,
             frequency_offset_mhz: 0,
@@ -179,6 +202,7 @@ mod tests {
         let mut sub = substation();
         grid.step(
             &mut sub,
+            0.0,
             0.0,
             66.0e3,
             GridConditions {
@@ -200,6 +224,7 @@ mod tests {
         grid.step(
             &mut sub,
             100.0e6,
+            0.0,
             450.0e3,
             GridConditions {
                 frequency_hz: 50.0,
@@ -221,6 +246,7 @@ mod tests {
         let mut sub = substation();
         grid.step(
             &mut sub,
+            0.0,
             0.0,
             123.4e3,
             GridConditions {
@@ -257,6 +283,7 @@ mod tests {
         grid.step(
             &mut sub,
             0.0,
+            0.0,
             66.0e3,
             GridConditions {
                 frequency_hz: 50.0,
@@ -275,6 +302,7 @@ mod tests {
         sub.hv_breaker = BreakerState::Closed;
         grid.step(
             &mut sub,
+            0.0,
             0.0,
             66.0e3,
             GridConditions {
@@ -299,6 +327,7 @@ mod tests {
             grid.step(
                 &mut sub,
                 p,
+                0.0,
                 0.0,
                 GridConditions {
                     frequency_hz: 50.0,

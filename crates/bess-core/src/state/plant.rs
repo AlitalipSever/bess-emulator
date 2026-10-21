@@ -150,6 +150,10 @@ pub struct PcsState {
     /// inside `setpoint_followed_w`; kept so the follower can take it
     /// back out before it filters.
     pub fast_term_w: f64,
+    /// Reactive power the converter delivers this tick, var, positive
+    /// over-excited, inside its apparent-power circle (M4 phase 1 PR2).
+    /// Published as `blockNN.pcs.q_kvar`.
+    pub q_var: f64,
 }
 
 /// One battery container.

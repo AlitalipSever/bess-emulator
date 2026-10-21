@@ -111,6 +111,7 @@ mod tests {
             overload_armed: true,
             ac_limit_w: 2.5e6,
             fast_term_w: 0.0,
+            q_var: 0.0,
         }
     }
 

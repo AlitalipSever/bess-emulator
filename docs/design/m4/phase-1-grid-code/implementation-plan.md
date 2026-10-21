@@ -37,6 +37,11 @@ Accept: the circle holds in every mode; Q at zero active power reaches
 the rating; the annual energy record is unchanged by reactive power
 (no energy row moves).
 
+*As built (PR #49):* as the design's as-built notes say. The mode is set
+through `Simulation::set_reactive_mode` until phase 2 puts it on the
+holding bank; the shell publishes the vars and the power factor and
+nothing else changed on its surfaces. Records regenerated a second time.
+
 ## Open questions
 
 - Whether the droop's fast term should also bypass the M3 dead time

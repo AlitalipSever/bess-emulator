@@ -2,8 +2,8 @@
 
 use super::{
     AuxPower, BlockMode, BlockState, BreakerState, ContainerState, EmsMode, EmsState,
-    EnergyAccounting, HvacMode, HvacState, PcsOpState, PcsState, RackState, RevenueMeter, SiteMeta,
-    SiteState, SubstationState, SwitchPosition,
+    EnergyAccounting, HvacMode, HvacState, PcsOpState, PcsState, RackState, ReactiveMode,
+    RevenueMeter, SiteMeta, SiteState, SubstationState, SwitchPosition,
 };
 use crate::alarms::EventLog;
 use crate::config::PlantConfig;
@@ -60,6 +60,7 @@ impl SiteState {
                     overload_armed: true,
                     ac_limit_w: cfg.pcs_rated_w,
                     fast_term_w: 0.0,
+                    q_var: 0.0,
                 },
                 containers: (0..cfg.containers_per_block)
                     .map(|_| ContainerState {
@@ -105,32 +106,10 @@ impl SiteState {
                 fcr_prequalified_w: 0.0,
                 fcr_output_w: 0.0,
                 lfsm_cut_w: 0.0,
+                reactive_mode: ReactiveMode::unity(),
+                q_site_target_var: 0.0,
             },
-            substation: SubstationState {
-                hv_breaker: BreakerState::Closed,
-                disconnectors: SwitchPosition::Closed,
-                earthing_switch: SwitchPosition::Open,
-                sequence: BreakerSequence::Idle,
-                sequence_elapsed_s: 0.0,
-                mv_bus_voltage_kv: cfg.grid.mv_nominal_kv,
-                tap_position: 0,
-                tap_timer_s: 0.0,
-                top_oil_c: ambient_c,
-                hot_spot_c: ambient_c,
-                hot_spot_rise_1_k: 0.0,
-                hot_spot_rise_2_k: 0.0,
-                poi_active_power_w: 0.0,
-                poi_reactive_power_var: 0.0,
-                poi_voltage_kv: cfg.grid.poi_nominal_kv,
-                frequency_hz: 50.0,
-                frequency_offset_mhz: 0,
-                transformer_loss_w: 0.0,
-                aux_power_w: 0.0,
-                import_wh: 0.0,
-                export_wh: 0.0,
-                station_service_wh: 0.0,
-                revenue: RevenueMeter::new(start_unix_s),
-            },
+            substation: substation_at_rest(cfg, ambient_c, start_unix_s),
             aux: AuxPower::default(),
             energy: EnergyAccounting::default(),
             blocks,
@@ -171,5 +150,36 @@ fn new_rack(
         cell_dv_v: 0.0,
         balancing_active: false,
         self_discharge_excess_per_s: 0.0,
+    }
+}
+
+/// The substation at tick 0: breaker closed, bus connected and unearthed,
+/// the transformer at the ambient, the tap at neutral, meters at zero.
+fn substation_at_rest(cfg: &PlantConfig, ambient_c: f64, start_unix_s: i64) -> SubstationState {
+    SubstationState {
+        hv_breaker: BreakerState::Closed,
+        disconnectors: SwitchPosition::Closed,
+        earthing_switch: SwitchPosition::Open,
+        sequence: BreakerSequence::Idle,
+        sequence_elapsed_s: 0.0,
+        mv_bus_voltage_kv: cfg.grid.mv_nominal_kv,
+        tap_position: 0,
+        tap_timer_s: 0.0,
+        top_oil_c: ambient_c,
+        hot_spot_c: ambient_c,
+        hot_spot_rise_1_k: 0.0,
+        hot_spot_rise_2_k: 0.0,
+        poi_active_power_w: 0.0,
+        poi_reactive_power_var: 0.0,
+        poi_power_factor: 1.0,
+        poi_voltage_kv: cfg.grid.poi_nominal_kv,
+        frequency_hz: 50.0,
+        frequency_offset_mhz: 0,
+        transformer_loss_w: 0.0,
+        aux_power_w: 0.0,
+        import_wh: 0.0,
+        export_wh: 0.0,
+        station_service_wh: 0.0,
+        revenue: RevenueMeter::new(start_unix_s),
     }
 }

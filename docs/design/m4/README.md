@@ -1,7 +1,7 @@
 # M4: EMS and market signals
 
-Status: designed 2026-10-21 after M3 shipped as v0.8.0; phase 1 PR1
-landed the same day (PR #48). ROADMAP.md defines the goal and the calibration gate; this folder
+Status: designed 2026-10-21 after M3 shipped as v0.8.0; phase 1 landed
+the same day (PRs #48 and #49). ROADMAP.md defines the goal and the calibration gate; this folder
 fixes the architecture, the decisions and the work breakdown, one phase
 per subfolder, each phase's documents to be marked with what was actually
 built. Layout per [docs/design/README.md](../README.md).
@@ -160,6 +160,16 @@ Filled as PRs land.
 - **Checkpoint format 17** (phase 1 PR1): `EmsState::fcr_prequalified_w`,
   `fcr_output_w`, `lfsm_cut_w`; `PcsState::fast_term_w`;
   `SubstationState::frequency_offset_mhz`.
+- **The plant has reactive power** (phase 1 PR2). Three modes the
+  operator chooses (fixed cos φ, the default at unity; fixed Q; Q(U)
+  with a ±2 % dead band reaching cos φ 0.9's range at ±5 %), a 10 s
+  settling, each converter on its 5 MVA circle so the whole rating is
+  there for vars at zero active power, the transformer consuming I²X on
+  a 12 % reactance (labeled). `site.poi.reactive_power_var` reads the
+  result (about −12 Mvar at rating at unity), `site.poi.power_factor` (59)
+  and `blockNN.pcs.q_kvar` (2000 + 10b + 8, analog class 0.5) are new.
+  Checkpoint 17 widened: the mode, the settled target, each converter's
+  vars, the power factor.
 
 ## Open questions
 

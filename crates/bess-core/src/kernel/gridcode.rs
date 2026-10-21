@@ -197,6 +197,8 @@ mod tests {
             fcr_prequalified_w: pq_w,
             fcr_output_w: 0.0,
             lfsm_cut_w: 0.0,
+            reactive_mode: crate::state::ReactiveMode::unity(),
+            q_site_target_var: 0.0,
         }
     }
 

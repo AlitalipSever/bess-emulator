@@ -202,6 +202,18 @@ pub(super) fn points() -> Vec<Point> {
             Input,
             |s: &SiteState| s.substation.mv_bus_voltage_kv
         ),
+        // The POI's displacement power factor (M4 phase 1 PR2): a derived
+        // ratio, exact like the efficiency.
+        point!(
+            "site.poi.power_factor",
+            "ratio",
+            Fast,
+            U16,
+            1000.0,
+            59,
+            Input,
+            |s: &SiteState| s.substation.poi_power_factor
+        ),
         // The grid-code block (M4 phase 1): what it is doing, and what
         // the FCR droop delivers. Controller values, exact.
         point!(
