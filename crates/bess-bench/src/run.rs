@@ -10,7 +10,9 @@ use bess_core::{PlantConfig, Simulation, SiteState, TICK_SECONDS};
 use bess_models::{gw01_models, gw01_weather};
 mod record;
 
-pub use record::{ControlKpis, EnergyKpis, HvacKpis, Kpis, LossKpis, RunRecord, ThermalKpis};
+pub use record::{
+    ControlKpis, EnergyKpis, HvacKpis, Kpis, LossKpis, RevenueKpis, RunRecord, ThermalKpis,
+};
 
 /// 2026-01-01 00:00:00 UTC. The replayed weather year is mapped onto the
 /// simulated calendar by date, so the run starts on the reference year's
@@ -179,6 +181,7 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
     let containers = cfg.blocks * cfg.containers_per_block;
     let racks = cfg.total_racks();
     let nominal_energy_wh = cfg.nominal_energy_wh();
+    let site_rated_w = cfg.grid.site_rated_w;
     let models = gw01_models(&cfg);
     let mut sim = Simulation::new(cfg, models, spec.seed, spec.start_unix_s);
     let weather = gw01_weather();
@@ -250,6 +253,7 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
         periods: period_kpis,
         estimator: estimator.finish(racks, spec.days),
         control: tallies.control(),
+        revenue: revenue_of(state, site_rated_w),
     };
     let series = series.finish(&sim, kpis.run.clone());
     (kpis, series, period_rows)
@@ -328,6 +332,20 @@ fn mwh(wh: f64) -> f64 {
 pub(crate) fn round(value: f64, decimals: u32) -> f64 {
     let scale = 10f64.powi(decimals as i32);
     (value * scale).round() / scale
+}
+
+/// The EUR rows the fiscal meter booked over the run, kEUR.
+fn revenue_of(state: &SiteState, site_rated_w: f64) -> RevenueKpis {
+    let eur = &state.substation.revenue.total_eur;
+    let total = eur.total();
+    RevenueKpis {
+        day_ahead_keur: round(eur.day_ahead / 1000.0, 1),
+        capacity_keur: round(eur.capacity / 1000.0, 1),
+        afrr_energy_keur: round(eur.afrr_energy / 1000.0, 1),
+        imbalance_keur: round(eur.imbalance / 1000.0, 1),
+        total_keur: round(total / 1000.0, 1),
+        total_keur_per_mw: round(total / 1000.0 / (site_rated_w / 1.0e6), 2),
+    }
 }
 
 #[cfg(test)]

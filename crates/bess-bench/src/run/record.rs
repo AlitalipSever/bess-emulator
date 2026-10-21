@@ -182,6 +182,25 @@ pub struct Kpis {
     /// How well the plant tracked its schedule and how available it was
     /// (M4 phase 2 PR2).
     pub control: ControlKpis,
+    /// What the plant earned over the run (M4 phase 3 PR3).
+    pub revenue: RevenueKpis,
+}
+
+/// The EUR rows over the run, kEUR, and the total per MW of rating.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct RevenueKpis {
+    /// Day-ahead value of the energy exchanged, kEUR.
+    pub day_ahead_keur: f64,
+    /// Capacity payments accrued, kEUR.
+    pub capacity_keur: f64,
+    /// aFRR energy at its price, kEUR.
+    pub afrr_energy_keur: f64,
+    /// Imbalance settlement, kEUR.
+    pub imbalance_keur: f64,
+    /// All four rows, kEUR.
+    pub total_keur: f64,
+    /// The total per MW of site rating, kEUR/MW.
+    pub total_keur_per_mw: f64,
 }
 
 /// The quarter-hour report summed over the run (M4 phase 2 PR2).

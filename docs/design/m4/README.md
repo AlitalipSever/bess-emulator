@@ -1,7 +1,7 @@
 # M4: EMS and market signals
 
 Status: designed 2026-10-21 after M3 shipped as v0.8.0; phase 1 landed
-the same day (PRs #48 and #49), phase 2 after it (PRs #50 and #51), phase 3 PR1 and PR2 after that (PRs #52 and #53). ROADMAP.md defines the goal and the calibration gate; this folder
+the same day (PRs #48 and #49), phase 2 after it (PRs #50 and #51), phase 3 after that (PRs #52, #53 and #54). ROADMAP.md defines the goal and the calibration gate; this folder
 fixes the architecture, the decisions and the work breakdown, one phase
 per subfolder, each phase's documents to be marked with what was actually
 built. Layout per [docs/design/README.md](../README.md).
@@ -219,6 +219,16 @@ Filled as PRs land.
   (80), `afrr_activated_kw` (81), `afrr_energy_pos_kwh` (83),
   `afrr_energy_neg_kwh` (85); the case `afrr-activation-day`. Checkpoint
   19 widened.
+- **The fiscal meter books EUR** (phase 3 PR3). Four rows per
+  quarter-hour at the prices the strategy names: the day-ahead value of
+  the exchange at the hour's replayed price, the capacity the awards
+  accrue, the aFRR energy at the merit order's floor (labeled), and the
+  imbalance settlement of the period's schedule deviation at the
+  day-ahead price (a labeled stand-in for the reBAP, deferred over the
+  SMARD id question); `site.revenue.period_*_eur_x100` (87 to 95) and
+  `site.revenue.total_eur` (97), Prometheus counters, a `revenue`
+  section in the annual record. The first EUR the emulator publishes.
+  Checkpoint 19 widened.
 
 ## Open questions
 

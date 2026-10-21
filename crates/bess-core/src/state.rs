@@ -19,7 +19,7 @@ pub use energy::{AuxEnergy, AuxPower, EnergyAccounting};
 pub use plant::{
     BlockMode, BlockState, ContainerState, HvacMode, HvacState, PcsOpState, PcsState, RackState,
 };
-pub use revenue::RevenueMeter;
+pub use revenue::{EurRows, EurTick, RevenueMeter};
 
 /// Root of the state tree.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

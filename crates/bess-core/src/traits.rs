@@ -177,6 +177,24 @@ pub trait PcsModel: Send + Sync {
     }
 }
 
+/// The prices the revenue meter books at this instant (M4 phase 3 PR3),
+/// EUR/MWh. Positive is money to the plant for energy delivered (day
+/// ahead, aFRR positive) or, in the negative direction, for energy
+/// absorbed; the imbalance price settles the schedule deviation.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct MarketPrices {
+    /// The day-ahead price of the hour, EUR/MWh.
+    pub day_ahead_eur_mwh: f64,
+    /// What delivered aFRR energy is paid, EUR/MWh.
+    pub afrr_pos_eur_mwh: f64,
+    /// What absorbed aFRR energy is paid, EUR/MWh (negative: the plant
+    /// pays to absorb).
+    pub afrr_neg_eur_mwh: f64,
+    /// The imbalance price, EUR/MWh: a long quarter-hour earns it, a short
+    /// one pays it.
+    pub imbalance_eur_mwh: f64,
+}
+
 /// Plant-level dispatch strategy.
 pub trait EmsStrategy: Send + Sync {
     /// Site active-power target at this instant, W (positive = discharge).
@@ -187,6 +205,12 @@ pub trait EmsStrategy: Send + Sync {
     /// paid. A strategy that sells nothing holds nothing.
     fn awards_at(&self, _unix_time_s: i64, _state: &SiteState) -> Awards {
         Awards::NONE
+    }
+
+    /// The prices the revenue meter books at this instant (M4 phase 3
+    /// PR3). A strategy without a market books nothing.
+    fn prices_at(&self, _unix_time_s: i64, _state: &SiteState) -> MarketPrices {
+        MarketPrices::default()
     }
 }
 
