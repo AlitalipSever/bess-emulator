@@ -139,6 +139,7 @@ mod tests {
             current_a,
             cell_temp_c: 25.0,
             polarization_v: 0.0,
+            hysteresis_v: 0.0,
             resistance_scale: 1.0,
             temp_offset_c: 0.0,
             alarm_bits: 0,

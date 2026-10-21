@@ -377,6 +377,7 @@ mod tests {
                     current_a: 0.0,
                     cell_temp_c: air_temp_c,
                     polarization_v: 0.0,
+                    hysteresis_v: 0.0,
                     resistance_scale: 1.0,
                     // A spread of positions in the airflow, as the plant
                     // draws them: -1 K, 0 K, +1 K, ...

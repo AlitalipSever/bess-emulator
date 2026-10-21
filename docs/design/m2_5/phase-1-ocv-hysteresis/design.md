@@ -1,6 +1,8 @@
 # M2.5 phase 1: OCV hysteresis, design
 
 Each decision is proposed here and confirmed or revised in its PR.
+As built in PR1 (2026-10-21): D1, D4 and D5 confirmed as proposed; D2
+and D3 confirmed with the source situation stated under each.
 
 ## Decisions
 
@@ -16,12 +18,18 @@ Each decision is proposed here and confirmed or revised in its PR.
   holds the modeled gap to the source's gap at stated SoC points within
   a stated tolerance, both fixed when the source is pinned in PR1,
   before measurement, per the band discipline.
+  *As built:* Barai et al. 2015 (J. Power Sources 295) pinned, a 20 Ah
+  LFP pouch at 25 C. Its text gives the peak (38 mV near 5 % SoC) and
+  where the maximum lies; the plateau level is not in text, so the 50 %
+  gate is a sanity bound and says so. Bands: 32 to 44 mV at 5 %, 10 to
+  25 mV at 50 %. Measured 35.9 and 19.9.
 - **D3, `gamma` from settling, not guessed.** The rate constant is set
   so the model's transition throughput (how much charge moves `h` most
   of the way across the envelope) matches the source publication's
   protocol; recorded with the fit in CALIBRATION.md.
 - **D4, checkpoint bump.** `h` is state; format bumps, old files
-  rejected by version, release notes say so.
+  rejected by version, release notes say so. *As built:* format 9,
+  `RackState::hysteresis_v`, rack-level volts.
 - **D5, no signal map change.** Voltage points keep address, unit,
   meaning; their values simply become path-dependent. Trajectory
   baselines recorded against v0.5.0 will differ, which goes in the
@@ -44,7 +52,9 @@ One format bump (D4).
 - **Gate: curve-pair fidelity** at the pinned SoC points (CI test
   against the fitted constants and the source table).
 - **Golden snapshot:** regenerated once (state field added), called
-  out.
+  out. *As built:* 0xf3fb_8ad4_75c9_980f to 0x95c3_aa5c_e7bb_3679, a
+  physics and schema change at once; the switch-off proof holds the old
+  value with the field stripped.
 - **Annual run:** regenerated; round-trip moves at most marginally
   (hysteresis dissipation is real but small); the delta is explained in
   the PR.

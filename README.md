@@ -194,7 +194,8 @@ sky carries the measured cloud cover, and rain and snow fall when the
 replayed hour had them. The clock can jump to any day of the year, either
 restarting there or running the plant forward to it tick by tick.
 
-Still at its simplest useful depth: a 1-RC cell model, constant transformer
+Still at its simplest useful depth: a 1-RC cell model (with the LFP
+OCV hysteresis that M2.5 added), constant transformer
 parameters, synthetic grid frequency, no degradation and no faults. Those are
 M2 through M5. The placeholder price curve is already gone on the way to M2:
 the planner ranks the real 2024 German day-ahead prices (SMARD) one local

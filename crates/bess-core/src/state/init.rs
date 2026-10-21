@@ -57,6 +57,7 @@ impl SiteState {
                                 current_a: 0.0,
                                 cell_temp_c: 20.0,
                                 polarization_v: 0.0,
+                                hysteresis_v: 0.0,
                                 resistance_scale: rng.uniform(0.97, 1.03),
                                 temp_offset_c: rng.uniform(-1.5, 1.5),
                                 alarm_bits: 0,

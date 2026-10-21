@@ -124,6 +124,12 @@ pub struct RackState {
     pub cell_temp_c: f64,
     /// Polarization voltage of the RC branch in the equivalent circuit, V.
     pub polarization_v: f64,
+    /// Hysteresis state of the open-circuit voltage, V, summed over the
+    /// string: positive after charging, negative after discharging, held
+    /// at rest. Added to the mean OCV curve it gives the rested voltage,
+    /// which is why a rested LFP rack cannot tell its SoC from its voltage.
+    /// Bounded by the envelope in `bess-models` (M2.5 phase 1).
+    pub hysteresis_v: f64,
     /// Per-rack manufacturing spread multiplier on internal resistance
     /// (drawn once at initialization from the seeded PRNG).
     pub resistance_scale: f64,

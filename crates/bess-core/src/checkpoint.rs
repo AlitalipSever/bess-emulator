@@ -18,6 +18,8 @@ use crate::state::SiteState;
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
 ///
+/// v9 (M2.5): racks gained the OCV hysteresis state (`hysteresis_v`), so a
+/// resumed rack rests on the branch it was on, not on the mean curve.
 /// v8 (M2): run identity gained the scenario (name and content hash) the
 /// run was started under, so a resume can refuse a different file, and
 /// racks gained the excess self-discharge rate a fault sets. The player's
@@ -40,7 +42,7 @@ pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Pre-1.0 checkpoints are not migrated; an older file is rejected with its
 /// version named rather than half-restored, since a missing item would
 /// otherwise restore as a plant whose auxiliary meters silently read zero.
-pub const FORMAT_VERSION: u32 = 8;
+pub const FORMAT_VERSION: u32 = 9;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {
