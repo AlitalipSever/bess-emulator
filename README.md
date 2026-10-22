@@ -163,7 +163,11 @@ plant answers it, a dispatch application writes limits and reactive
 modes the plant obeys and flags, the plant reports its tracking and
 availability per quarter-hour, holds FCR and aFRR on the 2024 German
 prices, books EUR, and a strategy that decides what to sell earns inside
-the band the public index gave.
+the band the public index gave; and M5, degradation, as v0.10.0, which
+made time a simulated quantity: every rack ages by a published LFP
+model from the stress it actually saw, a run can skip years through its
+own stress record, a plant can start five years old, and health is on
+every surface with its trajectory held to a public field band.
 
 M2.6 added no physics. The viewer shows what is in alarm, by node and
 severity, and the journal of what raised and cleared, numbered as MQTT
@@ -212,9 +216,9 @@ replayed hour had them. The clock can jump to any day of the year, either
 restarting there or running the plant forward to it tick by tick.
 
 Still at its simplest useful depth: a 1-RC cell model (with the LFP
-OCV hysteresis that M2.5 added), a transformer with two temperatures but
-unity power factor, synthetic grid frequency and voltage, no degradation.
-Those are M4 and M5. The placeholder price curve is already gone on the way to M2:
+OCV hysteresis that M2.5 added and the aging that M5 added), synthetic
+grid voltage, and a BMS that is told its racks' state of health rather
+than estimating it. The placeholder price curve is already gone on the way to M2:
 the planner ranks the real 2024 German day-ahead prices (SMARD) one local
 day at a time, DST days included.
 

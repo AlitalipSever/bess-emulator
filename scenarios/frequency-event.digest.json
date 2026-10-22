@@ -1,7 +1,7 @@
 {
   "scenario": "frequency-event",
   "content_hash": "0x4c025e9451b55e8f",
-  "engine_version": "0.9.0",
+  "engine_version": "0.10.0",
   "seed": 7,
   "start_unix_s": 1784055600,
   "ticks": 7200,

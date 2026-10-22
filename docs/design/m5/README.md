@@ -1,8 +1,11 @@
 # M5: Degradation
 
-Status: designed 2026-10-22 after M4 shipped as v0.9.0; phases to land
-in a stacked chain against `develop`, each phase's documents marked with
-what was actually built. ROADMAP.md defines the goal and the calibration
+Status: done, released as v0.10.0 (2026-10-22; the tag and the npm
+publish are the maintainer's). Designed 2026-10-22 after M4 shipped as
+v0.9.0; all four phases landed the same day in a stacked chain (PRs #57
+to #61) and the release PR, each phase's documents marked with what was
+actually built. The release note is drafted in
+[release-notes.md](release-notes.md) from the inventory below. ROADMAP.md defines the goal and the calibration
 gate; this folder fixes the architecture, the decisions and the work
 breakdown, one phase per subfolder. Layout per
 [docs/design/README.md](../README.md).

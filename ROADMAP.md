@@ -18,7 +18,7 @@ scheduled. Architecture and rationale live in
 | M2.6 | Alarm view mini-iteration: alarms on screen, the scenario library in the browser | done (v0.6.0; library re-timed in v0.6.1) |
 | M3 | PCS + electrical | done (v0.8.0) |
 | M4 | EMS + market signals | done (v0.9.0) |
-| M5 | Degradation | designed (docs/design/m5/), not started |
+| M5 | Degradation | done (v0.10.0) |
 | M6+ | Grid protocols (IEC 60870-5-104, 61850), OPC UA, cell granularity, native viewer | ideas, no promises |
 
 ## How this roadmap works
@@ -382,9 +382,25 @@ Scope:
 **Calibration gate:** simulated annual revenue mix and magnitude land inside
 public German fleet index bands.
 
-## M5: Degradation
+## M5: Degradation (done, v0.10.0)
+
+Shipped as v0.10.0 (2026-10-22); what was actually built, phase by phase,
+is in the design folder's as-built notes and its release-note inventory.
+The headline: every rack ages by NREL's large-format LFP capacity model
+and Naumann's resistance laws from a daily stress ledger, a run can skip
+days by replaying a stress year (ten projected years in a second, a
+plant aged N years at commissioning), health and age sit on every
+surface with a rack warning at 80 %, and the projected decade holds the
+field band derived from Figgener et al. 2024 (0.891 after five years in
+0.82 to 0.93) and the laboratory band from Preger et al. 2020 (3,214
+cycles to 80 % in 2,500 to 9,000). Map 0.7.0, additions and one changed
+value; checkpoint format 20.
 
 **Goal:** time becomes a simulated quantity; five years in five minutes.
+
+Detailed design: [docs/design/m5/](docs/design/m5/), one folder per phase
+(the aging model, time compression, health on the surfaces, calibration
+and the v0.10.0 release), designed 2026-10-22 after M4 shipped.
 
 Scope:
 

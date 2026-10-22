@@ -64,7 +64,7 @@ ran rather than re-derived afterwards from a summary.
 
 <!-- bess-bench:begin m1-annual -->
 
-Measured by `bess-bench` on kernel 0.9.0: GW-01 on the internal dispatch
+Measured by `bess-bench` on kernel 0.10.0: GW-01 on the internal dispatch
 plan, seed 7, 365 simulated days (31 536 000 ticks) of the replayed weather
 year. Regenerate with `cargo run --release -p bess-bench -- --write`; CI
 fails if this block is stale.
@@ -2250,6 +2250,24 @@ that matrix closest to a plant's. **Measured: 3,214 cycles**, inside.
 35 °C laboratory rack's later crossing (3,612), the model's stated
 artifact. The M1 round-trip band holds for the aging year (0.8313 in
 0.80 to 0.85).
+
+## M5 (v0.10.0): the annual record at release
+
+Both records and the trajectory were regenerated for the version bump,
+as every release regenerates them, and the figures did not move: the
+clean year (the day-ahead plant, the M1 gate's plant) at v0.10.0 is the
+plant phase 1 measured, round trip 0.8313, import 65,525.5 MWh, export
+54,470.0 MWh, 271.5 equivalent full cycles, a mean state of health of
+0.9674 at the end (1.00 % calendar, 2.26 % cycling, resistance up
+1.96 %), 1.4 MWh written off; the estimator's figures are phase 3's
+(mean absolute error 0.254 points, 106,989 corrections, 0.611 per rack
+day) since the BMS was told the state of health. The market year
+(`calibration/m4-market.json`): round trip 0.8774, 304.1 cycles, health
+0.9763, 126.6 kEUR/MW, inside the M4 band. The projected decade
+(`calibration/m5-aging.json`): 0.891 after five years inside the field
+band, 3,214 cycles to 80 % inside the laboratory band. The twenty-two
+library records moved in their version string and nothing else at the
+bump.
 
 ## Planned gates (from ROADMAP.md)
 

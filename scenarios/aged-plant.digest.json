@@ -1,7 +1,7 @@
 {
   "scenario": "aged-plant",
   "content_hash": "0xd06a98e698101028",
-  "engine_version": "0.9.0",
+  "engine_version": "0.10.0",
   "seed": 42,
   "start_unix_s": 1783900800,
   "ticks": 259200,
