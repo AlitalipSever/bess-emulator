@@ -151,6 +151,15 @@ Filled as PRs land.
   the cycles, the resistance growth; two laboratory trajectories to the
   80 % crossing and 8,000 cycles); `--resimulate` ticks the physics
   instead. Checkpoint 20 widened (`skipped_days`).
+- **Health on every surface** (phase 3 PR1). `site.age_days` (100),
+  `site.soh_min_pct` (101), `site.efc` (102, 103),
+  `site.resistance_growth_pct` (104) and `blockNN.soh_pct` (ext + 9), all
+  exact, map 0.7.0; rack bit 7 `soh_low` below 80 % (labeled
+  hysteresis); the REST summary's `age_days`, `soh_mean`, `soh_min` and
+  per block `soh`; Prometheus `bess_rack_soh`, `bess_site_age_days`,
+  `bess_rack_efc_mean`; the scene's rack table and substation row; the
+  case `aged-plant` (three hot days on a five-year-old plant) with its
+  lesson held against the fresh plant.
 
 ## Open questions
 

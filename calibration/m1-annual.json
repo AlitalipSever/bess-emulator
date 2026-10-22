@@ -60,10 +60,10 @@
     "on_long_dst_day": 100
   },
   "estimator": {
-    "mean_abs_error_pct": 0.342,
-    "max_abs_error_pct": 3.49,
-    "corrections": 387343,
-    "corrections_per_rack_day": 2.211
+    "mean_abs_error_pct": 0.254,
+    "max_abs_error_pct": 1.1,
+    "corrections": 106989,
+    "corrections_per_rack_day": 0.611
   },
   "control": {
     "availability_discharge": 0.5667,

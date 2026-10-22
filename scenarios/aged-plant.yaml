@@ -1,0 +1,15 @@
+# The hottest three days of the replayed year on a plant five years old:
+# every rack aged at commissioning through the aging model (about 89 %
+# state of health, spread 88 to 90 by the racks' own rates, resistance
+# up a tenth). Nothing fails. `site.soh_pct` reads 89 and `site.age_days`
+# 1825, each block's health is its own, the discharges reach the window's
+# floor sooner and the export sits well under the fresh plant's on the
+# same days. No `soh_low`: the worst rack is still above 80 %.
+schema: 1
+name: aged-plant
+taxonomy: cell
+seed: 42
+start: 2026-07-13T00:00:00Z
+age_years: 5
+length: P3D
+events: []

@@ -11,7 +11,8 @@ Each decision is proposed here and confirmed or revised in its PR.
   datasheet's own end of life (70 % for the EVE MB31) is a status the
   points show, not a bit, since a plant at 70 % is still a plant. One
   rack below the level raises its own bit; the site's partial
-  availability bit is not touched (an old rack is in service).
+  availability bit is not touched (an old rack is in service). *As built (PR1):*
+  `RackAlarmThresholds::soh_low` (0.80 raise, 0.81 clear), rack bit 7.
 - **D2, tenths of a percent for health, days for age.** A state of
   health moves by hundredths of a percent a day; a u16 in tenths resolves
   a week of aging, which is the cadence a SCADA historian would read it
@@ -24,7 +25,10 @@ Each decision is proposed here and confirmed or revised in its PR.
   case that starts from a preset, which is why it lands in this phase
   and not in the scenario crate's own set: the case exists to show the
   surfaces a consumer compares (the fresh hot-week case against this
-  one), and its lesson is the two figures side by side.
+  one), and its lesson is the two figures side by side. *As built (PR1):* three days, not a week
+  (`P3D`, the run under a minute in the lesson test); the lesson holds
+  the health band, no `soh_low`, and the export under 98 % of the fresh
+  plant's.
 
 ## Signal map delta
 
@@ -37,6 +41,11 @@ Each decision is proposed here and confirmed or revised in its PR.
 | `blockNN.soh_pct` | 2000 + 10 b + 9 | u16, tenths | Slow, exact |
 
 Rack word bit 7 `soh_low` (warning). Map 0.7.0; COMPATIBILITY.md row.
+*As built (PR1):* as the table says; the map digest moved to
+0x3f90_9bf8_48de_4896. MQTT carries no rack rows (it publishes the map's
+points and the events), so the rack rows are REST's `/api/v1/state`,
+which already serialized every rack and now carries `age`; the summary
+gained `age_days`, `soh_mean`, `soh_min` and per block `soh`.
 
 ## Checkpoint impact
 

@@ -405,6 +405,49 @@ pub(super) fn points() -> Vec<Point> {
             Input,
             |s: &SiteState| f64::from(s.ems.block_use)
         ),
+        // The plant's age and health (M5 phase 3): the oldest rack's days,
+        // the worst rack's health, the mean rack's cycles and resistance
+        // growth. Exact; the mean health is point 7.
+        point!(
+            "site.age_days",
+            "d",
+            Slow,
+            U16,
+            1.0,
+            100,
+            Input,
+            |s: &SiteState| s.age_days()
+        ),
+        point!(
+            "site.soh_min_pct",
+            "%",
+            Slow,
+            U16,
+            10.0,
+            101,
+            Input,
+            |s: &SiteState| s.min_soh() * 100.0
+        ),
+        point!(
+            "site.efc",
+            "cycles",
+            Slow,
+            U32,
+            10.0,
+            102,
+            Input,
+            |s: &SiteState| s.mean_efc()
+        ),
+        point!(
+            "site.resistance_growth_pct",
+            "%",
+            Slow,
+            U16,
+            10.0,
+            104,
+            Input,
+            |s: &SiteState| s.mean_resistance_growth() * 100.0
+        ),
         // The grid-code block (M4 phase 1): what it is doing, and what
         // the FCR droop delivers. Controller values, exact.
         point!(

@@ -94,10 +94,11 @@ pub fn selection_detail(
                 .show(ui, |ui| {
                     egui::Grid::new("racks")
                         .striped(true)
-                        .num_columns(6)
+                        .num_columns(7)
                         .show(ui, |ui| {
                             ui.strong("rack");
                             ui.strong("SoC");
+                            ui.strong("SoH");
                             ui.strong("T cell");
                             ui.strong("I");
                             ui.strong("alarms");
@@ -111,6 +112,7 @@ pub fn selection_detail(
                                 };
                                 ui.label(format!("{i:02}"));
                                 ui.label(format!("{:.1} %", rack.soc_reported * 100.0));
+                                ui.label(format!("{:.1} %", rack.soh * 100.0));
                                 ui.label(format!("{:.1} \u{b0}C", rack.cell_temp_c));
                                 ui.label(format!("{:+.0} A", rack.current_a));
                                 alarm_cell(ui, node, rack.alarm_bits);
@@ -200,6 +202,14 @@ pub fn selection_detail(
                 ui.end_row();
                 ui.label("Auxiliaries");
                 ui.label(format!("{:.0} kW", sub.aux_power_w / 1.0e3));
+                ui.end_row();
+                ui.label("Age / health");
+                ui.label(format!(
+                    "{:.0} d, {:.1} % mean, {:.1} % worst",
+                    state.age_days(),
+                    state.average_soh() * 100.0,
+                    state.min_soh() * 100.0
+                ));
                 ui.end_row();
             });
         }

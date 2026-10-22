@@ -1,4 +1,4 @@
-# signal-map-version: 0.6.0
+# signal-map-version: 0.7.0
 space,address,words,encoding,scale,name,unit,class,access,instrument,accuracy_class
 input,0,2,i32,1,site.poi.active_power_w,W,fast,ro,scada_analog,0.5
 input,2,2,i32,1,site.poi.reactive_power_var,var,fast,ro,scada_analog,0.5
@@ -65,6 +65,10 @@ input,93,2,i32,100,site.revenue.period_imbalance_eur_x100,EUR,slow,ro,exact,exac
 input,95,2,i32,100,site.revenue.period_total_eur_x100,EUR,slow,ro,exact,exact
 input,97,2,i32,1,site.revenue.total_eur,EUR,slow,ro,exact,exact
 input,99,1,u16,1,site.market.block_use,enum,slow,ro,exact,exact
+input,100,1,u16,1,site.age_days,d,slow,ro,exact,exact
+input,101,1,u16,10,site.soh_min_pct,%,slow,ro,exact,exact
+input,102,2,u32,10,site.efc,cycles,slow,ro,exact,exact
+input,104,1,u16,10,site.resistance_growth_pct,%,slow,ro,exact,exact
 input,1000,1,i16,1,block00.pcs.p_ac_kw,kW,fast,ro,scada_analog,0.5
 input,1001,1,i16,1,block00.pcs.p_dc_kw,kW,fast,ro,scada_analog,0.5
 input,1002,1,u16,1,block00.pcs.state,enum,fast,ro,exact,exact
@@ -274,6 +278,7 @@ input,2005,1,i16,1,block00.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2006,1,i16,10,block00.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2007,1,u16,10,block00.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2008,1,i16,1,block00.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2009,1,u16,10,block00.soh_pct,%,slow,ro,exact,exact
 input,2010,1,u16,1,block01.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2011,1,u16,1,block01.racks_derated,count,event,ro,exact,exact
 input,2012,1,u16,1,block01.cell_dv_mv,mV,medium,ro,exact,exact
@@ -283,6 +288,7 @@ input,2015,1,i16,1,block01.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2016,1,i16,10,block01.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2017,1,u16,10,block01.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2018,1,i16,1,block01.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2019,1,u16,10,block01.soh_pct,%,slow,ro,exact,exact
 input,2020,1,u16,1,block02.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2021,1,u16,1,block02.racks_derated,count,event,ro,exact,exact
 input,2022,1,u16,1,block02.cell_dv_mv,mV,medium,ro,exact,exact
@@ -292,6 +298,7 @@ input,2025,1,i16,1,block02.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2026,1,i16,10,block02.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2027,1,u16,10,block02.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2028,1,i16,1,block02.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2029,1,u16,10,block02.soh_pct,%,slow,ro,exact,exact
 input,2030,1,u16,1,block03.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2031,1,u16,1,block03.racks_derated,count,event,ro,exact,exact
 input,2032,1,u16,1,block03.cell_dv_mv,mV,medium,ro,exact,exact
@@ -301,6 +308,7 @@ input,2035,1,i16,1,block03.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2036,1,i16,10,block03.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2037,1,u16,10,block03.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2038,1,i16,1,block03.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2039,1,u16,10,block03.soh_pct,%,slow,ro,exact,exact
 input,2040,1,u16,1,block04.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2041,1,u16,1,block04.racks_derated,count,event,ro,exact,exact
 input,2042,1,u16,1,block04.cell_dv_mv,mV,medium,ro,exact,exact
@@ -310,6 +318,7 @@ input,2045,1,i16,1,block04.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2046,1,i16,10,block04.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2047,1,u16,10,block04.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2048,1,i16,1,block04.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2049,1,u16,10,block04.soh_pct,%,slow,ro,exact,exact
 input,2050,1,u16,1,block05.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2051,1,u16,1,block05.racks_derated,count,event,ro,exact,exact
 input,2052,1,u16,1,block05.cell_dv_mv,mV,medium,ro,exact,exact
@@ -319,6 +328,7 @@ input,2055,1,i16,1,block05.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2056,1,i16,10,block05.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2057,1,u16,10,block05.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2058,1,i16,1,block05.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2059,1,u16,10,block05.soh_pct,%,slow,ro,exact,exact
 input,2060,1,u16,1,block06.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2061,1,u16,1,block06.racks_derated,count,event,ro,exact,exact
 input,2062,1,u16,1,block06.cell_dv_mv,mV,medium,ro,exact,exact
@@ -328,6 +338,7 @@ input,2065,1,i16,1,block06.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2066,1,i16,10,block06.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2067,1,u16,10,block06.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2068,1,i16,1,block06.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2069,1,u16,10,block06.soh_pct,%,slow,ro,exact,exact
 input,2070,1,u16,1,block07.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2071,1,u16,1,block07.racks_derated,count,event,ro,exact,exact
 input,2072,1,u16,1,block07.cell_dv_mv,mV,medium,ro,exact,exact
@@ -337,6 +348,7 @@ input,2075,1,i16,1,block07.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2076,1,i16,10,block07.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2077,1,u16,10,block07.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2078,1,i16,1,block07.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2079,1,u16,10,block07.soh_pct,%,slow,ro,exact,exact
 input,2080,1,u16,1,block08.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2081,1,u16,1,block08.racks_derated,count,event,ro,exact,exact
 input,2082,1,u16,1,block08.cell_dv_mv,mV,medium,ro,exact,exact
@@ -346,6 +358,7 @@ input,2085,1,i16,1,block08.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2086,1,i16,10,block08.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2087,1,u16,10,block08.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2088,1,i16,1,block08.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2089,1,u16,10,block08.soh_pct,%,slow,ro,exact,exact
 input,2090,1,u16,1,block09.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2091,1,u16,1,block09.racks_derated,count,event,ro,exact,exact
 input,2092,1,u16,1,block09.cell_dv_mv,mV,medium,ro,exact,exact
@@ -355,6 +368,7 @@ input,2095,1,i16,1,block09.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2096,1,i16,10,block09.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2097,1,u16,10,block09.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2098,1,i16,1,block09.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2099,1,u16,10,block09.soh_pct,%,slow,ro,exact,exact
 input,2100,1,u16,1,block10.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2101,1,u16,1,block10.racks_derated,count,event,ro,exact,exact
 input,2102,1,u16,1,block10.cell_dv_mv,mV,medium,ro,exact,exact
@@ -364,6 +378,7 @@ input,2105,1,i16,1,block10.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2106,1,i16,10,block10.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2107,1,u16,10,block10.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2108,1,i16,1,block10.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2109,1,u16,10,block10.soh_pct,%,slow,ro,exact,exact
 input,2110,1,u16,1,block11.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2111,1,u16,1,block11.racks_derated,count,event,ro,exact,exact
 input,2112,1,u16,1,block11.cell_dv_mv,mV,medium,ro,exact,exact
@@ -373,6 +388,7 @@ input,2115,1,i16,1,block11.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2116,1,i16,10,block11.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2117,1,u16,10,block11.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2118,1,i16,1,block11.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2119,1,u16,10,block11.soh_pct,%,slow,ro,exact,exact
 input,2120,1,u16,1,block12.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2121,1,u16,1,block12.racks_derated,count,event,ro,exact,exact
 input,2122,1,u16,1,block12.cell_dv_mv,mV,medium,ro,exact,exact
@@ -382,6 +398,7 @@ input,2125,1,i16,1,block12.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2126,1,i16,10,block12.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2127,1,u16,10,block12.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2128,1,i16,1,block12.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2129,1,u16,10,block12.soh_pct,%,slow,ro,exact,exact
 input,2130,1,u16,1,block13.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2131,1,u16,1,block13.racks_derated,count,event,ro,exact,exact
 input,2132,1,u16,1,block13.cell_dv_mv,mV,medium,ro,exact,exact
@@ -391,6 +408,7 @@ input,2135,1,i16,1,block13.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2136,1,i16,10,block13.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2137,1,u16,10,block13.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2138,1,i16,1,block13.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2139,1,u16,10,block13.soh_pct,%,slow,ro,exact,exact
 input,2140,1,u16,1,block14.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2141,1,u16,1,block14.racks_derated,count,event,ro,exact,exact
 input,2142,1,u16,1,block14.cell_dv_mv,mV,medium,ro,exact,exact
@@ -400,6 +418,7 @@ input,2145,1,i16,1,block14.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2146,1,i16,10,block14.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2147,1,u16,10,block14.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2148,1,i16,1,block14.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2149,1,u16,10,block14.soh_pct,%,slow,ro,exact,exact
 input,2150,1,u16,1,block15.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2151,1,u16,1,block15.racks_derated,count,event,ro,exact,exact
 input,2152,1,u16,1,block15.cell_dv_mv,mV,medium,ro,exact,exact
@@ -409,6 +428,7 @@ input,2155,1,i16,1,block15.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2156,1,i16,10,block15.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2157,1,u16,10,block15.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2158,1,i16,1,block15.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2159,1,u16,10,block15.soh_pct,%,slow,ro,exact,exact
 input,2160,1,u16,1,block16.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2161,1,u16,1,block16.racks_derated,count,event,ro,exact,exact
 input,2162,1,u16,1,block16.cell_dv_mv,mV,medium,ro,exact,exact
@@ -418,6 +438,7 @@ input,2165,1,i16,1,block16.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2166,1,i16,10,block16.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2167,1,u16,10,block16.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2168,1,i16,1,block16.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2169,1,u16,10,block16.soh_pct,%,slow,ro,exact,exact
 input,2170,1,u16,1,block17.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2171,1,u16,1,block17.racks_derated,count,event,ro,exact,exact
 input,2172,1,u16,1,block17.cell_dv_mv,mV,medium,ro,exact,exact
@@ -427,6 +448,7 @@ input,2175,1,i16,1,block17.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2176,1,i16,10,block17.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2177,1,u16,10,block17.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2178,1,i16,1,block17.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2179,1,u16,10,block17.soh_pct,%,slow,ro,exact,exact
 input,2180,1,u16,1,block18.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2181,1,u16,1,block18.racks_derated,count,event,ro,exact,exact
 input,2182,1,u16,1,block18.cell_dv_mv,mV,medium,ro,exact,exact
@@ -436,6 +458,7 @@ input,2185,1,i16,1,block18.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2186,1,i16,10,block18.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2187,1,u16,10,block18.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2188,1,i16,1,block18.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2189,1,u16,10,block18.soh_pct,%,slow,ro,exact,exact
 input,2190,1,u16,1,block19.block_alarm_bits,bitfield,event,ro,exact,exact
 input,2191,1,u16,1,block19.racks_derated,count,event,ro,exact,exact
 input,2192,1,u16,1,block19.cell_dv_mv,mV,medium,ro,exact,exact
@@ -445,6 +468,7 @@ input,2195,1,i16,1,block19.pcs.setpoint_followed_kw,kW,fast,ro,exact,exact
 input,2196,1,i16,10,block19.pcs.temperature_c,degC,medium,ro,thermometer,Pt100 B
 input,2197,1,u16,10,block19.pcs.overload_budget_pct,%,medium,ro,exact,exact
 input,2198,1,i16,1,block19.pcs.q_kvar,kvar,fast,ro,scada_analog,0.5
+input,2199,1,u16,10,block19.soh_pct,%,slow,ro,exact,exact
 holding,0,2,i32,1,control.site_setpoint_w,W,fast,rw,exact,exact
 holding,2,1,u16,1,control.ems_mode,enum,fast,rw,exact,exact
 holding,3,1,u16,10,control.p_limit_pct,%,fast,rw,exact,exact

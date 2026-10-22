@@ -47,6 +47,7 @@ pub const CASES: &[Case] = &[
     case!("clock-drift-and-nan"),
     case!("curtailment-order"),
     case!("rack-self-discharge-drift"),
+    case!("aged-plant"),
     case!("dst-spring-forward"),
     case!("dst-fall-back"),
     case!("block-maintenance-window"),

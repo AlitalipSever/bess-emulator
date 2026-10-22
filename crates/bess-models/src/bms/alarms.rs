@@ -29,6 +29,8 @@ pub struct RackAlarmThresholds {
     pub imbalance_trip_v: f64,
     /// Lower of the two temperature factors, falling.
     pub derate: Band,
+    /// State of health warning, falling (M5 phase 3).
+    pub soh_low: Band,
 }
 
 impl Default for RackAlarmThresholds {
@@ -45,6 +47,9 @@ impl Default for RackAlarmThresholds {
     ///   window and under 80 mV at the bottom, so neither fires unless
     ///   balancing does not.
     /// - SoC and derate bands are estimates sized not to chatter.
+    /// - State of health: warn below 80 %, the level laboratory cycle-life
+    ///   figures are stated at and home-storage warranties are written at
+    ///   (CALIBRATION.md, M5); clear above 81 %, a labeled hysteresis.
     fn default() -> Self {
         Self {
             over_temp: Band {
@@ -66,6 +71,10 @@ impl Default for RackAlarmThresholds {
             derate: Band {
                 raise: 0.98,
                 clear: 0.995,
+            },
+            soh_low: Band {
+                raise: 0.80,
+                clear: 0.81,
             },
         }
     }
@@ -118,6 +127,10 @@ impl RackAlarmThresholds {
                 falling(has_bit(w, bit::DERATE_ACTIVE), derate_factor, self.derate),
             ),
             (bit::ISOLATED, !rack.in_service),
+            (
+                bit::SOH_LOW,
+                falling(has_bit(w, bit::SOH_LOW), rack.soh, self.soh_low),
+            ),
             (
                 bit::OVER_TEMP_TRIP,
                 latched(bit::OVER_TEMP_TRIP, t >= self.over_temp_trip_c),

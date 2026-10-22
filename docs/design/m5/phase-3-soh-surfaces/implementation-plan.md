@@ -18,6 +18,10 @@ One PR.
 Accept: the tests above pass; the map digest is updated once and called
 out; the annual record does not move; CI green.
 
+*As built (PR #60):* as the design's as-built notes say. Twenty-two
+library records (the new case's written, the others unchanged: the
+points are reads).
+
 ## Open questions
 
 - Whether the scene should colour an old rack (a tint on the container
