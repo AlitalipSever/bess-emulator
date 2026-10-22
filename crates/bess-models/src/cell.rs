@@ -118,8 +118,10 @@ impl CellModel for Ecm1Rc {
         p_request_w: f64,
         dt_s: f64,
     ) -> RackStepResult {
-        let r0 = self.r0_ohm * rack.resistance_scale;
-        let r1 = self.r1_ohm * rack.resistance_scale;
+        // The manufacturing spread, and what the years added (M5).
+        let scale = rack.resistance_scale * (1.0 + rack.age.resistance_growth());
+        let r0 = self.r0_ohm * scale;
+        let r1 = self.r1_ohm * scale;
         // The mean curve carries the energy; the hysteresis state shifts
         // the voltage the terminals see without changing what is stored.
         let ocv = ocv_rack_v(rack.soc, cfg);
@@ -212,6 +214,7 @@ mod tests {
             cell_dv_v: 0.0,
             balancing_active: false,
             self_discharge_excess_per_s: 0.0,
+            age: bess_core::state::RackAge::fresh(1.0),
         }
     }
 

@@ -92,4 +92,10 @@ pub struct EnergyAccounting {
     /// its own path, so `total_wh` matching `aux_wh` is a testable property
     /// rather than an arithmetic identity.
     pub aux_items: AuxEnergy,
+    /// Stored energy written off by capacity fade: what the racks held
+    /// before a daily aging pass less what they hold after it at the same
+    /// state of charge (M5 phase 1). Not a heat; a row of the waterfall so
+    /// that the site balance keeps closing over an aging year.
+    #[serde(default)]
+    pub aging_wh: f64,
 }

@@ -5,6 +5,7 @@
 //! ARCHITECTURE.md). Each one is deepened in its own milestone behind the
 //! trait it implements, without touching the others.
 
+pub mod aging;
 pub mod aux;
 pub mod bms;
 pub mod calendar;
@@ -18,6 +19,7 @@ pub mod pcs;
 pub mod thermal;
 pub mod weather;
 
+pub use aging::{LfpAging, NoAging};
 pub use aux::InventoryAux;
 pub use bms::BasicBms;
 pub use cell::Ecm1Rc;
@@ -98,6 +100,7 @@ pub fn gw01_models(cfg: &PlantConfig) -> Models {
         )),
         aux: Box::new(InventoryAux::gw01()),
         grid: Box::new(SimpleGrid::new(cfg.grid.site_rated_w)),
+        aging: Box::new(LfpAging::gw01()),
     }
 }
 

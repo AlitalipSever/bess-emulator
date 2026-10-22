@@ -11,7 +11,8 @@ use bess_models::{gw01_market_models, gw01_models, gw01_weather};
 mod record;
 
 pub use record::{
-    ControlKpis, EnergyKpis, HvacKpis, Kpis, LossKpis, RevenueKpis, RunRecord, ThermalKpis,
+    AgingKpis, ControlKpis, EnergyKpis, HvacKpis, Kpis, LossKpis, RevenueKpis, RunRecord,
+    ThermalKpis,
 };
 
 /// 2026-01-01 00:00:00 UTC. The replayed weather year is mapped onto the
@@ -76,6 +77,9 @@ struct Tallies {
     cooling: Vec<bool>,
     /// The quarter-hour report's running sums (M4 phase 2 PR2).
     periods_seen: u32,
+    soc_sum: f64,
+    cell_temp_sum_c: f64,
+    rack_samples: u64,
     avail_discharge_sum: f64,
     avail_charge_sum: f64,
     abs_deviation_sum: f64,
@@ -97,6 +101,9 @@ impl Tallies {
             starts: 0,
             cooling: vec![false; containers],
             periods_seen: 0,
+            soc_sum: 0.0,
+            cell_temp_sum_c: 0.0,
+            rack_samples: 0,
             avail_discharge_sum: 0.0,
             avail_charge_sum: 0.0,
             abs_deviation_sum: 0.0,
@@ -105,6 +112,37 @@ impl Tallies {
     }
 
     /// The report over the periods seen.
+    /// How the racks aged, from their own states at the end and the
+    /// stress the samples saw.
+    fn aging(&self, state: &SiteState) -> AgingKpis {
+        let mut n = 0.0_f64;
+        let (mut soh_sum, mut soh_min, mut soh_max) = (0.0, f64::INFINITY, f64::NEG_INFINITY);
+        let (mut efc, mut cal, mut cyc, mut res) = (0.0, 0.0, 0.0, 0.0);
+        for rack in state.racks() {
+            n += 1.0;
+            soh_sum += rack.soh;
+            soh_min = soh_min.min(rack.soh);
+            soh_max = soh_max.max(rack.soh);
+            efc += rack.age.efc;
+            cal += rack.age.q_loss_cal;
+            cyc += rack.age.q_loss_cyc;
+            res += rack.age.resistance_growth();
+        }
+        let n = n.max(1.0);
+        let samples = self.rack_samples.max(1) as f64;
+        AgingKpis {
+            soh_mean_end: round(soh_sum / n, 5),
+            soh_min_end: round(soh_min, 5),
+            soh_max_end: round(soh_max, 5),
+            efc_mean: round(efc / n, 1),
+            calendar_loss_mean: round(cal / n, 5),
+            cycle_loss_mean: round(cyc / n, 5),
+            resistance_growth_mean: round(res / n, 5),
+            soc_mean: round(self.soc_sum / samples, 4),
+            cell_temp_mean_c: round(self.cell_temp_sum_c / samples, 2),
+        }
+    }
+
     fn control(&self) -> ControlKpis {
         let n = f64::from(self.periods_seen.max(1));
         ControlKpis {
@@ -146,6 +184,11 @@ impl Tallies {
             let (min, max) = state.cell_temp_min_max_c();
             self.cell_min_c = self.cell_min_c.min(min);
             self.cell_max_c = self.cell_max_c.max(max);
+            for rack in state.racks() {
+                self.soc_sum += rack.soc;
+                self.cell_temp_sum_c += rack.cell_temp_c;
+                self.rack_samples += 1;
+            }
         }
 
         // The quarter-hour report: one reading per closed period, on the
@@ -263,6 +306,7 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
         estimator: estimator.finish(racks, spec.days),
         control: tallies.control(),
         revenue: revenue_of(state, site_rated_w),
+        aging: tallies.aging(state),
     };
     let series = series.finish(&sim, kpis.run.clone());
     (kpis, series, period_rows)
@@ -282,6 +326,7 @@ fn losses_of(state: &bess_core::SiteState) -> LossKpis {
         aux_pcs_standby_mwh: mwh(items.pcs_standby_wh),
         aux_controls_mwh: mwh(items.controls_wh),
         aux_lighting_and_safety_mwh: mwh(items.lighting_and_safety_wh),
+        aging_mwh: mwh(energy.aging_wh),
     }
 }
 
@@ -299,10 +344,13 @@ fn energy_of(state: &SiteState, stored_delta_wh: f64, nominal_energy_wh: f64) ->
     // feeds the house load through here, and the balance has to see it.
     let station_service_wh = state.substation.station_service_wh;
     let aux_wh = state.energy.aux_wh;
+    // The capacity fade wrote stored energy off without a flow (M5); it
+    // sits on the loss side so the balance keeps closing.
     let metered_losses_wh = state.energy.battery_loss_wh
         + state.energy.pcs_loss_wh
         + state.energy.transformer_loss_wh
-        + aux_wh;
+        + aux_wh
+        + state.energy.aging_wh;
     let residual_wh =
         (import_wh + station_service_wh - export_wh) - stored_delta_wh - metered_losses_wh;
     // The import-side ratios read only the house load that came in through
@@ -372,6 +420,7 @@ mod tests {
             aux_pcs_standby_mwh: 32.0,
             aux_controls_mwh: 64.0,
             aux_lighting_and_safety_mwh: 128.0,
+            aging_mwh: 256.0,
         };
         // Powers of two: any category dropped from or duplicated in the
         // published waterfall changes the sum.

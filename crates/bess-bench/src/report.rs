@@ -178,6 +178,7 @@ pub(crate) fn fixture() -> Kpis {
             aux_pcs_standby_mwh: 55.0,
             aux_controls_mwh: 131.0,
             aux_lighting_and_safety_mwh: 87.0,
+            aging_mwh: 12.0,
         },
         thermal: ThermalKpis {
             ambient_min_c: -12.0,
@@ -223,6 +224,17 @@ pub(crate) fn fixture() -> Kpis {
             total_keur: 1_150.0,
             total_keur_per_mw: 11.5,
         },
+        aging: crate::run::AgingKpis {
+            soh_mean_end: 0.966,
+            soh_min_end: 0.962,
+            soh_max_end: 0.970,
+            efc_mean: 282.0,
+            calendar_loss_mean: 0.011,
+            cycle_loss_mean: 0.023,
+            resistance_growth_mean: 0.02,
+            soc_mean: 0.5,
+            cell_temp_mean_c: 24.0,
+        },
     }
 }
 
@@ -262,11 +274,11 @@ mod tests {
                 checked += 1;
             }
         }
-        // Every field of every section: 7 run, 9 energy, 8 loss, 6 thermal,
-        // 4 HVAC, 3 alarms, 3 periods, 4 estimator, 4 control, 6 revenue.
-        // Pinned so a field added without a thought about whether it
-        // belongs in the published record fails here.
-        assert_eq!(checked, 54, "the record changed shape");
+        // Every field of every section: 7 run, 9 energy, 9 loss, 6 thermal,
+        // 4 HVAC, 3 alarms, 3 periods, 4 estimator, 4 control, 6 revenue,
+        // 9 aging. Pinned so a field added without a thought about whether
+        // it belongs in the published record fails here.
+        assert_eq!(checked, 64, "the record changed shape");
     }
 
     /// Move a value far enough to be drift, without changing its JSON type:

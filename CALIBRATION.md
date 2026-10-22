@@ -71,23 +71,23 @@ fails if this block is stale.
 
 | Gate | Band | Measured | Verdict | Band drawn from |
 |---|---|---|---|---|
-| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 83.23% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
-| Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.85% | inside | no public dataset publishes this at plant scale; see the note below |
-| Reported SoC, mean absolute error (points) | 5.00% to 200.00% (sanity bound) | 25.30% | inside | no public rack-level estimator error at plant scale; see CALIBRATION.md |
-| Reported SoC, largest error on any rack (points) | 20.00% to 1500.00% (sanity bound) | 113.00% | inside | ACCURE 2025 ESS report field range, errors up to 15 points |
+| Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 83.13% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
+| Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.88% | inside | no public dataset publishes this at plant scale; see the note below |
+| Reported SoC, mean absolute error (points) | 5.00% to 200.00% (sanity bound) | 34.20% | inside | no public rack-level estimator error at plant scale; see CALIBRATION.md |
+| Reported SoC, largest error on any rack (points) | 20.00% to 1500.00% (sanity bound) | 349.00% | inside | ACCURE 2025 ESS report field range, errors up to 15 points |
 
 Energy at the point of interconnection over the run:
 
 | Quantity | Value |
 |---|---|
-| Imported | 66 655.7 MWh |
-| Exported | 55 478.3 MWh |
-| Round-trip efficiency | 0.8323 |
-| Round-trip efficiency, house load removed from import | 0.8568 |
-| Equivalent full cycles, exported energy over nameplate energy | 276.5 |
-| Stored energy, end minus start | 93.8 MWh |
-| Auxiliary share of import / of export | 2.85% / 3.43% |
-| Unexplained residual | 0.00063% of throughput, gate below 0.2% |
+| Imported | 65 525.5 MWh |
+| Exported | 54 470.0 MWh |
+| Round-trip efficiency | 0.8313 |
+| Round-trip efficiency, house load removed from import | 0.8559 |
+| Equivalent full cycles, exported energy over nameplate energy | 271.5 |
+| Stored energy, end minus start | 87.5 MWh |
+| Auxiliary share of import / of export | 2.88% / 3.46% |
+| Unexplained residual | 0.00064% of throughput, gate below 0.2% |
 
 Three definitions the figures above depend on. The round-trip ratio is
 uncorrected for the stored-energy endpoints, matching how the fleet figure
@@ -102,15 +102,16 @@ Where the energy went, each category on its own meter:
 
 | Category | MWh | Share of import |
 |---|---|---|
-| Battery | 4 862.9 | 7.30% |
-| PCS conversion | 2 742.3 | 4.11% |
-| Transformer | 1 577.1 | 2.37% |
-| Auxiliary: HVAC | 1 335.0 | 2.00% |
-| Auxiliary: rack electronics | 301.9 | 0.45% |
+| Battery | 4 817.0 | 7.35% |
+| PCS conversion | 2 699.2 | 4.12% |
+| Transformer | 1 564.3 | 2.39% |
+| Auxiliary: HVAC | 1 319.8 | 2.01% |
+| Auxiliary: rack electronics | 301.9 | 0.46% |
 | Auxiliary: PCS standby | 46.2 | 0.07% |
 | Auxiliary: controls and protection | 131.4 | 0.20% |
 | Auxiliary: lighting and safety | 87.6 | 0.13% |
-| **Total** | **11 084.4** | **16.63%** |
+| Aging: capacity written off | 1.4 | 0.00% |
+| **Total** | **10 968.8** | **16.74%** |
 
 Temperatures and HVAC over the run:
 
@@ -119,25 +120,27 @@ Temperatures and HVAC over the run:
 | Ambient, coldest to warmest | -12.1 to 33.3 C |
 | Container air, coldest to warmest | 10.0 to 29.0 C |
 | Cells, coldest to warmest | 8.7 to 39.0 C |
-| Duty, one unit / both units / heating | 16.10% / 0.95% / 0.25% |
-| Cooling starts per container | 4 760.0 |
+| Duty, one unit / both units / heating | 15.91% / 0.93% / 0.25% |
+| Cooling starts per container | 4 746.2 |
 
-Alarms raised over the run: 0 trips (gate: none), 40 535 warnings.
+Alarms raised over the run: 0 trips (gate: none), 40 923 warnings.
 
 | Alarm | Raised |
 |---|---|
 | `block.setpoint_not_met` | 15 300 |
-| `rack.derate_active` | 22 917 |
-| `site.power_limited` | 715 |
-| `site.schedule_deviation` | 1 603 |
+| `rack.derate_active` | 23 279 |
+| `site.power_limited` | 749 |
+| `site.schedule_deviation` | 1 595 |
 
 Fiscal quarter-hours closed: 35 040 (gate: exactly 35 040), 92 on the 23-hour day and 100 on the 25-hour day (gates: 92 and 100).
 
-Reported SoC against the truth, over every rack: mean absolute error 0.253 points (gate: 0.05 to 2.00 points), largest 1.13 points (gate: 0.20 to 15.00 points); 104 891 corrections, 0.599 per rack and day.
+Reported SoC against the truth, over every rack: mean absolute error 0.342 points (gate: 0.05 to 2.00 points), largest 3.49 points (gate: 0.20 to 15.00 points); 387 343 corrections, 2.211 per rack and day.
 
-The quarter-hour report over the run: availability 56.77% to discharge and 65.70% to charge (gate: none, reported), mean absolute schedule deviation 7.67% of the rating, 3 338 closed periods over the 5 % frame.
+The quarter-hour report over the run: availability 56.67% to discharge and 65.55% to charge (gate: none, reported), mean absolute schedule deviation 7.87% of the rating, 3 358 closed periods over the 5 % frame.
 
-The EUR rows over the run (gate: the M4 band, phase 4): day-ahead 5 129.2 kEUR, capacity 0.0 kEUR, aFRR energy 0.0 kEUR, imbalance -1 036.6 kEUR; 4 092.6 kEUR in all, 40.93 kEUR per MW of rating.
+The EUR rows over the run (gate: the M4 band, phase 4): day-ahead 5 020.2 kEUR, capacity 0.0 kEUR, aFRR energy 0.0 kEUR, imbalance -1 145.6 kEUR; 3 874.6 kEUR in all, 38.75 kEUR per MW of rating.
+
+How the racks aged over the run (gate: the M5 bands, phase 4): mean state of health 96.74% at the end (worst rack 96.50%, best 97.00%), 286.7 cycles per rack, 1.00% lost to the calendar and 2.26% to cycling, resistance up 1.96%; the year's mean state of charge 46.13% at a mean cell temperature of 24.1 °C.
 
 <!-- bess-bench:end m1-annual -->
 
@@ -1987,6 +1990,117 @@ the stand-in price, 40.9 kEUR/MW). The market year
 equivalent full cycles at a round trip of 0.8779 and earns 127.4
 kEUR/MW, inside the M4 band. The twenty-one library records moved in
 their version string and nothing else at the bump.
+
+## M5 (v0.10.0): the aging model
+
+Phase 1 PR1 gives every rack a state of health that moves. Two
+capacity-loss states and two resistance-growth states per rack, advanced
+once per simulated day from a stress ledger the tick fills, read back by
+the cell model as less capacity per ampere-hour and more ohms per rack
+(`crates/bess-models/src/aging/`, `crates/bess-core/src/kernel/aging.rs`,
+`crates/bess-core/src/state/aging.rs`). No data series is bundled: what
+the tree carries are the constants of two published models, both from
+code under BSD 3-Clause (DATA-LICENSES.md, the M5 table).
+
+**The capacity model, sourced.** NREL BLAST-Lite's
+`Lfp_Gr_250AhPrismatic` (Paul Gasper; Alliance for Energy Innovation,
+2023, BSD 3-Clause), identified on the calendar and cycle aging of a
+commercial prismatic LFP cell above 250 Ah with a six-hour
+energy-to-power ratio (Gasper et al., J. Energy Storage 2023, doi
+10.1016/j.est.2023.109042). GW-01's rack is 416 cells of a 314 Ah
+prismatic class, so this is the closest public analogue by an order of
+magnitude in format; the other identified LFP model with checkable
+parameters, Naumann et al.'s Sony/Murata 26650 (a high-power 3 Ah
+cylinder with exceptional cycle life), would understate a large cell's
+cycle fade. Two power-law trajectories: calendar loss `k_cal *
+days^0.526` with `k_cal = 8.37e4 * exp(-5210 / T) * exp(-3560 * Ua / T)`
+(`T` kelvin, `Ua` the graphite anode potential at the mean state of
+charge, 0.123 V at 50 %), cycle loss `k_cyc * efc^0.828` with `k_cyc =
+(4.38e-8 + 1.55e-8 * dod + 1.68e-7 * c_rate) * (exp(2190 / T) +
+exp(-1.55e5 / T))`. The states advance at the trajectory's current slope
+(BLAST-Lite's `_update_power_state`), so a warm week adds what a warm
+week adds to a cell this old. At 25 °C, a mean state of charge of 0.5,
+0.8 depth, 0.5C and 280 cycles a year the model gives 1.10 % calendar
+and 2.31 % cycle loss in year one (`year_one_at_the_design_stress`), a
+state of health of 0.887 after five years of the same, 0.808 after ten.
+The model's own limits are carried with it: its cycling data was taken
+at conservative rates (0.65C charge at most, so a plant's 0.5C sits
+inside), and its cycle coefficient's temperature term was fitted to
+balance the calendar term inside 10 to 45 °C, so the model is **not for
+extrapolation** outside that range; the container keeps the cells inside
+it.
+
+**The resistance model, labeled.** The NREL model publishes no
+resistance law, so the growth is Naumann et al.'s for the Sony/Murata
+cell (J. Energy Storage 17 (2018) 153; J. Power Sources 451 (2020)
+227666), with the constants as SimSES (TUM, BSD 3-Clause) carries them:
+calendar growth `3.4194e-10 * exp(-71827 / R * (1/T - 1/298.15)) *
+(-3.3903 * (soc - 0.5)^2 + 1.5604)` per second, cycle growth `(-0.0020 *
+c_rate + 0.0021) * (6.8477 * (dod - 0.5)^3 + 0.91882) / 100` per cycle:
+about 1.7 % a year at rest at 25 °C and 50 %, 0.36 % per 300 cycles at
+0.8 depth and 0.5C (`the_design_figures`). A **labeled estimate** for the
+314 Ah cell: a different cell's law, kept because the field study below
+finds capacity loss dominant and resistance secondary, which is the
+proportion these two models produce together (about 2 % a year of
+resistance against 3.4 % of capacity in year one).
+
+**The ledger and the cadence.** A rack's ledger keeps eight sums and
+extrema per tick and closes at 86,400 s of its own time: the day's
+equivalent full cycles (throughput over twice the nominal capacity), its
+mean state of charge and cell temperature, its depth of discharge (the
+day's state-of-charge range, the window proxy BLAST-Lite extracts when
+it chunks by day) and its mean rate while current flowed (rates under
+0.01C counted as rest, as BLAST-Lite drops them). A rainflow count was
+not used: the day-ahead plan makes one or two cycles a day, which the
+range captures, and the FCR service's small cycles are below the models'
+resolution. Each rack's increments are scaled by its own rate, drawn
+uniformly in 0.9 to 1.1 at commissioning on a stream of its own (a
+**labeled estimate**: the field study's spread between identical systems
+is about 2 percentage points a year on a 2 mean, but it includes
+operation, which the ledger carries on its own). The stored energy a
+capacity loss writes off at constant state of charge is booked to an
+`aging` row of the energy accounting, so the site balance keeps closing
+over an aging year (the residual gate holds at zero).
+
+**Determinism.** The model needs `exp` and `tanh` (the Arrhenius terms,
+the anode potential) and fractional powers; `bess-models/src/math.rs`
+provides them from additions, multiplications, divisions and square
+roots only (`exp_det`, `tanh_det`, `pow_pos`), within parts in 1e-12 for
+the thermal model's arguments and parts in 1e-11 for an Arrhenius term in
+the hundreds, held against the platform's own functions in the tests.
+The thermal model's path through `pow_pos` is unchanged bit for bit (the
+same six halvings for arguments within one), so no M3 record moved for
+the refactor. The golden digest moved for the schema and the ledger
+(0x81df_d8d7_36c1_a159 to 0x5750_152e_0a3e_abf4), and the twenty-one
+library records moved for the same reason.
+
+**The switch-off proof.** `with_no_aging_the_plant_is_the_v090_plant`:
+with `NoAging` installed no state of health moves, no resistance grows
+and nothing is written off over two days, while the ledgers still count.
+
+### The annual record after phase 1
+
+Both records regenerated on the aging kernel. The clean year is the
+first annual record in which the plant ends the year different from how
+it began:
+
+| Record | Round trip at the POI | Import | Export | Equivalent full cycles | State of health at the end (mean, worst, best) | What moved it |
+|---|---|---|---|---|---|---|
+| v0.9.0 | 0.8323 | 66,655.7 MWh | 55,478.3 MWh | 276.5 | 1.0 | the M4 plant |
+| after phase 1 | 0.8313 | 65,525.5 MWh | 54,470.0 MWh | 271.5 | 0.9674 (0.9650 to 0.9700) | the racks aged: 1.00 % lost to the calendar (mean state of charge 0.461, mean cell temperature 24.1 °C), 2.26 % to 286.7 cycles per rack, resistance up 1.96 %; the plan's hours moved less energy as the capacity fell (export down 1.8 %, battery heat 4,862.9 to 4,817.0 MWh with the cooling), the round trip fell a tenth of a point through the resistance, and 1.4 MWh of stored energy were written off on the daily passes |
+
+The year-one figures are the model's figures at the stress the year
+applied (1.0 % against the 1.10 % of the test's 25 °C and 0.5, the
+year sitting cooler and lower; 2.26 % against 2.31 % at 280 cycles),
+which is what the pass is for: the ledger carries the plant's own
+stress, not a test condition. The spread between the worst and the best
+rack (half a point of health after a year) is the ±10 % rate spread,
+labeled above, on top of the racks' own ledgers. The round trip stays
+inside the M1 band. The market year (`calibration/m4-market.json`): round
+trip 0.8774, 304.1 cycles at the POI, 316.2 per rack, health 0.9763 at
+the end (1.39 % cycle loss: the market plant's days are shallower, its
+mean depth under the arbitrage plant's), 126.6 kEUR/MW, inside the M4
+band. The residual gate holds for both at the order it held before.
 
 ## Planned gates (from ROADMAP.md)
 

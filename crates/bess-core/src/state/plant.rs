@@ -212,7 +212,11 @@ pub struct RackState {
     pub in_service: bool,
     /// State of charge, 0..1.
     pub soc: f64,
-    /// State of health, 0..1 (aging arrives in M5; 1.0 until then).
+    /// State of health, 0..1: derived from `age` by the kernel after each
+    /// daily aging pass (M5 phase 1), so every reader that scales by it
+    /// (the cell model's capacity, the spread law, the stored-energy
+    /// integral) sees the same number. Written by the kernel, never read
+    /// from a file as the truth.
     pub soh: f64,
     /// Terminal voltage, V.
     pub voltage_v: f64,
@@ -264,4 +268,8 @@ pub struct RackState {
     /// healthy rack; set only by a fault (`FaultAction::RackSelfDischarge`),
     /// and read by the spread law, which adds it to the healthy drift.
     pub self_discharge_excess_per_s: f64,
+    /// What the rack has been through and what it did to it: the aging
+    /// states, the open stress ledger and the rack's own aging speed
+    /// (M5 phase 1).
+    pub age: super::aging::RackAge,
 }

@@ -24,7 +24,58 @@ pub fn pow_pos(base: f64, exponent: f64) -> f64 {
     if base <= 0.0 {
         return 0.0;
     }
-    exp_rational(exponent * ln_rational(base))
+    exp_det(exponent * ln_rational(base))
+}
+
+/// `e^x`, deterministic across platforms, for any `x` (M5).
+///
+/// The argument is halved until it is within 1/64 (six halvings for
+/// `|x| <= 1`, one more per doubling beyond, so the thermal model's small
+/// arguments take exactly the path they took before M5 and the aging
+/// model's Arrhenius terms, hundreds of kelvin over a temperature, are
+/// reduced further), a short Taylor series there, and the result squared
+/// back up. Each squaring doubles the relative error, so the result is
+/// within parts in 1e-12 for `|x| <= 1` and parts in 1e-11 for arguments
+/// in the hundreds. Below -745 the answer is zero and above 709 it is the
+/// largest finite value, the limits of `f64` themselves.
+pub fn exp_det(x: f64) -> f64 {
+    if x < -745.0 {
+        return 0.0;
+    }
+    if x > 709.0 {
+        return f64::MAX;
+    }
+    let mut halvings = 6u32;
+    let mut magnitude = x.abs();
+    while magnitude > 1.0 {
+        magnitude /= 2.0;
+        halvings += 1;
+    }
+    let mut y = x / f64::from(1u32 << halvings);
+    let mut sum = 1.0;
+    let mut term = 1.0;
+    for k in 1..14u32 {
+        term *= y / f64::from(k);
+        sum += term;
+    }
+    y = sum;
+    for _ in 0..halvings {
+        y *= y;
+    }
+    y
+}
+
+/// `tanh(x)`, deterministic across platforms: `(e^2x - 1) / (e^2x + 1)`,
+/// saturated past |x| = 20 where the fraction is 1 to every bit.
+pub fn tanh_det(x: f64) -> f64 {
+    if x > 20.0 {
+        return 1.0;
+    }
+    if x < -20.0 {
+        return -1.0;
+    }
+    let e = exp_det(2.0 * x);
+    (e - 1.0) / (e + 1.0)
 }
 
 /// Natural logarithm of a positive number by square roots and the
@@ -44,23 +95,6 @@ fn ln_rational(base: f64) -> f64 {
         term *= z2;
     }
     32.0 * 2.0 * sum
-}
-
-/// `e^x` by halving the argument into [-1/64, 1/64], a Taylor series
-/// there, and squaring the result six times.
-fn exp_rational(x: f64) -> f64 {
-    let mut y = x / 64.0;
-    let mut sum = 1.0;
-    let mut term = 1.0;
-    for k in 1..14u32 {
-        term *= y / f64::from(k);
-        sum += term;
-    }
-    y = sum;
-    for _ in 0..6 {
-        y *= y;
-    }
-    y
 }
 
 #[cfg(test)]
@@ -86,6 +120,31 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn exp_and_tanh_match_the_platform_to_parts_in_1e12() {
+        for &x in &[
+            -520.0, -17.5, -5.0, -1.0, -0.3, 0.0, 0.01, 0.9, 1.0, 7.35, 20.0, 100.0,
+        ] {
+            let want = f64::exp(x);
+            let got = exp_det(x);
+            // Each squaring doubles the relative error: parts in 1e-12
+            // for the thermal model's arguments, parts in 1e-11 for an
+            // Arrhenius term in the tens and hundreds.
+            let tolerance = if x.abs() >= 20.0 { 1.0e-10 } else { 1.0e-12 };
+            assert!(
+                ((got - want) / want).abs() < tolerance,
+                "exp {x}: {got} vs {want}"
+            );
+        }
+        for &x in &[-3.0, -0.7, -0.1, 0.0, 0.2, 1.5, 4.0, 25.0] {
+            let want = f64::tanh(x);
+            let got = tanh_det(x);
+            assert!((got - want).abs() < 1.0e-12, "tanh {x}: {got} vs {want}");
+        }
+        assert_eq!(exp_det(-800.0), 0.0);
+        assert_eq!(tanh_det(-30.0), -1.0);
     }
 
     #[test]

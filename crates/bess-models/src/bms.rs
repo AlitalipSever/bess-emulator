@@ -125,6 +125,7 @@ mod tests {
             cell_dv_v: 0.0,
             balancing_active: false,
             self_discharge_excess_per_s: 0.0,
+            age: bess_core::state::RackAge::fresh(1.0),
         }
     }
 

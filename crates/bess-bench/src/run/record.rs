@@ -95,6 +95,11 @@ pub struct LossKpis {
     pub aux_controls_mwh: f64,
     /// Fire and gas detection, security, lighting and small power.
     pub aux_lighting_and_safety_mwh: f64,
+    /// Stored energy written off by capacity fade (M5): what the racks
+    /// held before each daily aging pass less what they hold after it at
+    /// the same state of charge. Not a heat, a row so the balance closes.
+    #[serde(default)]
+    pub aging_mwh: f64,
 }
 
 impl LossKpis {
@@ -109,11 +114,15 @@ impl LossKpis {
 
     /// Every category, MWh.
     pub fn total_mwh(&self) -> f64 {
-        self.battery_mwh + self.pcs_mwh + self.transformer_mwh + self.aux_total_mwh()
+        self.battery_mwh
+            + self.pcs_mwh
+            + self.transformer_mwh
+            + self.aux_total_mwh()
+            + self.aging_mwh
     }
 
     /// The waterfall in publication order, coarsest first.
-    pub fn waterfall(&self) -> [(&'static str, f64); 8] {
+    pub fn waterfall(&self) -> [(&'static str, f64); 9] {
         [
             ("Battery", self.battery_mwh),
             ("PCS conversion", self.pcs_mwh),
@@ -126,8 +135,36 @@ impl LossKpis {
                 "Auxiliary: lighting and safety",
                 self.aux_lighting_and_safety_mwh,
             ),
+            ("Aging: capacity written off", self.aging_mwh),
         ]
     }
+}
+
+/// How the racks aged over the run (M5 phase 1): the end state of
+/// health, the shares, and the stress that produced them.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AgingKpis {
+    /// Mean state of health over every rack at the end.
+    pub soh_mean_end: f64,
+    /// The worst rack at the end.
+    pub soh_min_end: f64,
+    /// The best rack at the end.
+    pub soh_max_end: f64,
+    /// Mean equivalent full cycles per rack since commissioning, from the
+    /// racks' own throughput (the energy record's figure is the POI's).
+    pub efc_mean: f64,
+    /// Mean capacity lost to the calendar, fraction of nominal.
+    pub calendar_loss_mean: f64,
+    /// Mean capacity lost to cycling, fraction of nominal.
+    pub cycle_loss_mean: f64,
+    /// Mean resistance growth, fraction of the commissioning resistance.
+    pub resistance_growth_mean: f64,
+    /// Mean state of charge over racks and sampled ticks: the calendar
+    /// stress the year applied.
+    pub soc_mean: f64,
+    /// Mean cell temperature over racks and sampled ticks, degrees
+    /// Celsius: the other calendar stress.
+    pub cell_temp_mean_c: f64,
 }
 
 /// Temperature extremes over the run, degrees Celsius. Same naming
@@ -188,6 +225,9 @@ pub struct Kpis {
     pub control: ControlKpis,
     /// What the plant earned over the run (M4 phase 3 PR3).
     pub revenue: RevenueKpis,
+    /// How the racks aged (M5 phase 1).
+    #[serde(default)]
+    pub aging: AgingKpis,
 }
 
 /// The EUR rows over the run, kEUR, and the total per MW of rating.

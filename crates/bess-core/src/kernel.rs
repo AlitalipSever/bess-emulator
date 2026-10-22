@@ -15,6 +15,7 @@ use crate::state::{
 use crate::traits::{AuxDemand, GridConditions, Models, PowerLimits};
 use crate::TICK_SECONDS;
 
+mod aging;
 mod alarms;
 mod block;
 mod commands;
@@ -553,6 +554,53 @@ impl Simulation {
         );
     }
 
+    /// Step every block and sum what the site sees: the AC power the
+    /// converters delivered and the HVAC draw. The capability the blocks
+    /// report lands on the controller's availability figures.
+    fn step_blocks(
+        &mut self,
+        share_w: f64,
+        fast_share_w: f64,
+        weather: Weather,
+        connected: bool,
+        dt_s: f64,
+    ) -> (f64, f64) {
+        let wh = dt_s / 3600.0;
+        let mut p_ac_site_w = 0.0;
+        let mut hvac_aux_w = 0.0;
+        let mut avail = PowerLimits::default();
+        let ctx = TickContext {
+            models: &self.models,
+            cfg: &self.cfg,
+            thresholds: &self.thresholds,
+            dynamics: &self.dynamics,
+            share_w,
+            fast_share_w,
+            weather,
+            dt_s,
+        };
+        for (block_idx, block) in self.state.blocks.iter_mut().enumerate() {
+            let in_set = dispatchable(block, block_idx, &self.state.ems, connected);
+            let outcome = step_block(
+                &ctx,
+                &mut self.scratch,
+                block,
+                block_idx,
+                in_set,
+                &mut self.events,
+            );
+            p_ac_site_w += outcome.p_ac_w;
+            hvac_aux_w += outcome.hvac_w;
+            avail.max_discharge_w += outcome.ac_capability.max_discharge_w;
+            avail.max_charge_w += outcome.ac_capability.max_charge_w;
+            self.state.energy.battery_loss_wh += outcome.battery_heat_w * wh;
+            self.state.energy.pcs_loss_wh += block.pcs.loss_w * wh;
+        }
+        self.state.ems.available_discharge_w = avail.max_discharge_w;
+        self.state.ems.available_charge_w = avail.max_charge_w;
+        (p_ac_site_w, hvac_aux_w)
+    }
+
     /// Advance the plant by one tick. Returns the events emitted.
     pub fn step(&mut self, inputs: &Inputs) -> &[Event] {
         let dt_s = TICK_SECONDS as f64;
@@ -606,38 +654,11 @@ impl Simulation {
             restart::share_w(&self.state.blocks, &self.state.ems, connected, fast_site_w);
 
         // 3. Per block: BMS limits -> PCS conversion -> racks -> thermal.
-        let mut p_ac_site_w = 0.0;
-        let mut hvac_aux_w = 0.0;
-        let mut avail = PowerLimits::default();
-        let ctx = TickContext {
-            models: &self.models,
-            cfg: &self.cfg,
-            thresholds: &self.thresholds,
-            dynamics: &self.dynamics,
-            share_w,
-            fast_share_w,
-            weather: inputs.weather,
-            dt_s,
-        };
-        for (block_idx, block) in self.state.blocks.iter_mut().enumerate() {
-            let in_set = dispatchable(block, block_idx, &self.state.ems, connected);
-            let outcome = step_block(
-                &ctx,
-                &mut self.scratch,
-                block,
-                block_idx,
-                in_set,
-                &mut self.events,
-            );
-            p_ac_site_w += outcome.p_ac_w;
-            hvac_aux_w += outcome.hvac_w;
-            avail.max_discharge_w += outcome.ac_capability.max_discharge_w;
-            avail.max_charge_w += outcome.ac_capability.max_charge_w;
-            self.state.energy.battery_loss_wh += outcome.battery_heat_w * wh;
-            self.state.energy.pcs_loss_wh += block.pcs.loss_w * wh;
-        }
-        self.state.ems.available_discharge_w = avail.max_discharge_w;
-        self.state.ems.available_charge_w = avail.max_charge_w;
+        let (p_ac_site_w, hvac_aux_w) =
+            self.step_blocks(share_w, fast_share_w, inputs.weather, connected, dt_s);
+        // 4. The racks' day: every ledger takes the tick, and a rack whose
+        //    day closed ages (M5 phase 1).
+        aging::observe_and_age(&self.models, &self.cfg, &mut self.state, dt_s);
         let q_ac_site_var =
             self.step_reactive(p_ac_site_w, inputs.grid_voltage_pu, connected, dt_s);
 

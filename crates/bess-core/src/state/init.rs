@@ -2,7 +2,7 @@
 
 use super::{
     AuxPower, BlockMode, BlockState, BreakerState, ContainerState, EmsMode, EmsState,
-    EnergyAccounting, HvacMode, HvacState, PcsOpState, PcsState, RackState, ReactiveMode,
+    EnergyAccounting, HvacMode, HvacState, PcsOpState, PcsState, RackAge, RackState, ReactiveMode,
     RevenueMeter, SiteMeta, SiteState, SubstationState, SwitchPosition,
 };
 use crate::alarms::EventLog;
@@ -15,6 +15,13 @@ const SPREAD_STREAM: u64 = 0x5b12_ead0_ba1a_4ce5;
 
 /// Salt that separates the current-sensor stream from the others.
 const SENSOR_STREAM: u64 = 0x7a3c_91e0_5d4b_28f1;
+
+/// Salt that separates the aging-rate stream from the others (M5).
+const AGING_STREAM: u64 = 0x3e8f_60c2_a917_5d4b;
+
+/// Half-width of the per-rack aging rate's spread around the model, drawn
+/// uniformly: ±10 %, a labeled estimate (M5 phase 1 design D5).
+const AGING_RATE_SPREAD: f64 = 0.10;
 
 /// Bound on the rack current sensor's offset, A: a shunt-based pack sensor
 /// of the 500 A class publishes 75 mA (CALIBRATION.md, M2.5 reported SoC).
@@ -41,46 +48,16 @@ impl SiteState {
         // it left every draw that predates it where it was.
         let mut spread_rng = Rng::from_seed(seed ^ SPREAD_STREAM);
         let mut sensor_rng = Rng::from_seed(seed ^ SENSOR_STREAM);
+        let mut aging_rng = Rng::from_seed(seed ^ AGING_STREAM);
         let ambient_c = 12.0;
-        let blocks = (0..cfg.blocks)
-            .map(|_| BlockState {
-                mode: BlockMode::InService,
-                pcs: PcsState {
-                    op_state: PcsOpState::Standby,
-                    p_ac_setpoint_w: 0.0,
-                    p_ac_w: 0.0,
-                    p_dc_w: 0.0,
-                    loss_w: 0.0,
-                    dc_voltage_v: cfg.rack.nominal_v(),
-                    state_elapsed_s: 0.0,
-                    setpoint_ramped_w: 0.0,
-                    setpoint_followed_w: 0.0,
-                    temperature_c: ambient_c,
-                    overload_budget: 1.0,
-                    overload_armed: true,
-                    ac_limit_w: cfg.pcs_rated_w,
-                    fast_term_w: 0.0,
-                    q_var: 0.0,
-                },
-                containers: (0..cfg.containers_per_block)
-                    .map(|_| ContainerState {
-                        air_temp_c: 20.0,
-                        hvac: HvacState {
-                            mode: HvacMode::Off,
-                            compressor_hold_s: 0.0,
-                            electrical_w: 0.0,
-                            thermal_w: 0.0,
-                            failed: false,
-                        },
-                        racks: (0..cfg.racks_per_container)
-                            .map(|_| new_rack(cfg, &mut rng, &mut spread_rng, &mut sensor_rng))
-                            .collect(),
-                    })
-                    .collect(),
-                alarm_bits: 0,
-                setpoint_miss_s: 0.0,
-            })
-            .collect();
+        let blocks = new_blocks(
+            cfg,
+            ambient_c,
+            &mut rng,
+            &mut spread_rng,
+            &mut sensor_rng,
+            &mut aging_rng,
+        );
 
         Self {
             meta: SiteMeta {
@@ -134,6 +111,56 @@ impl SiteState {
     }
 }
 
+/// The blocks at tick 0, each rack drawn from its streams in order.
+fn new_blocks(
+    cfg: &PlantConfig,
+    ambient_c: f64,
+    rng: &mut Rng,
+    spread_rng: &mut Rng,
+    sensor_rng: &mut Rng,
+    aging_rng: &mut Rng,
+) -> Vec<BlockState> {
+    (0..cfg.blocks)
+        .map(|_| BlockState {
+            mode: BlockMode::InService,
+            pcs: PcsState {
+                op_state: PcsOpState::Standby,
+                p_ac_setpoint_w: 0.0,
+                p_ac_w: 0.0,
+                p_dc_w: 0.0,
+                loss_w: 0.0,
+                dc_voltage_v: cfg.rack.nominal_v(),
+                state_elapsed_s: 0.0,
+                setpoint_ramped_w: 0.0,
+                setpoint_followed_w: 0.0,
+                temperature_c: ambient_c,
+                overload_budget: 1.0,
+                overload_armed: true,
+                ac_limit_w: cfg.pcs_rated_w,
+                fast_term_w: 0.0,
+                q_var: 0.0,
+            },
+            containers: (0..cfg.containers_per_block)
+                .map(|_| ContainerState {
+                    air_temp_c: 20.0,
+                    hvac: HvacState {
+                        mode: HvacMode::Off,
+                        compressor_hold_s: 0.0,
+                        electrical_w: 0.0,
+                        thermal_w: 0.0,
+                        failed: false,
+                    },
+                    racks: (0..cfg.racks_per_container)
+                        .map(|_| new_rack(cfg, rng, spread_rng, sensor_rng, aging_rng))
+                        .collect(),
+                })
+                .collect(),
+            alarm_bits: 0,
+            setpoint_miss_s: 0.0,
+        })
+        .collect()
+}
+
 /// One rack at commissioning: its draws from the three streams, in the
 /// order the streams were added, so no earlier draw moves.
 fn new_rack(
@@ -141,6 +168,7 @@ fn new_rack(
     rng: &mut Rng,
     spread_rng: &mut Rng,
     sensor_rng: &mut Rng,
+    aging_rng: &mut Rng,
 ) -> RackState {
     let soc = (cfg.initial_soc + rng.uniform(-0.005, 0.005)).clamp(0.0, 1.0);
     RackState {
@@ -164,6 +192,7 @@ fn new_rack(
         cell_dv_v: 0.0,
         balancing_active: false,
         self_discharge_excess_per_s: 0.0,
+        age: RackAge::fresh(1.0 + aging_rng.uniform(-AGING_RATE_SPREAD, AGING_RATE_SPREAD)),
     }
 }
 
