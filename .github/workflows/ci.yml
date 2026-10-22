@@ -53,8 +53,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Annual calibration gate
-        run: cargo run --release -p bess-bench -- --check
+      - name: Annual calibration gate, and the projected decade (M5)
+        run: cargo run --release -p bess-bench -- --check --years 10
       # The library, headless, every case against its committed record: a
       # scenario whose digest moved is a physics change to regenerate
       # loudly or a regression caught.

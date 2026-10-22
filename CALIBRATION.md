@@ -2211,6 +2211,46 @@ itself, with the error that carries, as the next deepening of the
 reported SoC. The clean year's resnap figures move a little for it (the
 racks are under 100 % from day two), recorded below at the release.
 
+## M5 (v0.10.0): the trajectory against the bands
+
+Phase 4 PR1 turns the projected decade into a gate. The bands were
+written in the M5 design README on 2026-10-22, before the trajectory
+existed, and are carried in `crates/bess-bench/src/bands.rs`
+(`AGING_SOH_YEAR5`, `AGING_EFC_TO_80_PCT`); `bess-bench --check
+--years 10` runs the year, projects the decade, holds the trajectory to
+both bands and to the committed `calibration/m5-aging.json`, and CI
+runs exactly that in the calibration job.
+
+**The field band, 0.82 to 0.93 after five years, sourced and derived.**
+No public multi-year capacity record of a utility-scale LFP plant was
+found with a licence and a number (the public field-data surveys list
+grid-scale releases of NMC, lead-acid and second-life packs, and the
+operators' fleet studies are not public). The closest public measurement
+over years is Figgener et al., Nature Energy 9 (2024) 1438: 21 German
+home storage systems over up to eight years, the LFP systems losing 2.2
+percentage points of usable capacity a year by the field capacity tests
+(2.0 by the estimator) at about 200 cycles a year, 0.7 points per 100
+cycles, with a spread of about 2 points a year between similar systems.
+Scaling the cycle share to GW-01's 280 cycles (0.56 more points a year)
+and keeping the spread gives 1.5 to 3.5 points a year; five years of it
+is a state of health between 0.825 and 0.925, rounded outward. A home
+system is not a container plant (smaller cells, a living room's
+temperatures), which is why the band is this wide and why it is a
+**field band**, not a fleet record. **Measured: 0.891**, inside.
+
+**The laboratory band, 2,500 to 9,000 cycles to 80 %, sourced.** Preger
+et al., J. Electrochem. Soc. 167 (2020) 120532: LFP cells cycled at 15
+to 35 °C, 0.5C to 3C and three depth windows reached 80 % between 2,500
+and 9,000 equivalent full cycles. The gated condition is a rack at two
+cycles a day, 0.9 depth, 0.5C in a 25 °C container, the condition inside
+that matrix closest to a plant's. **Measured: 3,214 cycles**, inside.
+
+**Reported beside, not gated.** The EVE MB31 datasheet's 8,000 cycles to
+70 % against the model's 0.587 at 8,000 cycles (the section above); the
+35 °C laboratory rack's later crossing (3,612), the model's stated
+artifact. The M1 round-trip band holds for the aging year (0.8313 in
+0.80 to 0.85).
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);
@@ -2228,4 +2268,9 @@ racks are under 100 % from day two), recorded below at the release.
   the labeled estimates of the frequency, the grid code, reactive power,
   the control surface, the quarter-hour report, the products, the aFRR
   service, the EUR meter and the market participant's year).
-- **M5:** capacity fade inside published LFP field bands.
+- **M5:** capacity fade inside published LFP field bands (done, above:
+  0.891 after five projected years inside 0.82 to 0.93, the field band
+  derived from Figgener et al. 2024 before the number; the laboratory
+  rack's 3,214 cycles to 80 % inside Preger et al. 2020's 2,500 to
+  9,000; the four M5 sections carry the models, their constants and
+  limits, the typical day, the surfaces and the estimator finding).

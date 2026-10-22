@@ -15,12 +15,12 @@ Each decision is proposed here and confirmed or revised in its PR.
   to 3.5 points a year; five years of it is a state of health between
   0.825 and 0.925, rounded outward to 0.82 and 0.93. Named a field band
   because a home system is not a container plant, and the band's width
-  says so.
+  says so. *As built (PR1):* `AGING_SOH_YEAR5`; measured 0.891.
 - **D2, the laboratory band is Preger's range.** 2,500 to 9,000 cycles
   to 80 % across LFP cells at 15 to 35 °C, 0.5C to 3C and three
   depth windows; the two-cycle-a-day trajectory at 25 °C and 0.9 depth is
   the condition inside that matrix closest to a plant's, and its
-  crossing has to fall inside.
+  crossing has to fall inside. *As built (PR1):* `AGING_EFC_TO_80_PCT`; measured 3,214.
 - **D3, the datasheet claim is reported beside, not gated.** The EVE
   MB31's 8,000 cycles to 70 % is a test over about two years at 0.5P;
   the model's 8,000-cycle figure includes the calendar of the eleven
