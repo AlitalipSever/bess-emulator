@@ -21,6 +21,7 @@ pub fn render(kpis: &Kpis) -> String {
     write_estimator(&mut out, kpis);
     write_control(&mut out, kpis);
     write_revenue(&mut out, kpis);
+    write_aging(&mut out, kpis);
     out.push_str(END);
     out
 }
@@ -256,6 +257,27 @@ fn write_control(out: &mut String, kpis: &Kpis) {
         percent(c.availability_charge),
         percent(c.mean_abs_deviation_share),
         thousands_int(c.periods_over_frame)
+    );
+}
+
+fn write_aging(out: &mut String, kpis: &Kpis) {
+    let a = &kpis.aging;
+    let _ = write!(
+        out,
+        "How the racks aged over the run (gate: the M5 bands, phase 4): mean \
+         state of health {} at the end (worst rack {}, best {}), {} cycles \
+         per rack, {} lost to the calendar and {} to cycling, resistance up \
+         {}; the year's mean state of charge {} at a mean cell temperature \
+         of {:.1} °C.\n\n",
+        percent(a.soh_mean_end),
+        percent(a.soh_min_end),
+        percent(a.soh_max_end),
+        thousands(a.efc_mean),
+        percent(a.calendar_loss_mean),
+        percent(a.cycle_loss_mean),
+        percent(a.resistance_growth_mean),
+        percent(a.soc_mean),
+        a.cell_temp_mean_c
     );
 }
 

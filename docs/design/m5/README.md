@@ -127,6 +127,18 @@ Recorded in DATA-LICENSES.md before each lands:
 
 Filled as PRs land.
 
+- **The racks age** (phase 1 PR1). Every rack carries two capacity-loss
+  states and two resistance-growth states, advanced once per simulated
+  day from a stress ledger the tick fills (cycles, mean state of charge
+  and cell temperature, the day's depth and rate), by NREL BLAST-Lite's
+  large-format prismatic LFP capacity model and Naumann's resistance
+  laws (both BSD 3-Clause, the constants carried with attribution, the
+  resistance law labeled). The cell model delivers less capacity and
+  more resistance as they move; `site.soh_pct` (7) reads the racks. Each
+  rack's rate is its own (±10 %, labeled); the stored energy the fade
+  writes off is an `aging` row of the loss waterfall so the balance
+  closes. The annual record gains an `aging` section. Checkpoint 20.
+
 ## Open questions
 
 - Whether the daily aging step should fall on the run's day boundary

@@ -28,6 +28,14 @@ the order of the year's mean capacity loss, the residual stays at zero
 with the `aging_wh` row); the M1 round-trip band still holds for both
 years; CI green on both platforms.
 
+*As built (PR #58):* as the design's as-built notes say. Both PRs of the
+phase landed as one: `site.soh_pct` was a one-line change folded in
+here. The kernel's tick and the tree's constructor each crossed clippy's
+line bound and gained a helper (`step_blocks`, `new_blocks`). `exp_det`
+replaced the private `exp_rational` with an adaptive range reduction
+that takes the old path for arguments within one, so the thermal
+records did not move.
+
 ## PR2: `site.soh_pct` reads the racks
 
 - `map/site.rs`: point 7 computed from the racks; the map's contract

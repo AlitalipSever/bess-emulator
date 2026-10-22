@@ -18,6 +18,9 @@ use crate::state::SiteState;
 pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Current checkpoint format version.
 ///
+/// v20 (M5 phase 1): every rack carries its aging (the four states, its
+/// rate, the open stress ledger and the last closed day), and the energy
+/// books the stored energy capacity fade wrote off.
 /// v19 (M4 phase 3 PR1): the balancing awards in force, whether they were
 /// pinned by hand, and the FCR reservoir manager's state.
 /// v18 (M4 phase 2 PR1): the external limit with its revert timer and
@@ -66,7 +69,7 @@ pub const FORMAT_TAG: &str = "bess-checkpoint";
 /// Pre-1.0 checkpoints are not migrated; an older file is rejected with its
 /// version named rather than half-restored, since a missing item would
 /// otherwise restore as a plant whose auxiliary meters silently read zero.
-pub const FORMAT_VERSION: u32 = 19;
+pub const FORMAT_VERSION: u32 = 20;
 
 #[derive(Serialize, Deserialize)]
 struct Envelope {

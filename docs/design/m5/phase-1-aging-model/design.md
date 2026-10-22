@@ -5,6 +5,9 @@ Each decision is proposed here and confirmed or revised in its PR.
 ## Decisions
 
 - **D1, the capacity model is NREL's large-format prismatic LFP model.**
+  *As built (PR1):* `aging/nrel.rs::NrelLfp250::blast_lite_2023`, the
+  anode potential in `anode_potential_v`; the year-one figures held in
+  `year_one_at_the_design_stress`.
   Of the public LFP aging models with parameters a reader can check,
   two are identified on cells, not on a chemistry in the abstract:
   Naumann et al.'s Sony/Murata 26650 model (TUM, 2018 and 2020) and
@@ -32,7 +35,8 @@ Each decision is proposed here and confirmed or revised in its PR.
   (README) was derived to hold, derived from other sources. The
   alternative, a model of the project's own fitted on nothing, was not
   considered.
-- **D2, the resistance model is Naumann's**, because the NREL model
+- **D2, the resistance model is Naumann's**, (*as built (PR1):*
+  `aging/naumann.rs::NaumannResistance::simses`), because the NREL model
   publishes no resistance law. Calendar: `r_gain_cal += 3.4194e-10 *
   exp(-71827 / R * (1/T - 1/298.15)) * (-3.3903 * (soc - 0.5)^2 +
   1.5604) * dt_s`; cycle: `r_gain_cyc += (-0.0020 * c_rate + 0.0021) *
@@ -42,7 +46,10 @@ Each decision is proposed here and confirmed or revised in its PR.
   loss dominates and resistance is secondary (Figgener 2024) is the
   check the label leans on. The constants are the ones SimSES carries
   from the papers (BSD 3-Clause).
-- **D3, the cadence is a day, the ledger is sums.** The models are
+- **D3, the cadence is a day, the ledger is sums.** (*As built (PR1):*
+  `StressLedger` and `StressDay` in `bess-core/src/state/aging.rs`,
+  rates under 0.01C counted as rest as BLAST-Lite does; the pass in
+  `kernel/aging.rs` runs after the blocks step.) The models are
   identified on check-ups days apart and their rate coefficients are
   functions of window averages; evaluating them per tick would cost a
   transcendental call per rack per second for no information. The ledger
@@ -60,21 +67,27 @@ Each decision is proposed here and confirmed or revised in its PR.
   adds the loss that day would add at the trajectory's present point,
   not the loss of a fresh cell. A simple sum of daily rates was rejected
   because it restarts the square-root-like curve every day and
-  overstates the first years by a factor near two.
+  overstates the first years by a factor near two. *As built (PR1):*
+  `aging/power_law.rs::advance`; at a unit step the discretization is
+  under 2 % of the closed form at p = 0.526 and converges with the step.
 - **D5, the spread is a scalar per rack.** `rate_scale` drawn uniformly
   in [0.9, 1.1] at commissioning (labeled; the field study's spread
   between identical systems is about 2 percentage points a year on a
   2 mean, but it includes operation, which the ledger carries on its
   own). It multiplies every state's increment. The alternative, no
   spread, would make the SoH minimum equal the mean and the warning bit
-  raise on every rack at once, which no plant does.
+  raise on every rack at once, which no plant does. *As built (PR1):*
+  `RackAge::rate_scale` from a fourth PRNG stream (`AGING_STREAM` in
+  `state/init.rs`), so no earlier draw moved.
 - **D6, the lost stored energy is booked.** A capacity loss at constant
   state of charge lowers the stored-energy integral; the bench's residual
   gate would read it as unexplained energy. The daily close computes the
   stored energy before and after the state change and books the
   difference to an `aging_wh` row of the energy accounting, which the
   loss waterfall publishes beside the battery's heat. It is not a loss
-  in the heat sense and the record says so.
+  in the heat sense and the record says so. *As built (PR1):*
+  `EnergyAccounting::aging_wh`, `LossKpis::aging_mwh` ("Aging: capacity
+  written off"), on the loss side of the bench's residual.
 - **D7, `soh` stays the single truth.** The BMS reports it as it is;
   an estimator with error is named as a later deepening (the reported
   state of charge got one in M2.5, and the same pattern applies).
@@ -86,7 +99,7 @@ Each decision is proposed here and confirmed or revised in its PR.
 
 None in this phase beyond the value of `site.soh_pct` (7), which has
 read 100 since M0 and now reads the mean state of health of in-service
-racks in whole percent. Map 0.7.0 is cut in phase 3 with the additions.
+racks in whole percent. *As built (PR1):* `SiteState::average_soh`. Map 0.7.0 is cut in phase 3 with the additions.
 
 ## Checkpoint impact
 
@@ -94,6 +107,8 @@ Format 20: `RackState::age` (the four states, `rate_scale`, the ledger,
 `last_day`), `EnergyAccounting::aging_wh`. The library's records and the
 golden digest regenerate (the aging year moves every long case by its
 first days of fade; a one-hour case moves by the ledger fields only).
+*As built (PR1):* as designed; the golden digest moved to
+0x5750_152e_0a3e_abf4 and all twenty-one library records regenerated.
 
 ## Test plan
 

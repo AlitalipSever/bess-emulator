@@ -10,11 +10,13 @@ use crate::alarms::EventLog;
 use crate::kernel::{Awards, BreakerSequence, Event, ExternalLimit, KpiMeter, Reservoir, Weather};
 use crate::rng::Rng;
 
+pub mod aging;
 mod energy;
 mod init;
 mod plant;
 mod revenue;
 
+pub use aging::{RackAge, StressDay, StressLedger};
 pub use energy::{AuxEnergy, AuxPower, EnergyAccounting};
 pub use plant::{
     BlockMode, BlockState, ContainerState, HvacMode, HvacState, PcsOpState, PcsState, RackState,
@@ -376,6 +378,22 @@ impl SiteState {
         }
         if n == 0 {
             0.0
+        } else {
+            sum / f64::from(n)
+        }
+    }
+
+    /// Mean state of health over in-service racks, 0..1, or 1.0 when
+    /// none is in service (M5 phase 1): what `site.soh_pct` publishes.
+    pub fn average_soh(&self) -> f64 {
+        let mut sum = 0.0;
+        let mut n = 0u32;
+        for rack in self.racks().filter(|r| r.in_service) {
+            sum += rack.soh;
+            n += 1;
+        }
+        if n == 0 {
+            1.0
         } else {
             sum / f64::from(n)
         }

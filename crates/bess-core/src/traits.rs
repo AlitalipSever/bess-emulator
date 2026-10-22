@@ -6,6 +6,7 @@
 
 use crate::config::RackConfig;
 use crate::kernel::{Awards, Weather};
+use crate::state::aging::{RackAge, StressDay};
 use crate::state::{AuxPower, ContainerState, PcsState, RackState, SiteState, SubstationState};
 
 /// Result of stepping one rack for one tick.
@@ -46,6 +47,20 @@ pub trait CellModel: Send + Sync {
     /// curve over charge). Must be consistent with `step_rack`; the energy
     /// conservation invariant is checked against this.
     fn stored_energy_wh(&self, rack: &RackState, cfg: &RackConfig) -> f64;
+}
+
+/// How a day of stress ages one rack (M5 phase 1).
+///
+/// Called once per rack per closed stress ledger, never per tick: the
+/// published models are identified on check-ups days apart and take
+/// window averages. The model advances the four loss states of `age`
+/// from `day`; the kernel advances the counters (`days`, `efc`), writes
+/// `RackState::soh` from the states, and books the stored energy the
+/// fade wrote off.
+pub trait AgingModel: Send + Sync {
+    /// Advance the rack's capacity-loss and resistance-growth states by
+    /// one closed day of stress.
+    fn age_rack(&self, age: &mut RackAge, cfg: &RackConfig, day: &StressDay);
 }
 
 /// What one BMS step moved.
@@ -297,4 +312,6 @@ pub struct Models {
     pub aux: Box<dyn AuxiliaryModel>,
     /// Substation / grid coupling.
     pub grid: Box<dyn GridInterface>,
+    /// How the racks age (M5).
+    pub aging: Box<dyn AgingModel>,
 }

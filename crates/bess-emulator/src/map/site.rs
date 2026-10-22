@@ -66,7 +66,17 @@ pub(super) fn points() -> Vec<Point> {
             // What the BMSs report, not the kernel's truth (map 0.4.0).
             |s: &SiteState| s.average_soc_reported() * 100.0
         ),
-        point!("site.soh_pct", "%", Slow, U16, 100.0, 7, Input, |_| 100.0),
+        point!(
+            "site.soh_pct",
+            "%",
+            Slow,
+            U16,
+            100.0,
+            7,
+            Input,
+            // The racks' mean state of health (M5 phase 1); 100 until then.
+            |s: &SiteState| s.average_soh() * 100.0
+        ),
         point!(
             "site.available_discharge_kw",
             "kW",

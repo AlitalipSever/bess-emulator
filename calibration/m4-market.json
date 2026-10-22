@@ -9,25 +9,26 @@
     "market": true
   },
   "energy": {
-    "import_mwh": 69916.0,
-    "export_mwh": 61376.5,
-    "round_trip_efficiency": 0.8779,
-    "round_trip_efficiency_excluding_aux": 0.8942,
-    "equivalent_full_cycles": 305.9,
-    "stored_delta_mwh": 55.4,
-    "aux_share_of_import": 0.01827,
-    "aux_share_of_export": 0.02081,
-    "balance_residual_share": 3.5e-6
+    "import_mwh": 69538.8,
+    "export_mwh": 61015.8,
+    "round_trip_efficiency": 0.8774,
+    "round_trip_efficiency_excluding_aux": 0.8938,
+    "equivalent_full_cycles": 304.1,
+    "stored_delta_mwh": 51.2,
+    "aux_share_of_import": 0.01836,
+    "aux_share_of_export": 0.02092,
+    "balance_residual_share": 3.6e-6
   },
   "losses": {
-    "battery_mwh": 2766.7,
-    "pcs_mwh": 3176.8,
-    "transformer_mwh": 1263.9,
-    "aux_hvac_mwh": 752.3,
+    "battery_mwh": 2768.9,
+    "pcs_mwh": 3164.6,
+    "transformer_mwh": 1260.5,
+    "aux_hvac_mwh": 751.8,
     "aux_bms_mwh": 301.9,
     "aux_pcs_standby_mwh": 3.9,
     "aux_controls_mwh": 131.4,
-    "aux_lighting_and_safety_mwh": 87.6
+    "aux_lighting_and_safety_mwh": 87.6,
+    "aging_mwh": 1.6
   },
   "thermal": {
     "ambient_min_c": -12.1,
@@ -38,20 +39,20 @@
     "cell_max_c": 38.9
   },
   "hvac": {
-    "stage1_duty": 0.08157,
-    "stage2_duty": 0.00227,
-    "heat_duty": 0.01662,
-    "compressor_starts_per_container": 5912.4
+    "stage1_duty": 0.08147,
+    "stage2_duty": 0.00235,
+    "heat_duty": 0.01645,
+    "compressor_starts_per_container": 5930.1
   },
   "alarms": {
     "trips_raised": 0,
-    "warnings_raised": 710023,
+    "warnings_raised": 710326,
     "raised_by_alarm": {
-      "block.setpoint_not_met": 51600,
-      "rack.derate_active": 40541,
-      "rack.imbalance_warning": 47569,
-      "site.power_limited": 566193,
-      "site.schedule_deviation": 4120
+      "block.setpoint_not_met": 52110,
+      "rack.derate_active": 40689,
+      "rack.imbalance_warning": 48126,
+      "site.power_limited": 565299,
+      "site.schedule_deviation": 4102
     }
   },
   "periods": {
@@ -60,23 +61,34 @@
     "on_long_dst_day": 100
   },
   "estimator": {
-    "mean_abs_error_pct": 0.357,
-    "max_abs_error_pct": 2.21,
-    "corrections": 82784,
-    "corrections_per_rack_day": 0.473
+    "mean_abs_error_pct": 0.457,
+    "max_abs_error_pct": 3.64,
+    "corrections": 147654,
+    "corrections_per_rack_day": 0.843
   },
   "control": {
-    "availability_discharge": 0.9428,
-    "availability_charge": 0.9438,
-    "mean_abs_deviation_share": 0.09212,
-    "periods_over_frame": 14922
+    "availability_discharge": 0.9414,
+    "availability_charge": 0.9435,
+    "mean_abs_deviation_share": 0.09257,
+    "periods_over_frame": 14894
   },
   "revenue": {
-    "day_ahead_keur": 2849.8,
+    "day_ahead_keur": 2808.0,
     "capacity_keur": 9898.0,
     "afrr_energy_keur": 2047.6,
-    "imbalance_keur": -2059.8,
-    "total_keur": 12735.6,
-    "total_keur_per_mw": 127.36
+    "imbalance_keur": -2097.7,
+    "total_keur": 12655.8,
+    "total_keur_per_mw": 126.56
+  },
+  "aging": {
+    "soh_mean_end": 0.97626,
+    "soh_min_end": 0.97425,
+    "soh_max_end": 0.9783,
+    "efc_mean": 316.2,
+    "calendar_loss_mean": 0.00981,
+    "cycle_loss_mean": 0.01393,
+    "resistance_growth_mean": 0.02064,
+    "soc_mean": 0.4687,
+    "cell_temp_mean_c": 22.49
   }
 }
