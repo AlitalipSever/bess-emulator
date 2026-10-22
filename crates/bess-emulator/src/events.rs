@@ -67,6 +67,7 @@ pub fn topic(prefix: &str, event: &Event) -> String {
             format!("{prefix}events/site/substation/{}", switch.name())
         }
         Event::CommandRefused { .. } => format!("{prefix}events/site/command_refused"),
+        Event::FastForwarded { .. } => format!("{prefix}events/site/fast_forward"),
     }
 }
 
@@ -155,6 +156,13 @@ pub fn payload(event: &Event, seq: u64, ts: i64) -> Value {
             "event": "command_refused",
             "command": command,
             "name": ControlCommand::from_code(command).map(ControlCommand::name),
+        }),
+        Event::FastForwarded { days } => json!({
+            "seq": seq,
+            "ts": ts,
+            "node": "site",
+            "event": "fast_forward",
+            "days": days,
         }),
     }
 }

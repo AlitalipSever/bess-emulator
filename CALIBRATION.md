@@ -2102,6 +2102,71 @@ the end (1.39 % cycle loss: the market plant's days are shallower, its
 mean depth under the arbitrage plant's), 126.6 kEUR/MW, inside the M4
 band. The residual gate holds for both at the order it held before.
 
+## M5 (v0.10.0): the projected decade
+
+Phase 2 PR1 lets a run skip days. A ticked year leaves a stress year
+behind, one closed day per rack per day (`bess-core/src/kernel/
+stress_year.rs`), and `Simulation::fast_forward` replays it through the
+aging model alone: the racks age by their own rows, the clock moves,
+nothing is metered, one `fast_forward` event records it. The bench's
+`--years N` projects the measured year this way and publishes
+`calibration/m5-aging.json`; `--resimulate` ticks the physics instead.
+
+**The method, sourced.** Repeating a measured stress year through the
+model is how the NREL model is used by its authors (BLAST-Lite's
+standard run is a one-year stress profile repeated for the life, the
+states carried forward), so the projection is a method with a citation
+and not a shortcut. What it misses is the feedback: an aged rack
+cycles deeper for the same energy and its later years age a little
+faster. The gap is **not yet measured** here; `--resimulate` exists to
+measure it, over hours, and the figure will be added when a local run
+has produced it.
+
+**The typical day, labeled.** A plant aged at commissioning
+(`Simulation::new_aged`, the shell's `--age-years`, a file's
+`age_years`) repeats `StressDay::gw01_typical` per rack: 0.785 cycles a
+day (the clean year's 286.7 per rack), a mean state of charge of 0.46
+and 24 °C (the year's ledger means, 0.461 and 24.1), a depth of 0.8 and
+a rate of 0.5C (the day-ahead plan's nominal; the ledger's depth and
+rate are not in the annual record). Each rack's own rate applies, so
+the preset carries the spread. A five-year preset lands at a mean
+health of 0.89 with the racks 0.88 to 0.90
+(`a_plant_aged_at_commissioning`), the projected decade's own year five
+to the second digit.
+
+**The projected decade** (`calibration/m5-aging.json`, from the clean
+year's stress, engine 0.9.0 pre-release):
+
+| Year | Health, mean | Worst rack | Best rack | Cycles per rack | Resistance growth |
+|---|---|---|---|---|---|
+| 1 | 0.9674 | 0.9650 | 0.9700 | 287 | 2.0 % |
+| 2 | 0.9455 | 0.9417 | 0.9499 | 574 | 3.9 % |
+| 3 | 0.9261 | 0.9207 | 0.9322 | 860 | 5.9 % |
+| 5 | 0.8912 | 0.8827 | 0.9005 | 1,434 | 9.8 % |
+| 7 | 0.8592 | 0.8479 | 0.8715 | 2,007 | 13.8 % |
+| 10 | 0.8146 | 0.7993 | 0.8314 | 2,867 | 19.6 % |
+
+The curve is concave as the published trajectories are: 3.3 points in
+the first year, 1.5 in the tenth. The worst rack crosses 80 % in the
+tenth year, the mean does not. Against the bands written in the M5
+design README before the number: the year-five mean 0.891 sits inside
+the field band 0.82 to 0.93 (Figgener et al. 2024 scaled to the plant's
+cycles), and the gate itself lands in phase 4.
+
+**The laboratory trajectories**, one rack through the model alone at
+two cycles a day, 0.9 depth, 0.5C: at 25 °C the rack crosses 80 % at
+3,214 cycles (4.4 years), inside Preger et al. 2020's 2,500 to 9,000 for
+LFP cells; at 35 °C at 3,612 cycles (5.0 years), later and not sooner,
+because the NREL model's cycle term falls with temperature (the fit
+learned the inverse dependence to balance the calendar term, as its
+authors state) while its calendar term rises; at two cycles a day the
+cycle term dominates. A known limit of the model, named here rather
+than corrected. At 8,000 cycles the 25 °C rack is at 0.587 against the
+EVE MB31 datasheet's 70 %: the datasheet counts a two-year test, the
+model adds the calendar of the eleven years a plant takes to make them
+and is harsher per cycle than a modern 314 Ah cell's specification;
+reported beside, not gated.
+
 ## Planned gates (from ROADMAP.md)
 
 - **M1:** annual RTE in the 80-85% field band (CAISO/EPRI fleet reports);

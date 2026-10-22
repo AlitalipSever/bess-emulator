@@ -138,6 +138,19 @@ Filled as PRs land.
   rack's rate is its own (±10 %, labeled); the stored energy the fade
   writes off is an `aging` row of the loss waterfall so the balance
   closes. The annual record gains an `aging` section. Checkpoint 20.
+- **A run can skip days** (phase 2 PR1). A ticked year leaves a stress
+  year behind (one closed day per rack per day), and
+  `Simulation::fast_forward` replays it through the aging model alone:
+  the racks age, the clock moves, nothing is metered, one `fast_forward`
+  event records it. `Simulation::new_aged` builds a plant aged N years
+  at commissioning from a typical day (labeled); the shell's
+  `--age-years`, a scenario file's `age_years` (0 to 20), the headless
+  record's `age_years`. The bench's `--years N` projects the measured
+  year over a decade in a second and publishes
+  `calibration/m5-aging.json` (per year the mean, worst and best health,
+  the cycles, the resistance growth; two laboratory trajectories to the
+  80 % crossing and 8,000 cycles); `--resimulate` ticks the physics
+  instead. Checkpoint 20 widened (`skipped_days`).
 
 ## Open questions
 

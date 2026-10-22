@@ -86,6 +86,7 @@ pub(super) async fn load(
         seed: scenario.seed.unwrap_or(seed),
         start_unix_s: scenario.start_unix_s.unwrap_or(start_unix_s),
         speed: scenario.speed.unwrap_or(speed),
+        age_years: 0,
     };
     let resolved = Arc::new(scenario.resolve(params));
     let (reply, answer) = oneshot::channel();

@@ -32,6 +32,13 @@ pub enum Event {
         /// Its new position.
         closed: bool,
     },
+    /// The run skipped days through the aging model alone (M5 phase 2):
+    /// the racks aged by a stress year replayed, the clock moved, nothing
+    /// was metered.
+    FastForwarded {
+        /// Days skipped.
+        days: u64,
+    },
     /// A command-register command was refused between ticks (M4 phase 2
     /// PR1): the plant is unchanged, and a client that cannot read the
     /// refusal's body sees it on the event counter.

@@ -211,6 +211,7 @@ impl Session {
                 .start_unix_s
                 .unwrap_or_else(|| self.run.sim.unix_time_s()),
             speed: scenario.speed.unwrap_or(self.speed),
+            age_years: 0,
         };
         let taxonomy = scenario.taxonomy.map(bess_scenario::Taxonomy::name);
         let resolved = scenario.resolve(params);

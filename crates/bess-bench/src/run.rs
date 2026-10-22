@@ -6,7 +6,7 @@
 //! the plant would be measuring itself.
 
 use bess_core::state::HvacMode;
-use bess_core::{PlantConfig, Simulation, SiteState, TICK_SECONDS};
+use bess_core::{PlantConfig, Simulation, SiteState, StressYear, TICK_SECONDS};
 use bess_models::{gw01_market_models, gw01_models, gw01_weather};
 mod record;
 
@@ -49,6 +49,12 @@ pub struct RunSpec {
     /// The market participant's strategy in place of the day-ahead plan
     /// (M4 phase 4).
     pub market: bool,
+    /// Years to publish in the trajectory (M5 phase 2): the measured
+    /// year and `years - 1` more projected from its stress.
+    pub years: u32,
+    /// Tick the physics for the projected years instead of replaying
+    /// the stress year (hours; never in CI).
+    pub resimulate: bool,
 }
 
 impl Default for RunSpec {
@@ -58,6 +64,8 @@ impl Default for RunSpec {
             start_unix_s: DEFAULT_START_UNIX_S,
             days: DEFAULT_DAYS,
             market: false,
+            years: 1,
+            resimulate: false,
         }
     }
 }
@@ -220,6 +228,7 @@ pub type Measured = (
     Kpis,
     crate::series::StudySeries,
     Vec<crate::periods::ClosedPeriod>,
+    crate::aging::AgingTrajectory,
 );
 
 fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
@@ -239,6 +248,7 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
 
     let stored_start_wh = sim.stored_energy_wh();
     let ticks = spec.days * DAY_S / TICK_SECONDS;
+    let mut stress_year = StressYear::new(racks);
     let mut tallies = Tallies::new(containers);
     let mut alarms = crate::alarms::AlarmKpis::default();
     let mut estimator = crate::estimator::Tally::default();
@@ -264,6 +274,7 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
         }
         periods.observe(sim.state());
         series.observe(&sim, sim.unix_time_s());
+        stress_year.observe(sim.state());
         if (tick + 1) % (DAY_S / TICK_SECONDS) == 0 {
             progress((tick + 1) / (DAY_S / TICK_SECONDS), spec.days);
         }
@@ -309,7 +320,32 @@ fn measure(spec: RunSpec, mut progress: impl FnMut(u64, u64)) -> Measured {
         aging: tallies.aging(state),
     };
     let series = series.finish(&sim, kpis.run.clone());
-    (kpis, series, period_rows)
+
+    // The projection reads the year the record was taken on and runs
+    // after it, so nothing above can see it.
+    let years = crate::aging::project(&mut sim, &stress_year, spec.years, spec.resimulate, |sim| {
+        tick_days(sim, &weather, spec.days);
+    });
+    let trajectory = crate::aging::AgingTrajectory {
+        run: kpis.run.clone(),
+        method: if spec.resimulate {
+            "resimulated".to_owned()
+        } else {
+            "projected".to_owned()
+        },
+        years,
+        lab: crate::aging::lab_trajectories(&sim.config().rack),
+    };
+    (kpis, series, period_rows, trajectory)
+}
+
+/// Tick the plant for `days` without measuring: the physics year a
+/// `--resimulate` projection runs.
+fn tick_days(sim: &mut Simulation, weather: &bess_models::HistoricalWeather, days: u64) {
+    for _ in 0..days * DAY_S / TICK_SECONDS {
+        let inputs = weather.inputs_at(sim.unix_time_s());
+        sim.step(&inputs);
+    }
 }
 
 /// Read the loss meters. Every figure comes off an accumulator the kernel

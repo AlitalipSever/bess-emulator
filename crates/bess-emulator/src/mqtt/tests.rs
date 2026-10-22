@@ -264,6 +264,7 @@ events:
         seed: 7,
         start_unix_s: 1_767_225_600,
         speed: 1.0,
+        age_years: 0,
     };
     let resolved = load(STORY, &PlantConfig::gw01()).unwrap().resolve(params);
     let (handle, _sim) = sim::start(fixtures::tripped_plant(), 1.0, Some(resolved));

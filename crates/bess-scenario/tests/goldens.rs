@@ -164,6 +164,7 @@ fn the_example_resolves_to_a_pinned_schedule() {
         seed: s.seed.unwrap(),
         start_unix_s: s.start_unix_s.unwrap(),
         speed: s.speed.unwrap(),
+        age_years: 0,
     };
     let r = s.resolve(params);
     let order: Vec<(u64, usize)> = r.schedule.iter().map(|e| (e.tick, e.index)).collect();

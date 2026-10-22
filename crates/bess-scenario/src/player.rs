@@ -147,6 +147,7 @@ mod tests {
                 seed: 1,
                 start_unix_s: 0,
                 speed: 1.0,
+                age_years: 0,
             },
             ticks: None,
             schedule: ticks.iter().enumerate().map(|(i, &t)| at(i, t)).collect(),

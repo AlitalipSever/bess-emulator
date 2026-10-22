@@ -173,7 +173,13 @@ pub fn spawn(
     let models = gw01_models(&cfg);
     let sim = match &scenario {
         Some(resolved) => resolved.simulation(cfg, models),
-        None => Simulation::new(cfg, models, params.seed, params.start_unix_s),
+        None => Simulation::new_aged(
+            cfg,
+            models,
+            params.seed,
+            params.start_unix_s,
+            params.age_years,
+        ),
     };
     start_with(sim, params.speed, scenario, instrumented)
 }

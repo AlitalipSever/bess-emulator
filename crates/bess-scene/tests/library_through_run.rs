@@ -44,6 +44,7 @@ fn run_of(name: &str) -> (Run, u64) {
         seed: rec["seed"].as_u64().expect("seed"),
         start_unix_s: rec["start_unix_s"].as_i64().expect("start"),
         speed: 1.0,
+        age_years: 0,
     });
     let ticks = resolved.ticks.expect("a library case states its length");
     let models = gw01_models(&cfg);

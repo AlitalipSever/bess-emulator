@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::alarms::BlockSiteThresholds;
 use crate::config::PlantConfig;
+use crate::state::aging::StressDay;
 use crate::state::{
     AuxPower, BlockMode, BreakerState, EmsMode, PcsOpState, ReactiveMode, SiteState,
 };
@@ -29,6 +30,7 @@ mod reactive;
 mod restart;
 mod setpoint;
 mod startup;
+mod stress_year;
 mod switchgear;
 
 use block::{step_block, Scratch, TickContext};
@@ -44,6 +46,7 @@ use restart::dispatchable;
 pub use restart::ReturnPolicy;
 pub use setpoint::SetpointDynamics;
 pub use startup::StartupSequence;
+pub use stress_year::StressYear;
 pub use switchgear::{BreakerSequence, Switch, SwitchgearTimes};
 
 /// The weather one tick applies.
@@ -102,6 +105,44 @@ impl Simulation {
         Self::from_state(cfg, models, state)
     }
 
+    /// A plant aged `years` at commissioning (M5 phase 2): `new`, then the
+    /// typical day repeated through the aging model for every rack, the
+    /// clock left at `start_unix_s`. The age is in the racks, the calendar
+    /// is the run's; the event log carries the fast-forward.
+    pub fn new_aged(
+        cfg: PlantConfig,
+        models: Models,
+        seed: u64,
+        start_unix_s: i64,
+        years: u32,
+    ) -> Self {
+        let mut sim = Self::new(cfg, models, seed, start_unix_s);
+        if years > 0 {
+            let year = StressYear::repeated(sim.cfg.total_racks(), StressDay::gw01_typical());
+            sim.fast_forward(&year, 365 * u64::from(years));
+            sim.state.tick = 0;
+            sim.events.clear();
+        }
+        sim
+    }
+
+    /// Skip `days` through the aging model alone (M5 phase 2): the racks
+    /// age by `year` replayed row by row, the clock moves by the days,
+    /// nothing else in the tree moves and nothing is metered. One event
+    /// records it. Zero days is a no-op.
+    pub fn fast_forward(&mut self, year: &StressYear, days: u64) -> &[Event] {
+        self.events.clear();
+        if days == 0 {
+            return &self.events;
+        }
+        aging::fast_forward(&self.models, &self.cfg, &mut self.state, year, days);
+        self.state.tick += days * (crate::state::aging::DAY_S as u64) / TICK_SECONDS;
+        let event = Event::FastForwarded { days };
+        self.state.event_log.record(&event);
+        self.events.push(event);
+        &self.events
+    }
+
     /// Resume a simulation from an existing state tree (checkpoint restore).
     pub fn from_state(cfg: PlantConfig, models: Models, state: SiteState) -> Self {
         let racks_per_block = cfg.racks_per_block();
@@ -127,6 +168,12 @@ impl Simulation {
                 rack_heat: vec![0.0; racks_per_container],
             },
         }
+    }
+
+    /// Stamp the run's identity with the scenario it plays under, so a
+    /// checkpoint cannot continue under a different story.
+    pub fn stamp_scenario(&mut self, id: crate::state::ScenarioId) {
+        self.state.meta.scenario = Some(id);
     }
 
     /// Current state tree.

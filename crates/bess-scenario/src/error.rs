@@ -91,6 +91,9 @@ pub enum Reason {
     /// `speed` is outside the shell's clamp.
     #[error("speed {0} is outside 1 to 3600")]
     SpeedOutOfRange(f64),
+    /// `age_years` outside 0 to 20.
+    #[error("age_years {0} is outside 0 to 20")]
+    AgeOutOfRange(u32),
     /// An event names both a target and a surface.
     #[error("an event has a `target` (a physical fault) or a `surface` (a data fault), not both")]
     BothTargetAndSurface,

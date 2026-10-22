@@ -17,6 +17,10 @@ use crate::scenario::{DataFaultKind, Fault, Scenario, ScenarioEvent};
 use crate::schema::target::Target;
 use crate::schema::{duration, EventSpec, File};
 
+/// The oldest plant a file may ask for (M5 phase 2): past twenty years the
+/// models are extrapolating well beyond their data.
+pub const MAX_AGE_YEARS: u32 = 20;
+
 mod data;
 mod physical;
 
@@ -50,6 +54,11 @@ pub(crate) fn validate(
         })?),
         None => None,
     };
+    if let Some(age) = &file.age_years {
+        if age.value > MAX_AGE_YEARS {
+            return Err(at(age, Reason::AgeOutOfRange(age.value)));
+        }
+    }
     if let Some(speed) = &file.speed {
         if !(1.0..=3600.0).contains(&speed.value) {
             return Err(at(speed, Reason::SpeedOutOfRange(speed.value)));
@@ -111,6 +120,7 @@ pub(crate) fn validate(
         seed: file.seed,
         start_unix_s,
         speed: file.speed.map(|s| s.value),
+        age_years: file.age_years.map(|a| a.value),
         length_s,
         events,
     })

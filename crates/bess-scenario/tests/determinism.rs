@@ -59,6 +59,7 @@ fn resolved(bytes: &[u8]) -> Resolved {
         seed: s.seed.unwrap_or(42),
         start_unix_s: s.start_unix_s.unwrap_or(1_784_030_400),
         speed: 60.0,
+        age_years: 0,
     };
     s.resolve(params)
 }

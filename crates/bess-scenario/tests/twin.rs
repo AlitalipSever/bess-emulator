@@ -97,6 +97,7 @@ fn the_chain_played_from_a_file_is_the_chain_scripted() {
         seed: SEED,
         start_unix_s: JULY_AFTERNOON_S,
         speed: 60.0,
+        age_years: 0,
     });
     let mut file = hot_plant();
     let file_log = play(&mut file, &mut Player::new(&resolved), TICKS);

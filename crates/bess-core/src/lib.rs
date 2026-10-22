@@ -20,7 +20,7 @@ pub mod state;
 pub mod traits;
 
 pub use config::PlantConfig;
-pub use kernel::{Inputs, Simulation};
+pub use kernel::{Inputs, Simulation, StressYear};
 pub use state::SiteState;
 pub use traits::Models;
 

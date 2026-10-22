@@ -36,6 +36,24 @@ fn top_level_fields() {
     assert_eq!(e.reason, Reason::SpeedOutOfRange(5000.0));
     assert_eq!(e.position, Position::Line { line: 3, column: 8 });
 
+    // M5 phase 2: a plant older than the models' data is refused; twenty
+    // years is the edge and loads.
+    let e = refuse("schema: 1\nname: r\nage_years: 21\nevents: []\n");
+    assert_eq!(e.reason, Reason::AgeOutOfRange(21));
+    assert_eq!(
+        e.position,
+        Position::Line {
+            line: 3,
+            column: 12
+        }
+    );
+    let aged = load(
+        b"schema: 1\nname: r\nage_years: 20\nevents: []\n",
+        &PlantConfig::gw01(),
+    )
+    .expect("twenty years loads");
+    assert_eq!(aged.age_years, Some(20));
+
     for (start, why) in [
         (
             "2024-07-08T00:00:00+02:00",

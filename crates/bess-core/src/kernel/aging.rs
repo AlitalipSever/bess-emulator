@@ -7,9 +7,11 @@
 //! its terminals, and the waterfall says where it went.
 
 use crate::config::PlantConfig;
-use crate::state::aging::StressLedger;
+use crate::state::aging::{StressDay, StressLedger};
 use crate::state::SiteState;
 use crate::traits::Models;
+
+use super::StressYear;
 
 /// One tick of every rack's ledger, and the daily pass on the racks whose
 /// ledger is full. Returns how many racks aged this tick.
@@ -47,4 +49,40 @@ pub(super) fn observe_and_age(
     }
     state.energy.aging_wh += written_off_wh;
     aged
+}
+
+/// Skip `days` through the aging model alone (M5 phase 2): every rack
+/// ages by its own row of `year`, repeated, the typical day standing in
+/// for a rack the year has no row for; the counters advance, the ledger
+/// stays open where it was, the written-off energy is booked.
+pub(super) fn fast_forward(
+    models: &Models,
+    cfg: &PlantConfig,
+    state: &mut SiteState,
+    year: &StressYear,
+    days: u64,
+) {
+    let typical = [StressDay::gw01_typical()];
+    let mut written_off_wh = 0.0;
+    for (idx, rack) in state
+        .blocks
+        .iter_mut()
+        .flat_map(|b| b.containers.iter_mut())
+        .flat_map(|c| c.racks.iter_mut())
+        .enumerate()
+    {
+        let rows = year.rows(idx);
+        let rows = if rows.is_empty() { &typical[..] } else { rows };
+        let before_wh = models.cell.stored_energy_wh(rack, &cfg.rack);
+        for d in 0..days {
+            let day = &rows[(d as usize) % rows.len()];
+            models.aging.age_rack(&mut rack.age, &cfg.rack, day);
+            rack.age.days += day.days;
+            rack.age.efc += day.efc;
+        }
+        rack.soh = rack.age.soh();
+        rack.age.skipped_days += days as f64;
+        written_off_wh += before_wh - models.cell.stored_energy_wh(rack, &cfg.rack);
+    }
+    state.energy.aging_wh += written_off_wh;
 }
