@@ -73,8 +73,8 @@ fails if this block is stale.
 |---|---|---|---|---|
 | Annual round-trip efficiency at the POI | 80.00% to 85.00% (sourced) | 83.13% | inside | EIA-923 fleet average 82% (2019); NREL ATB 2024 design assumption 85% |
 | Auxiliary share of energy imported | 1.00% to 8.00% (sanity bound) | 2.88% | inside | no public dataset publishes this at plant scale; see the note below |
-| Reported SoC, mean absolute error (points) | 5.00% to 200.00% (sanity bound) | 34.20% | inside | no public rack-level estimator error at plant scale; see CALIBRATION.md |
-| Reported SoC, largest error on any rack (points) | 20.00% to 1500.00% (sanity bound) | 349.00% | inside | ACCURE 2025 ESS report field range, errors up to 15 points |
+| Reported SoC, mean absolute error (points) | 5.00% to 200.00% (sanity bound) | 25.40% | inside | no public rack-level estimator error at plant scale; see CALIBRATION.md |
+| Reported SoC, largest error on any rack (points) | 20.00% to 1500.00% (sanity bound) | 110.00% | inside | ACCURE 2025 ESS report field range, errors up to 15 points |
 
 Energy at the point of interconnection over the run:
 
@@ -134,7 +134,7 @@ Alarms raised over the run: 0 trips (gate: none), 40 923 warnings.
 
 Fiscal quarter-hours closed: 35 040 (gate: exactly 35 040), 92 on the 23-hour day and 100 on the 25-hour day (gates: 92 and 100).
 
-Reported SoC against the truth, over every rack: mean absolute error 0.342 points (gate: 0.05 to 2.00 points), largest 3.49 points (gate: 0.20 to 15.00 points); 387 343 corrections, 2.211 per rack and day.
+Reported SoC against the truth, over every rack: mean absolute error 0.254 points (gate: 0.05 to 2.00 points), largest 1.10 points (gate: 0.20 to 15.00 points); 106 989 corrections, 0.611 per rack and day.
 
 The quarter-hour report over the run: availability 56.67% to discharge and 65.55% to charge (gate: none, reported), mean absolute schedule deviation 7.87% of the rating, 3 358 closed periods over the 5 % frame.
 
@@ -2166,6 +2166,50 @@ EVE MB31 datasheet's 70 %: the datasheet counts a two-year test, the
 model adds the calendar of the eleven years a plant takes to make them
 and is harsher per cycle than a modern 314 Ah cell's specification;
 reported beside, not gated.
+
+## M5 (v0.10.0): health on the surfaces
+
+Phase 3 PR1 puts the plant's age and health on every surface: Modbus
+(`site.age_days`, `site.soh_min_pct`, `site.efc`,
+`site.resistance_growth_pct` at 100 to 104, `blockNN.soh_pct` at the
+extended range's `+ 9`, map 0.7.0), the REST summary, Prometheus, the
+scene's detail tables, and a rack warning bit.
+
+**The warning level, sourced.** Rack bit 7 `soh_low` raises below 80 %
+and clears above 81 %. Eighty percent is the level laboratory cycle-life
+figures are stated at (Preger et al. 2020, "cycles to 80 %") and the
+level home-storage warranties are commonly written at (Figgener et al.
+2024 discuss the aging reserve datasheets carry to meet it); the
+datasheet's own end of life (70 % for the EVE MB31) is a status the
+points show, not a bit. The 1 % hysteresis is a **labeled estimate**
+sized not to chatter on the daily pass. The worst rack of the projected
+decade crosses the level in year ten (the section above), so a fresh
+plant never raises it inside a library case and a twenty-year preset
+raises it on every rack.
+
+**The library case.** `aged-plant`: the hottest three days of the
+replayed year on a plant aged five years, nothing failing. The lesson
+held in `the_aged_plant_holds_less_than_the_fresh_one`: health between
+0.82 and 0.93 with no rack under 80 %, and the three days' export under
+98 % of the fresh plant's on the same file with its age taken out. The
+case is tagged `cell`, the cells being what aged; it is not a failure,
+and the EPRI share test still holds with it counted (bos 6, controls 7,
+cell 2 of 15 failure cases: 40, 47 and 13 % against the 43, 46 and 11 %
+snapshot). Twenty-two library records.
+
+**The BMS is told the state of health.** The M2.5 estimator counted
+charge against the nameplate capacity and named the state of health as
+"a second drift source that arrives with M5". It arrived: on the
+five-year-old plant a BMS kept counting on the nameplate ran away by
+the lost tenth every cycle and resnapped 11,312 times over the three
+days where the fresh plant resnapped 667 (the scratch count that found
+it, not a committed test). No real BMS does that; it carries a capacity
+estimate and corrects it. Phase 3 therefore gives the estimator the
+rack's state of health (design D7, the single truth), so the sawtooth
+stays the sensor's, and names an estimator that learns the capacity
+itself, with the error that carries, as the next deepening of the
+reported SoC. The clean year's resnap figures move a little for it (the
+racks are under 100 % from day two), recorded below at the release.
 
 ## Planned gates (from ROADMAP.md)
 

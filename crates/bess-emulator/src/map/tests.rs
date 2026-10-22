@@ -170,8 +170,11 @@ fn map_digest(points: &[Point]) -> u64 {
 /// 0xa433_e0d2_83ec_cebf), and phase 4's three switchgear points at
 /// site 52 to 54 (phase 3's digest was 0xbb46_67cc_ed0d_ea89), then
 /// PR2's transformer temperatures, tap position and MV bus voltage at 55
-/// to 58 (PR1's digest was 0x3a86_9434_da4c_d641).
-const MAP_DIGEST: u64 = 0xec63_8c00_1b9a_3c58;
+/// to 58 (PR1's digest was 0x3a86_9434_da4c_d641). Map 0.6.0 (M4) grew
+/// through its four phases to 0xec63_8c00_1b9a_3c58; map 0.7.0 (M5 phase
+/// 3) adds the plant's age and health at site 100 to 104 and the block's
+/// health at the extended range's `+ 9`.
+const MAP_DIGEST: u64 = 0x3f90_9bf8_48de_4896;
 
 /// A version number nobody is forced to move is decoration.
 ///

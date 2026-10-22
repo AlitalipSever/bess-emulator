@@ -59,6 +59,7 @@ a case is added or removed on the wrong side.
 | `clock-drift-and-nan` | controls | 8 h | MQTT timestamps run ahead and step back; two minutes of `NaN` payloads |
 | `curtailment-order` | controls | 1 h | a grid operator caps the plant at 60 % for forty minutes in the evening discharge: the walk down at 10 %/min, `external_limitation` raised and `power_limited` not, the revert and the walk back |
 | `rack-self-discharge-drift` | cell | 6 days | one leaking cell widens a rack's spread to the imbalance warning on day 5 |
+| `aged-plant` | cell | 3 days | the hottest days on a five-year-old plant: `site.soh_pct` at 89, every block's health its own, the evening export a few percent under the fresh plant's on the same days; nothing fails and no `soh_low` bit |
 | `dst-spring-forward` | calendar | 23 h | the short local day: 23 planned hours, 92 closed quarter-hours |
 | `dst-fall-back` | calendar | 25 h | the long local day: 25 planned hours, 100 closed quarter-hours, the 02:xx quarters twice |
 | `block-maintenance-window` | maintenance | 1 day | a block out for a working day, its standby tare gone, handed back at 16:00 |

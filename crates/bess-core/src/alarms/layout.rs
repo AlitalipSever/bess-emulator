@@ -21,6 +21,9 @@ pub mod rack {
     pub const DERATE_ACTIVE: u8 = 5;
     /// Rack disconnected from the DC bus. Mirrors `in_service`.
     pub const ISOLATED: u8 = 6;
+    /// State of health below the warranty level (80 %). Hysteresis (M5
+    /// phase 3).
+    pub const SOH_LOW: u8 = 7;
     /// Cell temperature at the hot limit. Latched.
     pub const OVER_TEMP_TRIP: u8 = 8;
     /// Cell voltage spread past the fault level. Latched.
@@ -37,6 +40,7 @@ pub mod rack {
         (IMBALANCE_WARNING, "imbalance_warning"),
         (DERATE_ACTIVE, "derate_active"),
         (ISOLATED, "isolated"),
+        (SOH_LOW, "soh_low"),
         (OVER_TEMP_TRIP, "over_temp_trip"),
         (IMBALANCE_TRIP, "imbalance_trip"),
         (UNDER_TEMP_TRIP, "under_temp_trip"),

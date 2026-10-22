@@ -272,6 +272,29 @@ fn bms_metrics(out: &mut String, s: &SiteState) {
         "Racks whose passive balancing resistors are on.",
         s.racks().filter(|r| r.balancing_active).count() as f64,
     );
+    // The plant's health and age (M5 phase 3).
+    labeled_metric(
+        out,
+        "bess_rack_soh",
+        "gauge",
+        "State of health of the racks, 0 to 1: the worst rack and the in-service mean.",
+        "stat",
+        &[("min", s.min_soh()), ("mean", s.average_soh())],
+    );
+    metric(
+        out,
+        "bess_site_age_days",
+        "gauge",
+        "Days since commissioning of the oldest rack, ticked or skipped.",
+        s.age_days(),
+    );
+    metric(
+        out,
+        "bess_rack_efc_mean",
+        "gauge",
+        "Mean equivalent full cycles per rack since commissioning.",
+        s.mean_efc(),
+    );
 }
 
 #[cfg(test)]

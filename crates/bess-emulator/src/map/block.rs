@@ -79,7 +79,7 @@ fn block_cell_dv_max_v(block: &BlockState) -> f64 {
 /// Block `b`'s telemetry points. Its alarm points live in `alarms`.
 #[allow(clippy::too_many_lines)]
 pub(super) fn points(b: usize) -> Vec<Point> {
-    use Class::{Fast, Medium};
+    use Class::{Fast, Medium, Slow};
     use Encoding::{I16, U16};
     use Space::Input;
 
@@ -264,6 +264,18 @@ pub(super) fn points(b: usize) -> Vec<Point> {
             ext + 8,
             Input,
             move |s: &SiteState| s.blocks[b].pcs.q_var / 1000.0
+        ),
+        // The block's health (M5 phase 3): its in-service racks' mean
+        // state of health, tenths of a percent, exact.
+        point!(
+            format!("{prefix}.soh_pct"),
+            "%",
+            Slow,
+            U16,
+            10.0,
+            ext + 9,
+            Input,
+            move |s: &SiteState| s.blocks[b].average_soh() * 100.0
         ),
         // The spread, in millivolts so a u16 covers it at 1 mV. The state
         // keeps volts like every other voltage in the tree; the unit change

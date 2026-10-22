@@ -399,6 +399,27 @@ impl SiteState {
         }
     }
 
+    /// Lowest state of health on site, or 1.0 without racks (M5 phase 3).
+    pub fn min_soh(&self) -> f64 {
+        self.racks().map(|r| r.soh).fold(1.0, f64::min)
+    }
+
+    /// Age of the oldest rack, days since commissioning, ticked or skipped
+    /// (M5 phase 3).
+    pub fn age_days(&self) -> f64 {
+        self.racks().map(|r| r.age.days).fold(0.0, f64::max)
+    }
+
+    /// Mean equivalent full cycles per rack since commissioning (M5 phase 3).
+    pub fn mean_efc(&self) -> f64 {
+        mean(self.racks().map(|r| r.age.efc))
+    }
+
+    /// Mean resistance growth over racks, fraction (M5 phase 3).
+    pub fn mean_resistance_growth(&self) -> f64 {
+        mean(self.racks().map(|r| r.age.resistance_growth()))
+    }
+
     /// Iterator over every rack on site.
     pub fn racks(&self) -> impl Iterator<Item = &RackState> {
         self.blocks
@@ -458,6 +479,24 @@ impl BlockState {
         }
     }
 
+    /// Mean state of health over this block's in-service racks, or 1.0
+    /// when none is in service (M5 phase 3).
+    pub fn average_soh(&self) -> f64 {
+        let mut sum = 0.0;
+        let mut n = 0u32;
+        for rack in self.containers.iter().flat_map(|c| c.racks.iter()) {
+            if rack.in_service {
+                sum += rack.soh;
+                n += 1;
+            }
+        }
+        if n == 0 {
+            1.0
+        } else {
+            sum / f64::from(n)
+        }
+    }
+
     /// Minimum and maximum representative cell temperature in this block.
     pub fn cell_temp_min_max_c(&self) -> (f64, f64) {
         let mut min = f64::INFINITY;
@@ -471,5 +510,15 @@ impl BlockState {
         } else {
             (min, max)
         }
+    }
+}
+
+/// Arithmetic mean of an iterator, zero when empty.
+fn mean(values: impl Iterator<Item = f64>) -> f64 {
+    let (sum, n) = values.fold((0.0, 0u32), |(s, n), v| (s + v, n + 1));
+    if n == 0 {
+        0.0
+    } else {
+        sum / f64::from(n)
     }
 }

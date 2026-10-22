@@ -76,11 +76,15 @@ impl Estimator {
             rack.soc_reported = rack.soc;
             return None;
         }
-        // Coulomb counting through the sensor. The BMS counts against the
-        // nameplate capacity: it does not know the rack's state of health,
-        // which is a second drift source that arrives with M5.
+        // Coulomb counting through the sensor, against the capacity the
+        // rack has: the BMS is given the state of health (M5 phase 3,
+        // design D7), since a BMS kept counting on the nameplate resnaps
+        // every cycle on an aged rack (CALIBRATION.md, the aged plant). An
+        // estimator that learns the capacity itself, with the error that
+        // carries, is the next deepening of this file.
         let i_meas_a = rack.current_a * rack.sensor_gain + rack.sensor_offset_a;
-        let mut est = rack.soc_reported - i_meas_a * dt_s / (3600.0 * cfg.cell_capacity_ah);
+        let capacity_ah = cfg.cell_capacity_ah * rack.soh;
+        let mut est = rack.soc_reported - i_meas_a * dt_s / (3600.0 * capacity_ah);
         // The plateau's feeble voltage correction.
         est += self.plateau_pull_per_s * dt_s * (rack.soc - est);
         est = est.clamp(0.0, 1.0);

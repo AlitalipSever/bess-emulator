@@ -27,7 +27,7 @@ fn played(name: &str) -> (Simulation, Vec<(u64, Event)>) {
         seed: scenario.seed.expect("a seed"),
         start_unix_s: scenario.start_unix_s.expect("a start"),
         speed: 60.0,
-        age_years: 0,
+        age_years: scenario.age_years.unwrap_or(0),
     });
     let mut sim = resolved.simulation(cfg.clone(), gw01_models(&cfg));
     let mut player = Player::new(&resolved);
@@ -380,4 +380,49 @@ fn the_afrr_day_serves_both_directions_and_rests_at_the_clear() {
     );
     assert!(!st.ems.awards_pinned);
     assert_eq!(st.ems.afrr_followed_w, 0.0);
+}
+
+/// The aged plant (M5 phase 3): five years old, its health in the design's
+/// band with the racks spread, no rack below the warranty level, and the
+/// same three days exporting less than the fresh plant does.
+#[test]
+fn the_aged_plant_holds_less_than_the_fresh_one() {
+    let (aged, log) = played("aged-plant");
+    let state = aged.state();
+    let mean = state.average_soh();
+    assert!(mean > 0.82 && mean < 0.93, "mean health {mean}");
+    assert!(state.min_soh() > 0.80, "worst rack {}", state.min_soh());
+    assert!(state.age_days() > 1825.0 && state.age_days() < 1829.0);
+    assert!(
+        !log.iter().any(|(_, e)| matches!(
+            e,
+            Event::AlarmRaised { node: AlarmNode::Rack { .. }, bit, .. } if *bit == r::SOH_LOW
+        )),
+        "no rack is below the warranty level"
+    );
+
+    // The fresh plant on the same days, the same file with its age taken out.
+    let cfg = PlantConfig::gw01();
+    let scenario = library::find("aged-plant")
+        .expect("in the library")
+        .load(&cfg)
+        .expect("loads");
+    let ticks = scenario.length_s.expect("a length");
+    let resolved = scenario.clone().resolve(RunParams {
+        seed: scenario.seed.expect("a seed"),
+        start_unix_s: scenario.start_unix_s.expect("a start"),
+        speed: 60.0,
+        age_years: 0,
+    });
+    let mut fresh = resolved.simulation(cfg.clone(), gw01_models(&cfg));
+    let mut player = Player::new(&resolved);
+    play(&mut fresh, &mut player, ticks);
+    let (aged_export, fresh_export) = (
+        state.substation.export_wh,
+        fresh.state().substation.export_wh,
+    );
+    assert!(
+        aged_export < 0.98 * fresh_export,
+        "aged {aged_export} Wh against fresh {fresh_export} Wh"
+    );
 }

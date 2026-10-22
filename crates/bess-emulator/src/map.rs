@@ -53,7 +53,7 @@ pub(crate) use encode::write_point;
 /// charge to what the BMSs report, which drifts and snaps. No address moved.
 /// 0.5.0 is M3's: an addition first (`blockNN.pcs.dc_voltage_v`, phase 1),
 /// then the major step phase 2 brings to `blockNN.pcs.state`.
-pub const MAP_VERSION: &str = "0.6.0";
+pub const MAP_VERSION: &str = "0.7.0";
 
 /// Register space a point lives in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

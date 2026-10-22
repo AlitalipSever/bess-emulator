@@ -81,11 +81,16 @@ fn summary_value(snap: &Snapshot) -> serde_json::Value {
         "day_ahead_price_eur_mwh": bess_models::gw01_day_ahead_price_eur_mwh(state.unix_time_s()),
         "available_discharge_w": state.ems.available_discharge_w,
         "available_charge_w": state.ems.available_charge_w,
+        // The plant's age and health (M5 phase 3), exact.
+        "age_days": state.age_days(),
+        "soh_mean": state.average_soh(),
+        "soh_min": state.min_soh(),
         "alarm_bits": state.alarm_bits,
         "event_count": state.event_log.count,
         "blocks": state.blocks.iter().map(|b| json!({
             "p_ac_w": b.pcs.p_ac_w,
             "soc": b.average_soc_reported(),
+            "soh": b.average_soh(),
             "mode": crate::map::block_mode_code(b.mode),
             // Named as on Modbus and MQTT, where `blockNN.alarm_bits` is
             // the rack fold and this word is `block_alarm_bits`.
