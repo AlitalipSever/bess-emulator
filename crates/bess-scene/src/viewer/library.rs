@@ -114,6 +114,7 @@ mod tests {
             seed: 42,
             start_unix_s: 0,
             speed: 60.0,
+            age_years: 0,
         });
         let view = story_view(&resolved, case.headline(), Some("bos"));
         assert_eq!(view.name, "pcs-trip-and-reset");

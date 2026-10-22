@@ -27,6 +27,7 @@ fn played(name: &str) -> (Simulation, Vec<(u64, Event)>) {
         seed: scenario.seed.expect("a seed"),
         start_unix_s: scenario.start_unix_s.expect("a start"),
         speed: 60.0,
+        age_years: 0,
     });
     let mut sim = resolved.simulation(cfg.clone(), gw01_models(&cfg));
     let mut player = Player::new(&resolved);

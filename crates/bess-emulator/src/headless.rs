@@ -41,6 +41,11 @@ pub struct Record {
     pub event_log: EventLog,
     /// Quarter-hours the fiscal meter closed.
     pub revenue_periods_closed: u32,
+    /// Years the plant was aged at commissioning (M5 phase 2); absent on
+    /// a fresh plant. The age is in the tree the digest covers; the field
+    /// says why the digest is what it is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub age_years: Option<u32>,
     /// FNV-1a 64 of the replayed frequency year's samples when one was
     /// attached (`--frequency`, M4 phase 1); absent on the synthetic
     /// series. A record made with a file is reproducible by whoever holds
@@ -101,6 +106,7 @@ pub fn run(resolved: &Resolved) -> Result<Record, String> {
             digest: hex(state.event_log.digest),
         },
         revenue_periods_closed: state.substation.revenue.periods_closed,
+        age_years: (resolved.params.age_years > 0).then_some(resolved.params.age_years),
         frequency: weather.frequency().map(|year| hex(year.hash())),
         balancing: bess_models::replayed_balancing().map(|year| hex(year.hash())),
         afrr: weather.afrr().map(|year| hex(year.hash())),
@@ -165,6 +171,11 @@ fn differences(recorded: &Record, got: &Record) -> Vec<(&'static str, String, St
         got.start_unix_s.to_string(),
     );
     field("ticks", recorded.ticks.to_string(), got.ticks.to_string());
+    field(
+        "age_years",
+        format!("{:?}", recorded.age_years),
+        format!("{:?}", got.age_years),
+    );
     field(
         "state_digest",
         recorded.state_digest.clone(),

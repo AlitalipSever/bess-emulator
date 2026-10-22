@@ -60,6 +60,11 @@ pub fn resolve(args: &Args, scenario: Option<&Scenario>) -> Result<RunParams, Pr
             ("speed", scenario.and_then(|s| s.speed)),
             DEFAULT_SPEED,
         )?,
+        age_years: pick(
+            ("--age-years", args.age_years),
+            ("age_years", scenario.and_then(|s| s.age_years)),
+            0,
+        )?,
     })
 }
 
@@ -109,6 +114,7 @@ mod tests {
             seed: 42,
             start_unix_s: 1_720_396_800,
             speed: 60.0,
+            age_years: 0,
         };
         assert_eq!(resolve(&args(&[]), Some(&file)), Ok(from_file));
 
@@ -119,6 +125,7 @@ mod tests {
                 seed: 7,
                 start_unix_s: 100,
                 speed: 3600.0,
+                age_years: 0,
             })
         );
 
@@ -151,6 +158,7 @@ mod tests {
                 seed: DEFAULT_SEED,
                 start_unix_s: DEFAULT_START_UNIX_S,
                 speed: DEFAULT_SPEED,
+                age_years: 0,
             })
         );
     }
@@ -166,6 +174,7 @@ mod tests {
                 seed: 9,
                 start_unix_s: DEFAULT_START_UNIX_S,
                 speed: 600.0,
+                age_years: 0,
             })
         );
         let speed_only = scenario("speed: 1\n");
@@ -175,6 +184,7 @@ mod tests {
                 seed: 42,
                 start_unix_s: DEFAULT_START_UNIX_S,
                 speed: 1.0,
+                age_years: 0,
             })
         );
     }

@@ -31,6 +31,12 @@ pub struct Args {
     #[arg(long)]
     pub speed: Option<f64>,
 
+    /// Start from a plant aged this many years at commissioning (M5 phase
+    /// 2): every rack projected through the aging model over the typical
+    /// day, 0 to 20. A scenario that states `age_years` wins.
+    #[arg(long, value_name = "YEARS")]
+    pub age_years: Option<u32>,
+
     /// Scenario file to play from tick 0 (YAML, schema 1). Its seed, start
     /// and speed, where it states them, are the run's.
     #[arg(long, value_name = "PATH")]

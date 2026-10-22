@@ -30,6 +30,9 @@ pub struct RunParams {
     pub start_unix_s: i64,
     /// Simulated seconds per wall second.
     pub speed: f64,
+    /// Years the plant is aged at commissioning (M5 phase 2); zero is a
+    /// fresh plant.
+    pub age_years: u32,
 }
 
 /// A scenario fixed for one run: identity, parameters and the schedule.
@@ -161,9 +164,15 @@ impl Resolved {
     /// A fresh simulation at the run's seed and start, its tree naming this
     /// scenario.
     pub fn simulation(&self, cfg: PlantConfig, models: Models) -> Simulation {
-        let mut state = SiteState::new(&cfg, self.params.seed, self.params.start_unix_s);
-        state.meta.scenario = Some(self.id.clone());
-        Simulation::from_state(cfg, models, state)
+        let mut sim = Simulation::new_aged(
+            cfg,
+            models,
+            self.params.seed,
+            self.params.start_unix_s,
+            self.params.age_years,
+        );
+        sim.stamp_scenario(self.id.clone());
+        sim
     }
 
     /// Resume a checkpointed tree under this scenario, refusing one taken

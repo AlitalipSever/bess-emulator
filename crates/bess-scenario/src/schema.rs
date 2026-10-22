@@ -32,6 +32,9 @@ pub(crate) struct File {
     pub start: Option<Spanned<String>>,
     #[serde(default)]
     pub speed: Option<Spanned<f64>>,
+    /// Years the plant is aged at commissioning (M5 phase 2), 0 to 20.
+    #[serde(default)]
+    pub age_years: Option<Spanned<u32>>,
     #[serde(default)]
     pub length: Option<Spanned<String>>,
     pub events: Vec<Spanned<EventSpec>>,

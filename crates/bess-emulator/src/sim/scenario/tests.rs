@@ -38,6 +38,7 @@ fn active() -> Active {
         seed: 7,
         start_unix_s: 0,
         speed: 60.0,
+        age_years: 0,
     };
     let points = Arc::new(map::build_points(&cfg));
     Active::new(Arc::new(scenario.resolve(params)), points)
@@ -167,6 +168,7 @@ events:
         seed: 7,
         start_unix_s: 0,
         speed: 60.0,
+        age_years: 0,
     };
     let weather = gw01_weather();
     let run = |text: String| {

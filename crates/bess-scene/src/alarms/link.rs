@@ -32,7 +32,8 @@ pub fn object_of_event(event: &Event) -> Selection {
         Event::PcsStateChanged { block, .. } => Selection::Pcs { block },
         Event::BreakerSequenceChanged { .. }
         | Event::SwitchOperated { .. }
-        | Event::CommandRefused { .. } => Selection::Transformer,
+        | Event::CommandRefused { .. }
+        | Event::FastForwarded { .. } => Selection::Transformer,
         Event::SocResnapped {
             block, container, ..
         } => Selection::Container { block, container },

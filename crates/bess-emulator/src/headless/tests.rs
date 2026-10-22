@@ -30,6 +30,7 @@ fn digest(text: &str) -> Result<Record, String> {
         seed: scenario.seed.unwrap_or(42),
         start_unix_s: scenario.start_unix_s.unwrap_or(0),
         speed: 60.0,
+        age_years: 0,
     };
     run(&scenario.resolve(params))
 }

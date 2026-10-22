@@ -27,6 +27,7 @@ fn test_params() -> RunParams {
         seed: 42,
         start_unix_s: 1_767_225_600,
         speed: sim::MAX_SPEED,
+        age_years: 0,
     }
 }
 

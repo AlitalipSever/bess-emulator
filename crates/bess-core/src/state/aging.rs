@@ -137,6 +137,24 @@ pub struct StressDay {
     pub c_rate: f64,
 }
 
+impl StressDay {
+    /// The GW-01 plant's typical day, for a plant aged at commissioning
+    /// (M5 phase 2 design D3): the clean year's ledger means rounded
+    /// (0.785 cycles a day, a mean state of charge of 0.46, 24 °C) and
+    /// the day-ahead plan's nominal depth and rate (0.8, 0.5C), labeled
+    /// in CALIBRATION.md.
+    pub const fn gw01_typical() -> Self {
+        Self {
+            days: 1.0,
+            efc: 0.785,
+            soc_mean: 0.46,
+            temp_k_mean: 297.25,
+            dod: 0.8,
+            c_rate: 0.5,
+        }
+    }
+}
+
 /// A rack's aging: two capacity-loss states and two resistance-growth
 /// states, its own rate, its open ledger and its last closed day.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -162,6 +180,11 @@ pub struct RackAge {
     /// The last closed day, kept for an observer that collects a stress
     /// year (phase 2); `None` before the first close.
     pub last_day: Option<StressDay>,
+    /// Days the rack aged without being ticked (a fast-forward or a
+    /// pre-aged preset, M5 phase 2), so a record can say which of its
+    /// days were metered. Inside `days`.
+    #[serde(default)]
+    pub skipped_days: f64,
 }
 
 impl RackAge {
@@ -177,6 +200,7 @@ impl RackAge {
             rate_scale,
             ledger: StressLedger::default(),
             last_day: None,
+            skipped_days: 0.0,
         }
     }
 

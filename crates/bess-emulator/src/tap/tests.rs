@@ -52,6 +52,7 @@ fn taps() -> (Taps, Vec<Point>) {
         seed: 1,
         start_unix_s: 0,
         speed: 1.0,
+        age_years: 0,
     };
     let resolved = load(STORY, &cfg).unwrap().resolve(params);
     (Taps::new(&resolved, &points), points)

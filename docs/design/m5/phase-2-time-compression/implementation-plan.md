@@ -26,6 +26,12 @@ Accept: the phase's tests pass; the bench's `--years 10` finishes in
 under a minute after the year on the CI runner; the annual record does
 not move (a projection reads the year, it does not change it); CI green.
 
+*As built (PR #59):* as the design's as-built notes say. The golden
+digest moved to 0xb468_2140_6b23_a368 and the library records
+regenerated for `skipped_days` in the tree. `--years` is accepted beside
+`--write` and `--check` (it does not change the published run); the
+projection of nine more years took under a second after the year.
+
 ## Open questions
 
 - Whether `--resimulate` should carry the aged racks through a

@@ -1,0 +1,116 @@
+{
+  "run": {
+    "site_id": "GW-01",
+    "engine_version": "0.9.0",
+    "seed": 7,
+    "start_unix_s": 1767225600,
+    "days": 365,
+    "ticks": 31536000,
+    "market": false
+  },
+  "method": "projected",
+  "years": [
+    {
+      "year": 1,
+      "soh_mean": 0.96741,
+      "soh_min": 0.96503,
+      "soh_max": 0.96998,
+      "efc_mean": 286.7,
+      "resistance_growth_mean": 0.01964
+    },
+    {
+      "year": 2,
+      "soh_mean": 0.94553,
+      "soh_min": 0.94165,
+      "soh_max": 0.94986,
+      "efc_mean": 573.5,
+      "resistance_growth_mean": 0.03929
+    },
+    {
+      "year": 3,
+      "soh_mean": 0.92613,
+      "soh_min": 0.92065,
+      "soh_max": 0.93216,
+      "efc_mean": 860.2,
+      "resistance_growth_mean": 0.05893
+    },
+    {
+      "year": 4,
+      "soh_mean": 0.90816,
+      "soh_min": 0.90115,
+      "soh_max": 0.91584,
+      "efc_mean": 1146.9,
+      "resistance_growth_mean": 0.07858
+    },
+    {
+      "year": 5,
+      "soh_mean": 0.89115,
+      "soh_min": 0.88267,
+      "soh_max": 0.90045,
+      "efc_mean": 1433.6,
+      "resistance_growth_mean": 0.09822
+    },
+    {
+      "year": 6,
+      "soh_mean": 0.87487,
+      "soh_min": 0.86497,
+      "soh_max": 0.88572,
+      "efc_mean": 1720.4,
+      "resistance_growth_mean": 0.11787
+    },
+    {
+      "year": 7,
+      "soh_mean": 0.85916,
+      "soh_min": 0.84788,
+      "soh_max": 0.87154,
+      "efc_mean": 2007.1,
+      "resistance_growth_mean": 0.13751
+    },
+    {
+      "year": 8,
+      "soh_mean": 0.84393,
+      "soh_min": 0.83129,
+      "soh_max": 0.85779,
+      "efc_mean": 2293.8,
+      "resistance_growth_mean": 0.15716
+    },
+    {
+      "year": 9,
+      "soh_mean": 0.82909,
+      "soh_min": 0.81513,
+      "soh_max": 0.84441,
+      "efc_mean": 2580.6,
+      "resistance_growth_mean": 0.1768
+    },
+    {
+      "year": 10,
+      "soh_mean": 0.8146,
+      "soh_min": 0.79934,
+      "soh_max": 0.83135,
+      "efc_mean": 2867.3,
+      "resistance_growth_mean": 0.19645
+    }
+  ],
+  "lab": [
+    {
+      "label": "two cycles a day at 25 °C",
+      "temp_c": 25.0,
+      "efc_per_day": 2.0,
+      "dod": 0.9,
+      "c_rate": 0.5,
+      "efc_to_80_pct": 3214.0,
+      "years_to_80_pct": 4.4,
+      "soh_at_8000_efc": 0.5867
+    },
+    {
+      "label": "two cycles a day at 35 °C",
+      "temp_c": 35.0,
+      "efc_per_day": 2.0,
+      "dod": 0.9,
+      "c_rate": 0.5,
+      "efc_to_80_pct": 3612.0,
+      "years_to_80_pct": 4.95,
+      "soh_at_8000_efc": 0.6332
+    }
+  ]
+}

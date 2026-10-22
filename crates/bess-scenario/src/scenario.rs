@@ -27,6 +27,9 @@ pub struct Scenario {
     pub start_unix_s: Option<i64>,
     /// The speed the file states, if any.
     pub speed: Option<f64>,
+    /// The years the plant is aged at commissioning, if the file states
+    /// them (M5 phase 2).
+    pub age_years: Option<u32>,
     /// How long the story is, seconds, when the file says: what a headless
     /// run plays before it takes the digest.
     pub length_s: Option<u64>,

@@ -17,6 +17,7 @@ pub fn kind(event: &Event) -> &'static str {
         Event::BreakerSequenceChanged { .. } => "breaker_sequence",
         Event::SwitchOperated { .. } => "switch",
         Event::CommandRefused { .. } => "command_refused",
+        Event::FastForwarded { .. } => "fast_forward",
     }
 }
 
@@ -39,7 +40,8 @@ pub fn node_path(event: &Event) -> String {
         .path(),
         Event::BreakerSequenceChanged { .. }
         | Event::SwitchOperated { .. }
-        | Event::CommandRefused { .. } => AlarmNode::Site.path(),
+        | Event::CommandRefused { .. }
+        | Event::FastForwarded { .. } => AlarmNode::Site.path(),
     }
 }
 
@@ -68,6 +70,7 @@ pub fn what(event: &Event) -> String {
             if *closed { "closed" } else { "opened" }
         ),
         Event::CommandRefused { command } => format!("command {command} refused"),
+        Event::FastForwarded { days } => format!("{days} days skipped through the aging model"),
     }
 }
 
@@ -82,7 +85,8 @@ pub fn severity(event: &Event) -> Option<Severity> {
         | Event::SocResnapped { .. }
         | Event::BreakerSequenceChanged { .. }
         | Event::SwitchOperated { .. }
-        | Event::CommandRefused { .. } => None,
+        | Event::CommandRefused { .. }
+        | Event::FastForwarded { .. } => None,
     }
 }
 
@@ -96,7 +100,8 @@ pub fn block(event: &Event) -> Option<usize> {
         Event::FaultApplied(action) => fault_block(action),
         Event::BreakerSequenceChanged { .. }
         | Event::SwitchOperated { .. }
-        | Event::CommandRefused { .. } => None,
+        | Event::CommandRefused { .. }
+        | Event::FastForwarded { .. } => None,
     }
 }
 

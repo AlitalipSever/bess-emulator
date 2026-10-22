@@ -15,6 +15,7 @@
 //! cargo run --release -p bess-bench -- --periods p.csv # every closed quarter-hour, as CSV
 //! ```
 
+mod aging;
 mod alarms;
 mod bands;
 mod estimator;
@@ -36,6 +37,8 @@ const RECORD_PATH: &str = "calibration/m1-annual.json";
 /// The market participant's year (M4 phase 4): its own record, no series
 /// and no generated block, the revenue band as its gate.
 const MARKET_RECORD_PATH: &str = "calibration/m4-market.json";
+/// The projected decade (M5 phase 2).
+const TRAJECTORY_PATH: &str = "calibration/m5-aging.json";
 /// Document carrying the generated block.
 const CALIBRATION_PATH: &str = "CALIBRATION.md";
 /// Committed chart material: the year month by month, and one hard week.
@@ -88,6 +91,22 @@ struct Cli {
     #[arg(long, value_name = "PATH", conflicts_with_all = ["write", "check"])]
     afrr: Option<PathBuf>,
 
+    /// Years in the published trajectory (M5 phase 2): the measured year
+    /// and the rest projected from its stress through the aging model,
+    /// seconds a year. With --write and no --market, `calibration/
+    /// m5-aging.json` is written when this is above one.
+    #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..=40))]
+    years: u32,
+
+    /// Tick the physics for every projected year instead of replaying the
+    /// stress year (hours per year). A research run.
+    #[arg(long, conflicts_with_all = ["write", "check"])]
+    resimulate: bool,
+
+    /// Write the trajectory to this path as JSON, whatever --years.
+    #[arg(long, value_name = "PATH")]
+    trajectory: Option<PathBuf>,
+
     /// Update the committed record and the generated block of CALIBRATION.md.
     #[arg(long)]
     write: bool,
@@ -132,6 +151,8 @@ struct Cli {
 impl Cli {
     fn spec(&self) -> RunSpec {
         RunSpec {
+            years: self.years,
+            resimulate: self.resimulate,
             seed: self.seed,
             start_unix_s: self.start,
             days: self.days,
@@ -205,6 +226,7 @@ fn main() -> ExitCode {
     let spec = cli.spec();
     let published = RunSpec {
         market: cli.market,
+        years: cli.years,
         ..RunSpec::default()
     };
     if (cli.write || cli.check) && spec != published {
@@ -216,22 +238,12 @@ fn main() -> ExitCode {
     }
 
     let started = Instant::now();
-    let (kpis, series, period_rows) = measure(spec, cli.quiet);
+    let (kpis, series, period_rows, trajectory) = measure(spec, cli.quiet);
     let elapsed = started.elapsed().as_secs_f64();
     print_report(&kpis, elapsed);
 
-    if let Some(path) = &cli.json {
-        if let Err(message) = write_file(path, &report::to_json(&kpis)) {
-            return fail(&message);
-        }
-        println!("wrote {}", path.display());
-    }
-
-    if let Some(path) = &cli.periods {
-        if let Err(message) = write_file(path, &periods::to_csv(&period_rows)) {
-            return fail(&message);
-        }
-        println!("wrote {} periods to {}", period_rows.len(), path.display());
+    if let Err(message) = write_side_outputs(&cli, &kpis, &trajectory, &period_rows) {
+        return fail(&message);
     }
 
     if cli.write && cli.market {
@@ -271,6 +283,11 @@ fn main() -> ExitCode {
     }
 
     if cli.check {
+        if cli.years > 1 {
+            if let Err(message) = check_trajectory(&trajectory, Path::new(TRAJECTORY_PATH)) {
+                return fail(&message);
+            }
+        }
         return match check(&kpis, &cli.record, &cli.calibration, &cli.series) {
             Ok(()) => {
                 println!("every gate holds and the published record is current");
@@ -281,6 +298,34 @@ fn main() -> ExitCode {
     }
 
     ExitCode::SUCCESS
+}
+
+/// The optional outputs a run writes beside the report: the JSON copy,
+/// the trajectory, the closed periods.
+fn write_side_outputs(
+    cli: &Cli,
+    kpis: &Kpis,
+    trajectory: &aging::AgingTrajectory,
+    period_rows: &[periods::ClosedPeriod],
+) -> Result<(), String> {
+    if let Some(path) = &cli.json {
+        write_file(path, &report::to_json(kpis))?;
+        println!("wrote {}", path.display());
+    }
+    if let Some(path) = &cli.trajectory {
+        write_file(path, &aging::to_json(trajectory))?;
+        println!("wrote {}", path.display());
+    }
+    if cli.write && !cli.market && cli.years > 1 {
+        let path = Path::new(TRAJECTORY_PATH);
+        write_file(path, &aging::to_json(trajectory))?;
+        println!("wrote {} ({} years)", path.display(), cli.years);
+    }
+    if let Some(path) = &cli.periods {
+        write_file(path, &periods::to_csv(period_rows))?;
+        println!("wrote {} periods to {}", period_rows.len(), path.display());
+    }
+    Ok(())
 }
 
 /// Run the plant, reporting progress on stderr so a redirected stdout stays
@@ -332,6 +377,20 @@ fn write_published(
     write_file(record, &report::to_json(kpis))?;
     write_file(series_path, &report::series_to_json(series))?;
     render_document(record, calibration)
+}
+
+/// The committed trajectory came from this run and says what this run
+/// says, year for year (M5 phase 2); the bands on it are phase 4's.
+fn check_trajectory(measured: &aging::AgingTrajectory, path: &Path) -> Result<(), String> {
+    let published = read_file(path).and_then(|text| aging::from_json(&text))?;
+    if published != *measured {
+        return Err(format!(
+            "{} is stale; regenerate with `cargo run --release -p bess-bench -- --write --years {}`",
+            path.display(),
+            measured.years.len()
+        ));
+    }
+    Ok(())
 }
 
 /// Render the generated block from whatever the record on disk says.
