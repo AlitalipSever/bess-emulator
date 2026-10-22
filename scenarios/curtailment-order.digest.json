@@ -1,7 +1,7 @@
 {
   "scenario": "curtailment-order",
   "content_hash": "0x2c238c0609a52da3",
-  "engine_version": "0.9.0",
+  "engine_version": "0.10.0",
   "seed": 7,
   "start_unix_s": 1784052000,
   "ticks": 3600,

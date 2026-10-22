@@ -1,7 +1,7 @@
 {
   "scenario": "fcr-block",
   "content_hash": "0x452d6d185e21dfb0",
-  "engine_version": "0.9.0",
+  "engine_version": "0.10.0",
   "seed": 7,
   "start_unix_s": 1783987200,
   "ticks": 15000,
