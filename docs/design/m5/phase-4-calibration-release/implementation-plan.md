@@ -15,6 +15,10 @@ Two PRs.
 Accept: the gate passes on the committed trajectory; a trajectory edited
 outside the band fails it locally.
 
+*As built (PR #61):* `check_aging` in `bands.rs` with its own
+refusal test; `--check --years N` runs the bands and the staleness
+check together; the CI calibration job passes `--years 10`.
+
 ## PR2: release v0.10.0
 
 - Version bump across the workspace and the wasm package; every record

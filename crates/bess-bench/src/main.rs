@@ -379,18 +379,25 @@ fn write_published(
     render_document(record, calibration)
 }
 
-/// The committed trajectory came from this run and says what this run
-/// says, year for year (M5 phase 2); the bands on it are phase 4's.
+/// The trajectory's gates (M5 phase 4), and the committed trajectory came
+/// from this run and says what this run says, year for year.
 fn check_trajectory(measured: &aging::AgingTrajectory, path: &Path) -> Result<(), String> {
-    let published = read_file(path).and_then(|text| aging::from_json(&text))?;
-    if published != *measured {
-        return Err(format!(
+    let mut failures = bands::check_aging(measured);
+    match read_file(path).and_then(|text| aging::from_json(&text)) {
+        Ok(published) if published != *measured => failures.push(format!(
             "{} is stale; regenerate with `cargo run --release -p bess-bench -- --write --years {}`",
             path.display(),
             measured.years.len()
-        ));
+        )),
+        Ok(_) => {}
+        Err(message) => failures.push(message),
     }
-    Ok(())
+    if failures.is_empty() {
+        println!("the projected decade holds its bands and its record is current");
+        Ok(())
+    } else {
+        Err(failures.join("\n"))
+    }
 }
 
 /// Render the generated block from whatever the record on disk says.

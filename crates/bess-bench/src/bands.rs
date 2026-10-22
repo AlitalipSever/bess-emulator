@@ -160,6 +160,54 @@ pub const MARKET_REVENUE_KEUR_PER_MW: Band = Band {
 };
 
 /// Check every gate. Returns one line per failure, empty when all hold.
+/// The field band on the projected trajectory (M5 phase 4): the mean
+/// rack state of health after five years of the clean year's stress.
+/// Derived in the M5 design README before the number: Figgener et al.
+/// 2024 (LFP home storage, 2.2 points a year at about 200 cycles, 0.7 per
+/// 100 cycles, a 2-point spread), the cycle share scaled to GW-01's 280
+/// cycles, five years of 1.5 to 3.5 points a year rounded outward.
+pub const AGING_SOH_YEAR5: Band = Band { lo: 0.82, hi: 0.93 };
+
+/// The laboratory band (M5 phase 4): cycles to 80 % for a rack at two
+/// cycles a day in a 25 °C container, Preger et al. 2020's range across
+/// LFP cells at 15 to 35 °C, 0.5C to 3C and three depth windows.
+pub const AGING_EFC_TO_80_PCT: Band = Band {
+    lo: 2500.0,
+    hi: 9000.0,
+};
+
+/// The trajectory's gates (M5 phase 4): the year-five mean against the
+/// field band, the 25 °C laboratory crossing against the laboratory band.
+pub fn check_aging(trajectory: &crate::aging::AgingTrajectory) -> Vec<String> {
+    let mut failures = Vec::new();
+    match trajectory.years.iter().find(|y| y.year == 5) {
+        Some(point) if !AGING_SOH_YEAR5.contains(point.soh_mean) => failures.push(format!(
+            "Mean state of health after five projected years: {:.4}, outside [{:.2}, {:.2}] \
+             (sourced, Figgener et al. 2024 scaled to the plant's cycles)",
+            point.soh_mean, AGING_SOH_YEAR5.lo, AGING_SOH_YEAR5.hi
+        )),
+        Some(_) => {}
+        None => failures.push("the trajectory has no year five; run with --years 5 or more".into()),
+    }
+    match trajectory
+        .lab
+        .iter()
+        .find(|l| (l.temp_c - 25.0).abs() < 1.0e-9)
+    {
+        Some(lab) => match lab.efc_to_80_pct {
+            Some(efc) if !AGING_EFC_TO_80_PCT.contains(efc) => failures.push(format!(
+                "Cycles to 80 % at two cycles a day and 25 °C: {efc:.0}, outside [{:.0}, {:.0}] \
+                 (sourced, Preger et al. 2020, LFP cells)",
+                AGING_EFC_TO_80_PCT.lo, AGING_EFC_TO_80_PCT.hi
+            )),
+            Some(_) => {}
+            None => failures.push("the 25 °C laboratory rack never reached 80 %".into()),
+        },
+        None => failures.push("the trajectory has no 25 °C laboratory rack".into()),
+    }
+    failures
+}
+
 pub fn check(kpis: &Kpis) -> Vec<String> {
     let mut failures = Vec::new();
     if kpis.run.market && !MARKET_REVENUE_KEUR_PER_MW.contains(kpis.revenue.total_keur_per_mw) {
@@ -303,5 +351,68 @@ mod tests {
             failures.iter().any(|line| line.contains("fiscal periods")),
             "a 24-hour autumn day passed: {failures:?}"
         );
+    }
+}
+
+#[cfg(test)]
+mod aging_tests {
+    use super::*;
+    use crate::aging::{AgingTrajectory, LabTrajectory, YearPoint};
+    use crate::run::RunRecord;
+
+    fn trajectory(soh_year5: f64, efc_to_80: Option<f64>) -> AgingTrajectory {
+        AgingTrajectory {
+            run: RunRecord {
+                site_id: "GW-01".into(),
+                engine_version: "0.9.0".into(),
+                seed: 7,
+                start_unix_s: 1_767_225_600,
+                days: 365,
+                ticks: 31_536_000,
+                market: false,
+            },
+            method: "projected".into(),
+            years: vec![YearPoint {
+                year: 5,
+                soh_mean: soh_year5,
+                soh_min: soh_year5 - 0.01,
+                soh_max: soh_year5 + 0.01,
+                efc_mean: 1400.0,
+                resistance_growth_mean: 0.1,
+            }],
+            lab: vec![LabTrajectory {
+                label: "two cycles a day at 25 °C".into(),
+                temp_c: 25.0,
+                efc_per_day: 2.0,
+                dod: 0.9,
+                c_rate: 0.5,
+                efc_to_80_pct: efc_to_80,
+                years_to_80_pct: efc_to_80.map(|e| e / 730.0),
+                soh_at_8000_efc: 0.6,
+            }],
+        }
+    }
+
+    /// A gate that does not fail is not a gate: each band refuses a value
+    /// outside it and accepts one inside.
+    #[test]
+    fn each_band_refuses_outside_and_accepts_inside() {
+        assert_eq!(
+            check_aging(&trajectory(0.89, Some(3200.0))),
+            Vec::<String>::new()
+        );
+        let too_fast = check_aging(&trajectory(0.80, Some(3200.0)));
+        assert_eq!(too_fast.len(), 1, "{too_fast:?}");
+        assert!(too_fast[0].starts_with("Mean state of health"));
+        let too_slow = check_aging(&trajectory(0.95, Some(3200.0)));
+        assert_eq!(too_slow.len(), 1);
+        let lab = check_aging(&trajectory(0.89, Some(12_000.0)));
+        assert_eq!(lab.len(), 1, "{lab:?}");
+        assert!(lab[0].starts_with("Cycles to 80 %"));
+        let never = check_aging(&trajectory(0.89, None));
+        assert_eq!(never.len(), 1);
+        let mut short = trajectory(0.89, Some(3200.0));
+        short.years.clear();
+        assert_eq!(check_aging(&short).len(), 1);
     }
 }

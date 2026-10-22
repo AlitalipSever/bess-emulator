@@ -160,6 +160,12 @@ Filled as PRs land.
   `bess_rack_efc_mean`; the scene's rack table and substation row; the
   case `aged-plant` (three hot days on a five-year-old plant) with its
   lesson held against the fresh plant.
+- **The trajectory is gated** (phase 4 PR1). `bess-bench --check --years
+  10` holds the projected decade to the two bands written before the
+  number (year-five mean health 0.82 to 0.93 from Figgener et al. 2024
+  scaled to the plant's cycles; 2,500 to 9,000 cycles to 80 % from
+  Preger et al. 2020) and to the committed trajectory; measured 0.891
+  and 3,214. CI runs it in the calibration job.
 
 ## Open questions
 
